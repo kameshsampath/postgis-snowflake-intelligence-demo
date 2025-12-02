@@ -11,14 +11,16 @@ ALTER SYSTEM SET max_replication_slots = 10;
 ALTER SYSTEM SET max_wal_senders = 10;
 
 -- Note: These settings require PostgreSQL restart to take effect
--- Docker Compose will handle restart automatically on container recreation
+-- Restart using your database management method (e.g., pg_ctl restart, service restart, etc.)
 
 -- Log completion
 DO $$
 BEGIN
     RAISE NOTICE 'WAL configuration updated for CDC support';
     RAISE NOTICE 'Settings will take effect after PostgreSQL restart';
-    RAISE NOTICE 'To restart: docker-compose restart postgres';
+    RAISE NOTICE 'Use your database restart method (e.g., pg_ctl restart)';
 END $$;
 
 
+-- Grant replication privileges to snowflake_admin user
+ALTER USER snowflake_admin WITH REPLICATION;

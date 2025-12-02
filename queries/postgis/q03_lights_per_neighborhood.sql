@@ -22,8 +22,8 @@ SELECT
         NULLIF(COUNT(l.light_id), 0), 
         2
     ) as faulty_percentage
-FROM neighborhoods n
-LEFT JOIN street_lights l ON ST_Within(l.location, n.boundary)
+FROM streetlights.neighborhoods n
+LEFT JOIN streetlights.street_lights l ON ST_Within(l.location, n.boundary)
 GROUP BY n.name
 ORDER BY faulty DESC, total_lights DESC;
 

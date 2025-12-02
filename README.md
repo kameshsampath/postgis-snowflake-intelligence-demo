@@ -4,8 +4,7 @@
 
 This demo showcases a production-ready architecture for managing smart city street lights, featuring PostGIS for operational spatial queries, Snowflake Openflow for CDC, and Snowflake ML for predictive maintenance.
 
-**Phase 1-5 Status**: ✅ Complete (PostGIS + Enrichment + Streamlit)
-**Future Phases**: Phase 6-10 (Snowflake Openflow CDC + Snowflake ML)
+**All Phases Complete**: ✅ PostGIS + Enrichment + Streamlit + Snowflake CDC + Cortex Search + ML + Testing + Documentation
 
 > **DISCLAIMER**: This project uses entirely fictitious data for demonstration and educational purposes. All company names, supplier names, contact information, and other data are computer-generated and do not represent real entities. Any resemblance to actual companies, organizations, or individuals is purely coincidental.
 
@@ -26,6 +25,7 @@ This demo showcases a production-ready architecture for managing smart city stre
 - Internet connection (for Docker image downloads)
 
 **Install uv (recommended):**
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 # or on macOS: brew install uv
@@ -52,12 +52,14 @@ docker logs streetlights-postgres
 ### 2. Load Data
 
 **Option A: Quick Start with Sample Data** (10 lights, 5 neighborhoods)
+
 ```bash
 # Load pre-generated sample data (fastest - no Python needed)
 docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/load_sample_data.sql
 ```
 
 **Option B: Generate Full Dataset** (5,000 lights, 50 neighborhoods)
+
 ```bash
 # Install Python dependencies with uv
 uv pip install -e .
@@ -97,6 +99,7 @@ cd queries/postgis && ./run_queries.sh
 ```
 
 **Dashboard Features:**
+
 - 🏘️ Neighborhood Overview - Interactive map with all layers
 - 🔴 Faulty Lights Analysis - With nearest suppliers
 - 🔮 Predictive Maintenance - ML predictions and timeline
@@ -268,6 +271,7 @@ More queries in `queries/postgis/`
 - **15,000 enrichment records** (3 seasons × 5,000 lights)
 
 Status distribution:
+
 - 85% operational
 - 10% maintenance required
 - 5% faulty
@@ -349,11 +353,11 @@ SELECT * FROM street_lights_enriched LIMIT 5;
 | Phase 4 | ✅ Complete | PostGIS Query Library |
 | Phase 5 | ✅ Complete | Enrichment Documentation + Validator |
 | **Phase 5.5** | **✅ Complete** | **Streamlit Dashboard** |
-| Phase 6 | 📋 Planned | Apache NiFi CDC Configuration |
-| Phase 7 | 📋 Planned | Snowflake Setup |
-| Phase 8 | 📋 Planned | Snowflake ML Forecasting |
-| Phase 9 | 📋 Planned | End-to-End Testing |
-| Phase 10 | 📋 Planned | Final Documentation |
+| **Phase 6** | **✅ Complete** | **Snowflake Openflow CDC** |
+| **Phase 7** | **✅ Complete** | **Snowflake Cortex Search** |
+| **Phase 8** | **✅ Complete** | **Snowflake ML Forecasting** |
+| **Phase 9** | **✅ Complete** | **End-to-End Testing** |
+| **Phase 10** | **✅ Complete** | **Final Documentation** |
 
 ---
 
@@ -382,6 +386,7 @@ docker-compose down -v
 ### Database Access
 
 **Option 1: Via Docker (no local psql needed)**
+
 ```bash
 # Interactive psql
 docker exec -it streetlights-postgres psql -U postgres -d streetlights
@@ -394,6 +399,7 @@ docker exec streetlights-postgres pg_dump -U postgres streetlights > backup.sql
 ```
 
 **Option 2: Direct Connection (requires local PostgreSQL client)**
+
 ```bash
 # Configure .env with connection details
 cp .env.example .env
@@ -518,4 +524,3 @@ For questions or demo requests, reach out via [your contact method]
 ---
 
 **Built with ❤️ for the spatial data community**
-

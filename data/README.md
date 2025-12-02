@@ -212,7 +212,7 @@ Expected line counts (including header):
 
 - **[SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md)** - Full schema documentation with SQL examples
 - **[DATA_DISCLAIMER.md](DATA_DISCLAIMER.md)** - Legal information about fictitious data
-- **[../init/README.md](../init/README.md)** - Database initialization and PostGIS functions
+- **[../init/README.md](../init/README.md)** - Database initialization and spatial functions
 - **[../README.md](../README.md)** - Project overview
 
 ---

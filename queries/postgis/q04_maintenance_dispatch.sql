@@ -29,9 +29,9 @@ SELECT
         2
     ) as distance_km,
     n.name as neighborhood
-FROM street_lights l
+FROM streetlights.street_lights l
 CROSS JOIN technician_location t
-LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+LEFT JOIN streetlights.neighborhoods n ON l.neighborhood_id = n.neighborhood_id
 WHERE l.status = 'faulty'
 ORDER BY l.location::geography <-> t.location
 LIMIT 5;
@@ -39,7 +39,7 @@ LIMIT 5;
 -- Alternative using simpler syntax (slightly less efficient):
 -- SELECT light_id, status,
 --        ST_Distance(location::geography, ST_MakePoint(77.5946, 12.9716)::geography) / 1000 as distance_km
--- FROM street_lights
+-- FROM streetlights.street_lights
 -- WHERE status = 'faulty'
 -- ORDER BY distance_km
 -- LIMIT 5;

@@ -1,0 +1,29 @@
+# Project AI Rules
+
+## CRITICAL RULES
+
+- Don't hallucinate or make up information. If you are not sure, say so.
+
+## Documentation Standards
+
+- All summary and user reference documentation files should be created in the `work/` directory
+- Only create documentation files when explicitly necessary or requested by the user
+- Do not proactively generate documentation unless there is a clear need
+
+## SQL Standards
+
+### Snowflake SQL
+
+- All Snowflake SQL code must follow Snowflake SQL syntax and best practices
+- Reference and index official Snowflake documentation at <https://docs.snowflake.com>
+- When answering Snowflake SQL questions or writing Snowflake queries, consult Snowflake-specific documentation
+- Snowflake SQL files are located in the `snowflake/` directory
+
+### PostgreSQL/PostGIS SQL
+
+- All PostgreSQL SQL code must adhere to PostgreSQL SQL syntax standards
+- Reference and index official PostgreSQL documentation at <https://www.postgresql.org/docs/>
+- For PostGIS-specific functionality, reference PostGIS documentation
+- PostgreSQL initialization scripts are in the `init/` directory
+- PostgreSQL queries are in the `queries/postgis/` directory
+- When writing or modifying PostgreSQL SQL, ensure compatibility with standard PostgreSQL syntax

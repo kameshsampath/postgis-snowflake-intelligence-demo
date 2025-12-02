@@ -42,3 +42,7 @@ nifi_logs/
 .pytest_cache/
 .coverage
 htmlcov/
+pat.sh
+DEMO_SCRIPT.md
+QUICKSTART.md
+test/

@@ -1,9 +1,12 @@
 -- Create enriched views that JOIN base tables with enrichment data
 -- These views provide combined data for analytics and CDC capture
 
+-- Set search path to streetlights schema
+SET search_path TO streetlights, public;
+
 -- View: street_lights_enriched
 -- Combines lights with all enrichment data (current season)
-CREATE OR REPLACE VIEW street_lights_enriched AS
+CREATE OR REPLACE VIEW streetlights.street_lights_enriched AS
 SELECT 
     -- Base light data
     l.light_id,
@@ -52,13 +55,13 @@ SELECT
         ELSE 'LOW'
     END as maintenance_urgency
 
-FROM street_lights l
+FROM streetlights.street_lights l
 
 -- Join neighborhood
-LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+LEFT JOIN streetlights.neighborhoods n ON l.neighborhood_id = n.neighborhood_id
 
 -- Join weather enrichment for current season
-LEFT JOIN weather_enrichment w ON l.light_id = w.light_id 
+LEFT JOIN streetlights.weather_enrichment w ON l.light_id = w.light_id 
     AND w.season = CASE 
         WHEN EXTRACT(MONTH FROM CURRENT_DATE) BETWEEN 6 AND 9 THEN 'monsoon'
         WHEN EXTRACT(MONTH FROM CURRENT_DATE) BETWEEN 3 AND 5 THEN 'summer'
@@ -66,16 +69,16 @@ LEFT JOIN weather_enrichment w ON l.light_id = w.light_id
     END
 
 -- Join demographics enrichment
-LEFT JOIN demographics_enrichment d ON n.neighborhood_id = d.neighborhood_id
+LEFT JOIN streetlights.demographics_enrichment d ON n.neighborhood_id = d.neighborhood_id
 
 -- Join power grid enrichment
-LEFT JOIN power_grid_enrichment p ON l.light_id = p.light_id;
+LEFT JOIN streetlights.power_grid_enrichment p ON l.light_id = p.light_id;
 
-COMMENT ON VIEW street_lights_enriched IS 'Enriched view combining lights with all contextual data (current season)';
+COMMENT ON VIEW streetlights.street_lights_enriched IS 'Enriched view combining lights with all contextual data (current season)';
 
 -- View: maintenance_requests_enriched
 -- Combines maintenance requests with spatial and enrichment context
-CREATE OR REPLACE VIEW maintenance_requests_enriched AS
+CREATE OR REPLACE VIEW streetlights.maintenance_requests_enriched AS
 SELECT 
     -- Maintenance request data
     m.request_id,
@@ -114,26 +117,26 @@ SELECT
         ELSE 'CLOSED'
     END as status
 
-FROM maintenance_requests m
+FROM streetlights.maintenance_requests m
 
 -- Join light
-INNER JOIN street_lights l ON m.light_id = l.light_id
+INNER JOIN streetlights.street_lights l ON m.light_id = l.light_id
 
 -- Join neighborhood
-LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+LEFT JOIN streetlights.neighborhoods n ON l.neighborhood_id = n.neighborhood_id
 
 -- Join weather enrichment for season at time of report
-LEFT JOIN weather_enrichment w ON l.light_id = w.light_id 
+LEFT JOIN streetlights.weather_enrichment w ON l.light_id = w.light_id 
     AND w.season = CASE 
         WHEN EXTRACT(MONTH FROM m.reported_at) BETWEEN 6 AND 9 THEN 'monsoon'
         WHEN EXTRACT(MONTH FROM m.reported_at) BETWEEN 3 AND 5 THEN 'summer'
         ELSE 'winter'
     END;
 
-COMMENT ON VIEW maintenance_requests_enriched IS 'Maintenance requests with spatial and enrichment context';
+COMMENT ON VIEW streetlights.maintenance_requests_enriched IS 'Maintenance requests with spatial and enrichment context';
 
 -- Create function to get nearest supplier for a light
-CREATE OR REPLACE FUNCTION get_nearest_supplier(p_light_id TEXT)
+CREATE OR REPLACE FUNCTION streetlights.get_nearest_supplier(p_light_id TEXT)
 RETURNS TABLE (
     supplier_id TEXT,
     supplier_name TEXT,
@@ -151,15 +154,15 @@ BEGIN
         s.contact_phone,
         s.avg_response_hours,
         s.specialization
-    FROM suppliers s
-    CROSS JOIN street_lights l
+    FROM streetlights.suppliers s
+    CROSS JOIN streetlights.street_lights l
     WHERE l.light_id = p_light_id
     ORDER BY s.location <-> l.location
     LIMIT 1;
 END;
 $$ LANGUAGE plpgsql;
 
-COMMENT ON FUNCTION get_nearest_supplier(TEXT) IS 'Find nearest supplier to a specific light using KNN operator';
+COMMENT ON FUNCTION streetlights.get_nearest_supplier(TEXT) IS 'Find nearest supplier to a specific light using KNN operator';
 
 -- Log completion
 DO $$

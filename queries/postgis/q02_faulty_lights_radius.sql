@@ -24,7 +24,7 @@ SELECT
         )::numeric, 
         2
     ) as distance_meters
-FROM street_lights
+FROM streetlights.street_lights
 WHERE status = 'faulty'
   AND ST_DWithin(
         location::geography,

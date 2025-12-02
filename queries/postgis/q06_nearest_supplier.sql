@@ -12,7 +12,7 @@
 -- - Can filter by supplier specialization if needed
 
 -- Find nearest supplier for a specific light
-SELECT * FROM get_nearest_supplier('SL-0001');
+SELECT * FROM streetlights.get_nearest_supplier('SL-0001');
 
 -- Find nearest supplier for all faulty lights
 SELECT 
@@ -29,11 +29,11 @@ SELECT
     ) as distance_km,
     s.avg_response_hours,
     s.contact_phone
-FROM street_lights l
-LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+FROM streetlights.street_lights l
+LEFT JOIN streetlights.neighborhoods n ON l.neighborhood_id = n.neighborhood_id
 CROSS JOIN LATERAL (
     SELECT supplier_id, name, specialization, location, avg_response_hours, contact_phone
-    FROM suppliers
+    FROM streetlights.suppliers
     ORDER BY location <-> l.location
     LIMIT 1
 ) s
@@ -47,8 +47,8 @@ ORDER BY distance_km;
 --     s.specialization,
 --     ST_Distance(s.location::geography, l.location::geography) / 1000 as distance_km,
 --     s.service_radius_km
--- FROM street_lights l
--- CROSS JOIN suppliers s
+-- FROM streetlights.street_lights l
+-- CROSS JOIN streetlights.suppliers s
 -- WHERE l.status = 'faulty'
 --   AND ST_Distance(s.location::geography, l.location::geography) / 1000 <= s.service_radius_km
 -- ORDER BY l.light_id, distance_km;

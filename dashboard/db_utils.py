@@ -68,7 +68,7 @@ def get_all_lights():
         neighborhood_name, wattage,
         season, failure_risk_score, predicted_failure_date,
         maintenance_urgency, age_months, days_since_maintenance
-    FROM street_lights_enriched
+    FROM streetlights.street_lights_enriched
     ORDER BY light_id
     """
     return execute_query(query)
@@ -81,7 +81,7 @@ def get_neighborhoods():
     SELECT 
         neighborhood_id, name, population,
         ST_AsGeoJSON(boundary) as boundary_geojson
-    FROM neighborhoods
+    FROM streetlights.neighborhoods
     ORDER BY name
     """
     return execute_query(query)
@@ -97,7 +97,7 @@ def get_suppliers():
         ST_Y(location) as latitude,
         service_radius_km, avg_response_hours,
         specialization, contact_phone
-    FROM suppliers
+    FROM streetlights.suppliers
     ORDER BY name
     """
     return execute_query(query)
@@ -121,11 +121,11 @@ def get_faulty_lights_with_supplier():
         ) as distance_km,
         s.avg_response_hours,
         s.contact_phone
-    FROM street_lights l
-    LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+    FROM streetlights.street_lights l
+    LEFT JOIN streetlights.neighborhoods n ON l.neighborhood_id = n.neighborhood_id
     CROSS JOIN LATERAL (
         SELECT supplier_id, name, specialization, location, avg_response_hours, contact_phone
-        FROM suppliers
+        FROM streetlights.suppliers
         ORDER BY location <-> l.location
         LIMIT 1
     ) s
@@ -147,7 +147,7 @@ def get_predicted_failures(days_ahead=30):
         maintenance_urgency,
         age_months, days_since_maintenance,
         season
-    FROM street_lights_enriched
+    FROM streetlights.street_lights_enriched
     WHERE predicted_failure_date IS NOT NULL
       AND predicted_failure_date <= CURRENT_DATE + INTERVAL '%s days'
       AND status != 'faulty'
@@ -171,8 +171,8 @@ def get_neighborhood_stats():
             NULLIF(COUNT(l.light_id), 0), 
             2
         ) as faulty_percentage
-    FROM neighborhoods n
-    LEFT JOIN street_lights l ON ST_Within(l.location, n.boundary)
+    FROM streetlights.neighborhoods n
+    LEFT JOIN streetlights.street_lights l ON ST_Within(l.location, n.boundary)
     GROUP BY n.name
     ORDER BY faulty DESC, total_lights DESC
     """
@@ -187,7 +187,7 @@ def get_seasonal_patterns():
         season,
         COUNT(*) as request_count,
         AVG(resolution_hours) as avg_resolution_hours
-    FROM maintenance_requests_enriched
+    FROM streetlights.maintenance_requests_enriched
     WHERE resolved_at IS NOT NULL
     GROUP BY season
     ORDER BY CASE season
@@ -207,8 +207,8 @@ def get_supplier_coverage():
         SELECT 
             l.light_id,
             MIN(ST_Distance(s.location::geography, l.location::geography) / 1000) as nearest_supplier_km
-        FROM street_lights l
-        CROSS JOIN suppliers s
+        FROM streetlights.street_lights l
+        CROSS JOIN streetlights.suppliers s
         GROUP BY l.light_id
     )
     SELECT 
@@ -231,7 +231,7 @@ def get_neighborhood_supplier_distance():
             neighborhood_id,
             name,
             ST_Centroid(boundary) as center
-        FROM neighborhoods
+        FROM streetlights.neighborhoods
     ),
     neighborhood_supplier_dist AS (
         SELECT 
@@ -244,7 +244,7 @@ def get_neighborhood_supplier_distance():
                 2
             ) as distance_km
         FROM neighborhood_centers nc
-        CROSS JOIN suppliers s
+        CROSS JOIN streetlights.suppliers s
         GROUP BY nc.neighborhood_id, nc.name, s.name, s.specialization
     )
     SELECT 
@@ -254,8 +254,8 @@ def get_neighborhood_supplier_distance():
         nsd.distance_km,
         COUNT(l.light_id) as lights_in_neighborhood
     FROM neighborhood_supplier_dist nsd
-    JOIN neighborhoods n ON nsd.neighborhood_id = n.neighborhood_id
-    LEFT JOIN street_lights l ON ST_Within(l.location, n.boundary)
+    JOIN streetlights.neighborhoods n ON nsd.neighborhood_id = n.neighborhood_id
+    LEFT JOIN streetlights.street_lights l ON ST_Within(l.location, n.boundary)
     WHERE nsd.distance_km = (
         SELECT MIN(distance_km)
         FROM neighborhood_supplier_dist
@@ -282,7 +282,7 @@ def simulate_light_failure(light_id=None):
         if light_id is None:
             # Pick random operational light
             cursor.execute("""
-                SELECT light_id FROM street_lights 
+                SELECT light_id FROM streetlights.street_lights 
                 WHERE status = 'operational' 
                 ORDER BY RANDOM() 
                 LIMIT 1
@@ -295,7 +295,7 @@ def simulate_light_failure(light_id=None):
         
         # Update light to faulty
         cursor.execute("""
-            UPDATE street_lights
+            UPDATE streetlights.street_lights
             SET status = 'faulty', last_maintenance = NOW()
             WHERE light_id = %s
         """, (light_id,))
@@ -324,10 +324,10 @@ def trigger_scheduled_maintenance(count=5):
         cursor = conn.cursor()
         
         cursor.execute("""
-            UPDATE street_lights
+            UPDATE streetlights.street_lights
             SET status = 'maintenance_required'
             WHERE light_id IN (
-                SELECT light_id FROM street_lights 
+                SELECT light_id FROM streetlights.street_lights 
                 WHERE status = 'operational' 
                 ORDER BY RANDOM() 
                 LIMIT %s

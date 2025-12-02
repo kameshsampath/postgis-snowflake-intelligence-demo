@@ -19,16 +19,16 @@ SELECT
     l.installation_date,
     l.last_maintenance,
     n.name as neighborhood
-FROM street_lights l
-JOIN neighborhoods n ON ST_Within(l.location, n.boundary)
+FROM streetlights.street_lights l
+JOIN streetlights.neighborhoods n ON ST_Within(l.location, n.boundary)
 WHERE n.name = 'Koramangala'
 ORDER BY l.light_id;
 
 -- Execution plan (uncomment to see query optimization):
 -- EXPLAIN ANALYZE
 -- SELECT COUNT(*) 
--- FROM street_lights l
--- JOIN neighborhoods n ON ST_Within(l.location, n.boundary)
+-- FROM streetlights.street_lights l
+-- JOIN streetlights.neighborhoods n ON ST_Within(l.location, n.boundary)
 -- WHERE n.name = 'Koramangala';
 
 -- Expected result: ~100 lights (will vary based on data generation)

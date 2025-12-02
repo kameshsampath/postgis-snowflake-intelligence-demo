@@ -32,7 +32,7 @@ SELECT
     grid_zone,
     avg_load_percent,
     outage_history_count
-FROM street_lights_enriched
+FROM streetlights.street_lights_enriched
 WHERE status = 'operational'  -- Still operational but at risk
   AND failure_risk_score > 0.7  -- High risk
 ORDER BY failure_risk_score DESC, predicted_failure_date ASC
@@ -42,13 +42,13 @@ LIMIT 10;
 -- SELECT light_id, status, neighborhood_name,
 --        season, failure_risk_score, 
 --        grid_zone, avg_load_percent
--- FROM street_lights_enriched
+-- FROM streetlights.street_lights_enriched
 -- WHERE status = 'faulty'
 -- ORDER BY outage_history_count DESC;
 
 -- Alternative: Group by maintenance urgency
 -- SELECT maintenance_urgency, COUNT(*) as count
--- FROM street_lights_enriched
+-- FROM streetlights.street_lights_enriched
 -- WHERE status != 'faulty'
 -- GROUP BY maintenance_urgency
 -- ORDER BY CASE maintenance_urgency
