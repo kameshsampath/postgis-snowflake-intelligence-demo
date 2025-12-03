@@ -13,7 +13,6 @@ ENV/
 .venv
 
 # Data files (generated)
-data/*.csv
 data/*.geojson
 
 # Docker volumes
@@ -34,6 +33,8 @@ nifi_logs/
 
 # Streamlit
 .streamlit/
+!.streamlit/config.toml
+!.streamlit/secrets.toml.example
 
 # Jupyter
 .ipynb_checkpoints/

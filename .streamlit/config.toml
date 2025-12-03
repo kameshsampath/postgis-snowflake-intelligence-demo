@@ -1,0 +1,15 @@
+[server]
+headless = true
+runOnSave = true 
+
+[client]
+showErrorDetails = "none"
+
+[theme]
+# Anthropic-inspired light theme
+base = "light"
+primaryColor = "#D97757"          # Anthropic coral/terracotta
+backgroundColor = "#FFFFFF"        # Clean white background
+secondaryBackgroundColor = "#F7F7F5"  # Warm off-white for sidebars/cards
+textColor = "#1A1A1A"             # Dark text for readability
+font = "sans serif"
