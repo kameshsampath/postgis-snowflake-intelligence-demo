@@ -1,13 +1,21 @@
 """
 Database utility functions for Streamlit Dashboard
-Handles PostgreSQL/PostGIS connections and queries
+Handles PostgreSQL/PostGIS and Snowflake connections and queries
 """
 
 import psycopg2
 import pandas as pd
 import streamlit as st
 from sqlalchemy import create_engine
-from config import POSTGIS_CONFIG
+from config import POSTGIS_CONFIG, SNOWFLAKE_CONFIG, SNOWFLAKE_ENABLED
+
+# Import Snowflake connector if available
+try:
+    import snowflake.connector as sf_connector
+    SNOWFLAKE_AVAILABLE = True
+except ImportError:
+    sf_connector = None
+    SNOWFLAKE_AVAILABLE = False
 
 
 @st.cache_resource
@@ -345,5 +353,398 @@ def trigger_scheduled_maintenance(count=5):
         
     except Exception as e:
         return False, f"Failed to trigger maintenance: {e}"
+
+
+# =============================================================================
+# SNOWFLAKE CONNECTION AND QUERIES
+# =============================================================================
+
+@st.cache_resource
+def get_snowflake_connection():
+    """
+    Get Snowflake connection for ML prediction queries (cached)
+    Returns snowflake.connector connection object
+    """
+    if not SNOWFLAKE_AVAILABLE:
+        st.warning("Snowflake connector not installed. Install with: pip install snowflake-connector-python")
+        return None
+    
+    if not SNOWFLAKE_ENABLED:
+        return None
+    
+    try:
+        conn = sf_connector.connect(
+            account=SNOWFLAKE_CONFIG["account"],
+            user=SNOWFLAKE_CONFIG["user"],
+            password=SNOWFLAKE_CONFIG["password"],
+            warehouse=SNOWFLAKE_CONFIG["warehouse"],
+            database=SNOWFLAKE_CONFIG["database"],
+            schema=SNOWFLAKE_CONFIG["schema"]
+        )
+        return conn
+    except Exception as e:
+        st.error(f"Snowflake connection failed: {e}")
+        return None
+
+
+def execute_snowflake_query(query, params=None):
+    """
+    Execute SQL query on Snowflake and return DataFrame
+    """
+    conn = get_snowflake_connection()
+    if conn is None:
+        return pd.DataFrame()
+    
+    try:
+        cursor = conn.cursor()
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        
+        # Fetch all results
+        columns = [desc[0] for desc in cursor.description]
+        data = cursor.fetchall()
+        cursor.close()
+        
+        return pd.DataFrame(data, columns=columns)
+    except Exception as e:
+        st.error(f"Snowflake query failed: {e}")
+        return pd.DataFrame()
+
+
+def is_snowflake_available():
+    """Check if Snowflake connection is available and working"""
+    return SNOWFLAKE_AVAILABLE and SNOWFLAKE_ENABLED and get_snowflake_connection() is not None
+
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_snowflake_forecast_30d():
+    """
+    Get 30-day bulb failure forecast from Snowflake ML model
+    """
+    query = """
+    SELECT 
+        FORECAST_DATE,
+        PREDICTED_FAILURES,
+        LOWER_BOUND,
+        UPPER_BOUND,
+        SEASON,
+        DAY_OF_WEEK,
+        PRIORITY,
+        STAFFING_RECOMMENDATION,
+        BULBS_TO_STOCK
+    FROM BULB_REPLACEMENT_SCHEDULE
+    ORDER BY FORECAST_DATE
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_forecast_90d():
+    """
+    Get 90-day bulb failure forecast from Snowflake ML model
+    """
+    query = """
+    SELECT 
+        FORECAST_DATE,
+        PREDICTED_FAILURES,
+        LOWER_BOUND,
+        UPPER_BOUND,
+        WEEK_START,
+        MONTH_START,
+        SEASON
+    FROM BULB_FAILURE_FORECAST_90D
+    ORDER BY FORECAST_DATE
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_weekly_forecast():
+    """
+    Get weekly forecast summary from Snowflake
+    """
+    query = """
+    SELECT 
+        WEEK_START,
+        TOTAL_PREDICTED_FAILURES,
+        TOTAL_LOWER_BOUND,
+        TOTAL_UPPER_BOUND,
+        AVG_DAILY_FAILURES,
+        PEAK_DAY_FAILURES,
+        PRIMARY_SEASON
+    FROM WEEKLY_BULB_FORECAST
+    ORDER BY WEEK_START
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_forecast_metrics():
+    """
+    Get key forecast metrics for dashboard cards from Snowflake
+    """
+    query = """
+    SELECT 
+        'FORECAST_NEXT_7_DAYS' AS metric,
+        SUM(PREDICTED_FAILURES)::VARCHAR AS value,
+        'Expected bulb failures in next 7 days' AS description
+    FROM BULB_REPLACEMENT_SCHEDULE
+    WHERE FORECAST_DATE <= DATEADD('day', 7, CURRENT_DATE())
+    
+    UNION ALL
+    
+    SELECT 'FORECAST_NEXT_30_DAYS', SUM(PREDICTED_FAILURES)::VARCHAR, 'Expected bulb failures in next 30 days'
+    FROM BULB_REPLACEMENT_SCHEDULE
+    
+    UNION ALL
+    
+    SELECT 'HIGH_PRIORITY_DAYS', COUNT(*)::VARCHAR, 'Days requiring extra staffing (next 30 days)'
+    FROM BULB_REPLACEMENT_SCHEDULE WHERE PRIORITY = 'HIGH'
+    
+    UNION ALL
+    
+    SELECT 'BULBS_TO_ORDER_30D', SUM(BULBS_TO_STOCK)::VARCHAR, 'Recommended bulb inventory for next 30 days'
+    FROM BULB_REPLACEMENT_SCHEDULE
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_seasonal_forecast():
+    """
+    Get seasonal risk comparison from Snowflake
+    """
+    query = """
+    SELECT 
+        SEASON,
+        COUNT(*) AS FORECAST_DAYS,
+        SUM(PREDICTED_FAILURES) AS TOTAL_FAILURES,
+        ROUND(AVG(PREDICTED_FAILURES), 2) AS AVG_DAILY_FAILURES,
+        MAX(PREDICTED_FAILURES) AS PEAK_DAY_FAILURES,
+        CASE 
+            WHEN AVG(PREDICTED_FAILURES) > 3 THEN 'HIGH RISK'
+            WHEN AVG(PREDICTED_FAILURES) > 2 THEN 'MEDIUM RISK'
+            ELSE 'LOW RISK'
+        END AS SEASONAL_RISK
+    FROM BULB_FAILURE_FORECAST_90D
+    GROUP BY SEASON
+    ORDER BY AVG_DAILY_FAILURES DESC
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_monthly_budget():
+    """
+    Get monthly budget forecast from Snowflake
+    """
+    query = """
+    WITH forecast_costs AS (
+        SELECT 
+            DATE_TRUNC('month', FORECAST_DATE)::DATE AS MONTH,
+            SUM(PREDICTED_FAILURES) AS PREDICTED_FAILURES,
+            CEIL(SUM(UPPER_BOUND) * 1.2) AS BULBS_NEEDED
+        FROM BULB_FAILURE_FORECAST_90D
+        GROUP BY DATE_TRUNC('month', FORECAST_DATE)
+    )
+    SELECT 
+        MONTH,
+        PREDICTED_FAILURES AS JOBS,
+        BULBS_NEEDED,
+        BULBS_NEEDED * 1000 AS MATERIAL_COST_INR,
+        PREDICTED_FAILURES * 500 AS LABOR_COST_INR,
+        PREDICTED_FAILURES * 150 AS TRANSPORT_COST_INR,
+        PREDICTED_FAILURES * 100 AS OVERHEAD_COST_INR,
+        (BULBS_NEEDED * 1000) + 
+        (PREDICTED_FAILURES * 500) + 
+        (PREDICTED_FAILURES * 150) + 
+        (PREDICTED_FAILURES * 100) AS TOTAL_MONTHLY_BUDGET_INR
+    FROM forecast_costs
+    ORDER BY MONTH
+    """
+    return execute_snowflake_query(query)
+
+
+# =============================================================================
+# ALL ISSUES FORECAST QUERIES (Total Maintenance Workload)
+# =============================================================================
+
+@st.cache_data(ttl=300)
+def get_snowflake_all_issues_forecast_30d():
+    """
+    Get 30-day all issues (total maintenance) forecast from Snowflake ML model
+    """
+    query = """
+    SELECT 
+        FORECAST_DATE,
+        PREDICTED_REQUESTS,
+        LOWER_BOUND,
+        UPPER_BOUND,
+        SEASON,
+        DAY_OF_WEEK,
+        WORKLOAD_LEVEL,
+        STAFFING_RECOMMENDATION,
+        BULBS_TO_STOCK,
+        WIRING_KITS_TO_STOCK,
+        POLES_TO_STOCK,
+        UNCERTAINTY_RANGE
+    FROM MAINTENANCE_SCHEDULE
+    ORDER BY FORECAST_DATE
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_all_issues_forecast_90d():
+    """
+    Get 90-day all issues forecast from Snowflake ML model
+    """
+    query = """
+    SELECT 
+        FORECAST_DATE,
+        PREDICTED_REQUESTS,
+        LOWER_BOUND,
+        UPPER_BOUND,
+        WEEK_START,
+        MONTH_START,
+        SEASON
+    FROM ALL_ISSUES_FORECAST_90D
+    ORDER BY FORECAST_DATE
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_weekly_all_issues_forecast():
+    """
+    Get weekly all issues forecast summary from Snowflake
+    """
+    query = """
+    SELECT 
+        WEEK_START,
+        TOTAL_PREDICTED_REQUESTS,
+        TOTAL_LOWER_BOUND,
+        TOTAL_UPPER_BOUND,
+        AVG_DAILY_REQUESTS,
+        PEAK_DAY_REQUESTS,
+        PRIMARY_SEASON
+    FROM WEEKLY_MAINTENANCE_FORECAST
+    ORDER BY WEEK_START
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_forecast_comparison():
+    """
+    Get comparison between bulb failures and all issues forecast
+    """
+    query = """
+    SELECT 
+        FORECAST_DATE,
+        BULB_FAILURES,
+        ALL_ISSUES,
+        OTHER_ISSUES,
+        BULB_PERCENTAGE,
+        SEASON,
+        OVERALL_WORKLOAD
+    FROM FORECAST_COMPARISON
+    ORDER BY FORECAST_DATE
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_all_issues_metrics():
+    """
+    Get key all issues forecast metrics for dashboard cards
+    """
+    query = """
+    SELECT 
+        'TOTAL_REQUESTS_NEXT_7_DAYS' AS metric,
+        SUM(PREDICTED_REQUESTS)::VARCHAR AS value,
+        'Expected total maintenance requests in next 7 days' AS description
+    FROM MAINTENANCE_SCHEDULE
+    WHERE FORECAST_DATE <= DATEADD('day', 7, CURRENT_DATE())
+    
+    UNION ALL
+    
+    SELECT 'TOTAL_REQUESTS_NEXT_30_DAYS', SUM(PREDICTED_REQUESTS)::VARCHAR, 'Expected total maintenance requests in next 30 days'
+    FROM MAINTENANCE_SCHEDULE
+    
+    UNION ALL
+    
+    SELECT 'HIGH_WORKLOAD_DAYS', COUNT(*)::VARCHAR, 'Days with high workload (next 30 days)'
+    FROM MAINTENANCE_SCHEDULE WHERE WORKLOAD_LEVEL = 'HIGH'
+    
+    UNION ALL
+    
+    SELECT 'TOTAL_PARTS_NEEDED', 
+           (SUM(BULBS_TO_STOCK) + SUM(WIRING_KITS_TO_STOCK) + SUM(POLES_TO_STOCK))::VARCHAR, 
+           'Total parts to stock for next 30 days'
+    FROM MAINTENANCE_SCHEDULE
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_issue_type_distribution():
+    """
+    Get historical issue type distribution from Snowflake
+    """
+    query = """
+    SELECT 
+        ISSUE_TYPE,
+        TOTAL_COUNT,
+        PERCENTAGE,
+        FIRST_REPORTED,
+        LAST_REPORTED,
+        UNIQUE_LIGHTS
+    FROM ML_ISSUE_TYPE_DISTRIBUTION
+    ORDER BY TOTAL_COUNT DESC
+    """
+    return execute_snowflake_query(query)
+
+
+@st.cache_data(ttl=300)
+def get_snowflake_all_issues_monthly_budget():
+    """
+    Get monthly budget forecast for all issues from Snowflake
+    """
+    query = """
+    WITH forecast_costs AS (
+        SELECT 
+            DATE_TRUNC('month', FORECAST_DATE)::DATE AS MONTH,
+            SUM(PREDICTED_REQUESTS) AS PREDICTED_REQUESTS,
+            CEIL(SUM(BULBS_TO_STOCK)) AS BULBS_NEEDED,
+            CEIL(SUM(WIRING_KITS_TO_STOCK)) AS WIRING_KITS_NEEDED,
+            CEIL(SUM(POLES_TO_STOCK)) AS POLES_NEEDED
+        FROM MAINTENANCE_SCHEDULE
+        GROUP BY DATE_TRUNC('month', FORECAST_DATE)
+    )
+    SELECT 
+        MONTH,
+        PREDICTED_REQUESTS AS TOTAL_JOBS,
+        BULBS_NEEDED,
+        WIRING_KITS_NEEDED,
+        POLES_NEEDED,
+        -- Cost breakdown (INR)
+        BULBS_NEEDED * 1000 AS BULB_COST_INR,
+        WIRING_KITS_NEEDED * 2000 AS WIRING_COST_INR,
+        POLES_NEEDED * 15000 AS POLE_COST_INR,
+        PREDICTED_REQUESTS * 500 AS LABOR_COST_INR,
+        PREDICTED_REQUESTS * 150 AS TRANSPORT_COST_INR,
+        -- Total
+        (BULBS_NEEDED * 1000) + 
+        (WIRING_KITS_NEEDED * 2000) + 
+        (POLES_NEEDED * 15000) + 
+        (PREDICTED_REQUESTS * 500) + 
+        (PREDICTED_REQUESTS * 150) AS TOTAL_MONTHLY_BUDGET_INR
+    FROM forecast_costs
+    ORDER BY MONTH
+    """
+    return execute_snowflake_query(query)
 
 

@@ -1,7 +1,9 @@
 -- =====================================================
--- Phase 8: ML Training Data - Bulb Failure Forecasting
+-- Phase 8: ML Training Data - Maintenance Forecasting
 -- =====================================================
--- Prepares time-series data for predicting future bulb failures
+-- Prepares time-series data for predicting:
+--   1. Bulb failures (most common issue type)
+--   2. All maintenance issues (total workload)
 
 -- Prerequisites:
 -- 1. Phase 6 complete (CDC data in Snowflake)
@@ -124,7 +126,7 @@ FROM ML_BULB_FAILURE_TIMESERIES
 ORDER BY FAILURE_DATE;
 
 -- =====================================================
--- STEP 4: Feature Statistics
+-- STEP 4: Feature Statistics (Bulb Failures)
 -- =====================================================
 
 CREATE OR REPLACE VIEW ML_FEATURE_STATS AS
@@ -147,9 +149,128 @@ SELECT
 FROM ML_BULB_FAILURE_WEEKLY;
 
 -- =====================================================
+-- STEP 5: ALL ISSUES Time Series (Total Maintenance)
+-- =====================================================
+-- Aggregates ALL maintenance requests for total workload forecasting
+
+CREATE OR REPLACE VIEW ML_ALL_ISSUES_TIMESERIES AS
+WITH daily_all_issues AS (
+    SELECT 
+        DATE_TRUNC('day', mr."reported_at")::DATE AS REQUEST_DATE,
+        COUNT(*) AS TOTAL_REQUESTS,
+        COUNT(DISTINCT mr."light_id") AS UNIQUE_LIGHTS_AFFECTED,
+        COUNT(CASE WHEN mr."issue_type" = 'bulb_failure' THEN 1 END) AS BULB_FAILURES,
+        COUNT(CASE WHEN mr."issue_type" = 'wiring' THEN 1 END) AS WIRING_ISSUES,
+        COUNT(CASE WHEN mr."issue_type" = 'pole_damage' THEN 1 END) AS POLE_DAMAGE,
+        COUNT(CASE WHEN mr."issue_type" = 'power_supply' THEN 1 END) AS POWER_SUPPLY,
+        COUNT(CASE WHEN mr."issue_type" = 'sensor_failure' THEN 1 END) AS SENSOR_FAILURES
+    FROM STREETLIGHTS_DEMO."streetlights"."maintenance_requests" mr
+    WHERE mr."reported_at" IS NOT NULL
+    GROUP BY DATE_TRUNC('day', mr."reported_at")::DATE
+),
+date_spine AS (
+    SELECT DATEADD('day', SEQ4(), 
+        (SELECT MIN(REQUEST_DATE) FROM daily_all_issues)
+    )::DATE AS CALENDAR_DATE
+    FROM TABLE(GENERATOR(ROWCOUNT => 400))
+    WHERE CALENDAR_DATE <= (SELECT MAX(REQUEST_DATE) FROM daily_all_issues)
+)
+SELECT 
+    ds.CALENDAR_DATE AS REQUEST_DATE,
+    COALESCE(dai.TOTAL_REQUESTS, 0) AS TOTAL_REQUESTS,
+    COALESCE(dai.UNIQUE_LIGHTS_AFFECTED, 0) AS UNIQUE_LIGHTS_AFFECTED,
+    COALESCE(dai.BULB_FAILURES, 0) AS BULB_FAILURES,
+    COALESCE(dai.WIRING_ISSUES, 0) AS WIRING_ISSUES,
+    COALESCE(dai.POLE_DAMAGE, 0) AS POLE_DAMAGE,
+    COALESCE(dai.POWER_SUPPLY, 0) AS POWER_SUPPLY,
+    COALESCE(dai.SENSOR_FAILURES, 0) AS SENSOR_FAILURES,
+    
+    -- Temporal features
+    DAYOFWEEK(ds.CALENDAR_DATE) AS DAY_OF_WEEK,
+    DAYOFMONTH(ds.CALENDAR_DATE) AS DAY_OF_MONTH,
+    MONTH(ds.CALENDAR_DATE) AS MONTH,
+    QUARTER(ds.CALENDAR_DATE) AS QUARTER,
+    
+    -- Season indicator (Bengaluru climate)
+    CASE 
+        WHEN MONTH(ds.CALENDAR_DATE) BETWEEN 6 AND 9 THEN 'monsoon'
+        WHEN MONTH(ds.CALENDAR_DATE) BETWEEN 3 AND 5 THEN 'summer'
+        ELSE 'winter'
+    END AS SEASON,
+    
+    -- Weekend flag
+    CASE WHEN DAYOFWEEK(ds.CALENDAR_DATE) IN (0, 6) THEN 1 ELSE 0 END AS IS_WEEKEND
+    
+FROM date_spine ds
+LEFT JOIN daily_all_issues dai ON ds.CALENDAR_DATE = dai.REQUEST_DATE
+ORDER BY ds.CALENDAR_DATE;
+
+-- =====================================================
+-- STEP 6: Weekly Aggregated All Issues
+-- =====================================================
+
+CREATE OR REPLACE VIEW ML_ALL_ISSUES_WEEKLY AS
+SELECT 
+    DATE_TRUNC('week', REQUEST_DATE)::DATE AS WEEK_START,
+    SUM(TOTAL_REQUESTS) AS WEEKLY_REQUESTS,
+    SUM(UNIQUE_LIGHTS_AFFECTED) AS WEEKLY_LIGHTS_AFFECTED,
+    SUM(BULB_FAILURES) AS WEEKLY_BULB_FAILURES,
+    SUM(WIRING_ISSUES) AS WEEKLY_WIRING_ISSUES,
+    SUM(POLE_DAMAGE) AS WEEKLY_POLE_DAMAGE,
+    SUM(POWER_SUPPLY) AS WEEKLY_POWER_SUPPLY,
+    SUM(SENSOR_FAILURES) AS WEEKLY_SENSOR_FAILURES,
+    AVG(TOTAL_REQUESTS) AS AVG_DAILY_REQUESTS,
+    MAX(TOTAL_REQUESTS) AS MAX_DAILY_REQUESTS,
+    MIN(SEASON) AS SEASON
+FROM ML_ALL_ISSUES_TIMESERIES
+GROUP BY DATE_TRUNC('week', REQUEST_DATE)::DATE
+ORDER BY WEEK_START;
+
+-- =====================================================
+-- STEP 7: Issue Type Distribution Summary
+-- =====================================================
+
+CREATE OR REPLACE VIEW ML_ISSUE_TYPE_DISTRIBUTION AS
+SELECT 
+    mr."issue_type" AS ISSUE_TYPE,
+    COUNT(*) AS TOTAL_COUNT,
+    ROUND(COUNT(*) * 100.0 / SUM(COUNT(*)) OVER(), 2) AS PERCENTAGE,
+    MIN(mr."reported_at")::DATE AS FIRST_REPORTED,
+    MAX(mr."reported_at")::DATE AS LAST_REPORTED,
+    COUNT(DISTINCT mr."light_id") AS UNIQUE_LIGHTS
+FROM STREETLIGHTS_DEMO."streetlights"."maintenance_requests" mr
+WHERE mr."reported_at" IS NOT NULL
+GROUP BY mr."issue_type"
+ORDER BY TOTAL_COUNT DESC;
+
+-- =====================================================
+-- STEP 8: Feature Statistics (All Issues)
+-- =====================================================
+
+CREATE OR REPLACE VIEW ML_ALL_ISSUES_STATS AS
+SELECT 
+    'ALL_ISSUES_DAILY' AS FEATURE,
+    MIN(TOTAL_REQUESTS) AS MIN_VAL,
+    MAX(TOTAL_REQUESTS) AS MAX_VAL,
+    ROUND(AVG(TOTAL_REQUESTS), 2) AS AVG_VAL,
+    ROUND(STDDEV(TOTAL_REQUESTS), 2) AS STDDEV_VAL,
+    COUNT(*) AS SAMPLE_COUNT
+FROM ML_ALL_ISSUES_TIMESERIES
+UNION ALL
+SELECT 
+    'ALL_ISSUES_WEEKLY',
+    MIN(WEEKLY_REQUESTS),
+    MAX(WEEKLY_REQUESTS),
+    ROUND(AVG(WEEKLY_REQUESTS), 2),
+    ROUND(STDDEV(WEEKLY_REQUESTS), 2),
+    COUNT(*)
+FROM ML_ALL_ISSUES_WEEKLY;
+
+-- =====================================================
 -- VERIFICATION
 -- =====================================================
 
+-- Verifying Bulb Failure Time Series
 SELECT 'Bulb Failure Time Series' AS dataset, 
        COUNT(*) AS total_days,
        SUM(BULB_FAILURE_COUNT) AS total_failures,
@@ -163,18 +284,48 @@ SELECT 'Weekly Bulb Failures' AS dataset,
        ROUND(AVG(WEEKLY_FAILURES), 2) AS avg_weekly_failures
 FROM ML_BULB_FAILURE_WEEKLY;
 
--- Seasonal distribution
+-- Verifying All Issues Time Series
+SELECT 'All Issues Time Series' AS dataset, 
+       COUNT(*) AS total_days,
+       SUM(TOTAL_REQUESTS) AS total_requests,
+       MIN(REQUEST_DATE) AS start_date,
+       MAX(REQUEST_DATE) AS end_date
+FROM ML_ALL_ISSUES_TIMESERIES;
+
+SELECT 'Weekly All Issues' AS dataset,
+       COUNT(*) AS total_weeks,
+       SUM(WEEKLY_REQUESTS) AS total_requests,
+       ROUND(AVG(WEEKLY_REQUESTS), 2) AS avg_weekly_requests
+FROM ML_ALL_ISSUES_WEEKLY;
+
+-- Seasonal distribution (Bulb Failures)
+-- Seasonal Distribution - Bulb Failures
 SELECT SEASON, COUNT(*) AS days, SUM(BULB_FAILURE_COUNT) AS total_failures,
        ROUND(AVG(BULB_FAILURE_COUNT), 2) AS avg_daily_failures
 FROM ML_BULB_FAILURE_TIMESERIES
 GROUP BY SEASON ORDER BY avg_daily_failures DESC;
 
+-- Seasonal distribution (All Issues)
+-- Seasonal Distribution - All Issues
+SELECT SEASON, COUNT(*) AS days, SUM(TOTAL_REQUESTS) AS total_requests,
+       ROUND(AVG(TOTAL_REQUESTS), 2) AS avg_daily_requests
+FROM ML_ALL_ISSUES_TIMESERIES
+GROUP BY SEASON ORDER BY avg_daily_requests DESC;
+
+-- Issue Type Distribution
+-- Issue Type Distribution
+SELECT * FROM ML_ISSUE_TYPE_DISTRIBUTION;
+
+-- Feature Statistics
 SELECT * FROM ML_FEATURE_STATS;
+SELECT * FROM ML_ALL_ISSUES_STATS;
 
 -- =====================================================
 -- CHECKLIST
 -- =====================================================
 -- [ ] ML_BULB_FAILURE_TIMESERIES view created
+-- [ ] ML_ALL_ISSUES_TIMESERIES view created
+-- [ ] ML_ISSUE_TYPE_DISTRIBUTION view created
 -- [ ] At least 30 days of history
 -- [ ] Seasonal patterns visible
 -- [ ] Ready for 09_ml_model_training.sql

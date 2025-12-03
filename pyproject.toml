@@ -19,12 +19,12 @@ dependencies = [
     "plotly>=5.17.0",
     "matplotlib>=3.7.0",
     "sqlalchemy>=2.0.0",
+    "snowflake-connector-python>=3.6.0",
 ]
 
 [project.scripts]
 dashboard = "dashboard.run:main"
 generate-all-data = "data.generate_all:main"
-generate-sample = "data.generate_sample:main"
 generate-neighborhoods = "data.generate_neighborhoods:main"
 generate-lights = "data.generate_street_lights:main"
 generate-maintenance = "data.generate_maintenance_history:main"

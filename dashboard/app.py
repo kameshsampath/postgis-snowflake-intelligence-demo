@@ -32,7 +32,17 @@ from db_utils import (
     get_faulty_lights_with_supplier, get_predicted_failures,
     get_neighborhood_stats, get_seasonal_patterns,
     get_supplier_coverage, get_neighborhood_supplier_distance,
-    simulate_light_failure, trigger_scheduled_maintenance
+    simulate_light_failure, trigger_scheduled_maintenance,
+    # Snowflake ML functions - Bulb Failures
+    is_snowflake_available, get_snowflake_forecast_30d,
+    get_snowflake_forecast_90d, get_snowflake_weekly_forecast,
+    get_snowflake_forecast_metrics, get_snowflake_seasonal_forecast,
+    get_snowflake_monthly_budget,
+    # Snowflake ML functions - All Issues
+    get_snowflake_all_issues_forecast_30d, get_snowflake_all_issues_forecast_90d,
+    get_snowflake_weekly_all_issues_forecast, get_snowflake_forecast_comparison,
+    get_snowflake_all_issues_metrics, get_snowflake_issue_type_distribution,
+    get_snowflake_all_issues_monthly_budget
 )
 from map_utils import (
     create_base_map, add_neighborhoods_layer, add_lights_layer,
@@ -248,115 +258,573 @@ elif page == "🔴 Faulty Lights Analysis":
 
 elif page == "🔮 Predictive Maintenance":
     st.title("🔮 Predictive Maintenance")
-    st.markdown("Lights predicted to fail in the near future")
     
-    # Controls
-    col1, col2 = st.columns(2)
+    # Check if Snowflake is available
+    snowflake_connected = is_snowflake_available()
     
-    with col1:
-        days_ahead = st.slider("Prediction Window (days)", 7, 90, 30, 7)
-    
-    with col2:
-        urgency_filter = st.multiselect(
-            "Filter by Urgency",
-            options=["CRITICAL", "HIGH", "MEDIUM", "LOW"],
-            default=["CRITICAL", "HIGH", "MEDIUM"]
-        )
-    
-    # Load data
-    with st.spinner("Loading predictions..."):
-        predictions_df = get_predicted_failures(days_ahead)
-        neighborhoods_df = get_neighborhoods()
-    
-    # Filter by urgency
-    if urgency_filter:
-        predictions_df = predictions_df[predictions_df['maintenance_urgency'].isin(urgency_filter)]
-    
-    # Metrics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    if not predictions_df.empty:
-        critical = len(predictions_df[predictions_df['maintenance_urgency'] == 'CRITICAL'])
-        high = len(predictions_df[predictions_df['maintenance_urgency'] == 'HIGH'])
-        medium = len(predictions_df[predictions_df['maintenance_urgency'] == 'MEDIUM'])
-        low = len(predictions_df[predictions_df['maintenance_urgency'] == 'LOW'])
-        
-        col1.metric("Critical", f"{critical:,}", delta_color="inverse")
-        col2.metric("High", f"{high:,}", delta_color="inverse")
-        col3.metric("Medium", f"{medium:,}")
-        col4.metric("Low", f"{low:,}")
-    else:
-        col1.info("No predictions in selected window")
-    
-    st.markdown("---")
-    
-    # Map
-    st.markdown("### Predicted Failures Map")
-    m = create_base_map()
-    m = add_neighborhoods_layer(m, neighborhoods_df)
-    m = add_predicted_failures_layer(m, predictions_df)
-    m = add_fullscreen_control(m)
-    
-    # Legend for urgency
-    legend_items = [
-        ("CRITICAL (0-7 days)", URGENCY_COLORS['CRITICAL']),
-        ("HIGH (7-30 days)", URGENCY_COLORS['HIGH']),
-        ("MEDIUM (30-60 days)", URGENCY_COLORS['MEDIUM']),
-        ("LOW (60+ days)", URGENCY_COLORS['LOW'])
-    ]
-    m.get_root().html.add_child(folium.Element(create_legend_html(legend_items)))
-    
-    st_folium(m, width=1400, height=500)
-    
-    # Table
-    st.markdown("### Prediction Details")
-    if not predictions_df.empty:
-        display_df = predictions_df[[
-            'light_id', 'neighborhood_name', 'predicted_failure_date',
-            'maintenance_urgency', 'failure_risk_score', 'season'
-        ]].copy()
-        
-        # Color code urgency
-        def highlight_urgency(row):
-            color = URGENCY_COLORS.get(row['maintenance_urgency'], '#ffffff')
-            return [f'background-color: {color}; color: white' if col == 'maintenance_urgency' 
-                   else '' for col in row.index]
-        
-        st.dataframe(
-            display_df.style.apply(highlight_urgency, axis=1),
-            width='stretch'
+    if snowflake_connected:
+        # Forecast Type Selector
+        forecast_type = st.radio(
+            "Select Forecast Type",
+            options=["💡 Bulb Failures", "🔧 All Maintenance Issues"],
+            horizontal=True,
+            help="Choose between bulb failure predictions or total maintenance workload"
         )
         
-        # Timeline chart
-        st.markdown("### Predicted Failures Timeline")
-        timeline_df = predictions_df.groupby('predicted_failure_date').size().reset_index(name='count')
-        timeline_df['predicted_failure_date'] = pd.to_datetime(timeline_df['predicted_failure_date'])
+        if forecast_type == "💡 Bulb Failures":
+            st.markdown("**Bulb Failure Forecasts** powered by Snowflake ML")
+            st.caption("Predictions for bulb replacement needs based on historical failure patterns")
+        else:
+            st.markdown("**All Maintenance Issues Forecast** powered by Snowflake ML")
+            st.caption("Total maintenance workload predictions including all issue types")
         
-        fig = px.line(timeline_df, x='predicted_failure_date', y='count',
-                     title=f"Predicted Failures Over Next {days_ahead} Days",
-                     labels={'count': 'Number of Predicted Failures', 
-                            'predicted_failure_date': 'Date'})
-        st.plotly_chart(fig, width='stretch')
+        # Load Snowflake forecast data based on selection
+        with st.spinner("Loading Snowflake ML predictions..."):
+            if forecast_type == "💡 Bulb Failures":
+                forecast_30d = get_snowflake_forecast_30d()
+                forecast_metrics = get_snowflake_forecast_metrics()
+            else:
+                forecast_30d = get_snowflake_all_issues_forecast_30d()
+                forecast_metrics = get_snowflake_all_issues_metrics()
+            neighborhoods_df = get_neighborhoods()
         
-        # Seasonal patterns
-        st.markdown("### Seasonal Failure Patterns")
-        seasonal_df = get_seasonal_patterns()
+        # Check if ML model has been trained (forecast tables are empty)
+        if forecast_30d.empty and forecast_metrics.empty:
+            st.warning("⚠️ **ML Model Not Trained Yet**")
+            st.info(
+                """
+                The Snowflake ML forecast models need to be trained before predictions are available.
+                
+                **Please run the following SQL scripts in Snowflake (in order):**
+                
+                1. `snowflake/08_ml_training_view.sql` - Creates the training data views
+                2. `snowflake/09_ml_model_training.sql` - Trains BOTH forecast models and generates predictions
+                
+                **Quick steps:**
+                ```sql
+                -- Connect to Snowflake and run:
+                USE DATABASE STREETLIGHTS_DEMO;
+                USE SCHEMA ANALYTICS;
+                
+                -- Then execute the scripts above
+                ```
+                
+                After training completes (2-5 minutes for both models), refresh this page to see the predictions.
+                """
+            )
+            st.markdown("---")
+            st.markdown("### 📚 What the ML Models Do")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("""
+                **💡 Bulb Failure Model:**
+                - Predicts daily bulb replacements needed
+                - Optimizes bulb inventory
+                - ~50% of all maintenance requests
+                """)
+            with col2:
+                st.markdown("""
+                **🔧 All Issues Model:**
+                - Predicts total maintenance workload
+                - Includes: bulb, wiring, pole, power, sensors
+                - Full staffing and budget planning
+                """)
+            st.stop()  # Stop rendering the rest of the page
+        
+        # Key Metrics from Snowflake
+        st.markdown("### 📊 Forecast Summary")
+        col1, col2, col3, col4 = st.columns(4)
+        
+        if not forecast_metrics.empty:
+            metrics_dict = dict(zip(forecast_metrics['METRIC'], forecast_metrics['VALUE']))
+            
+            if forecast_type == "💡 Bulb Failures":
+                col1.metric(
+                    "Next 7 Days",
+                    f"{metrics_dict.get('FORECAST_NEXT_7_DAYS', 'N/A')} failures",
+                    help="Expected bulb failures in the next 7 days"
+                )
+                col2.metric(
+                    "Next 30 Days",
+                    f"{metrics_dict.get('FORECAST_NEXT_30_DAYS', 'N/A')} failures",
+                    help="Expected bulb failures in the next 30 days"
+                )
+                col3.metric(
+                    "High Priority Days",
+                    f"{metrics_dict.get('HIGH_PRIORITY_DAYS', 'N/A')} days",
+                    help="Days requiring extra staffing in next 30 days"
+                )
+                col4.metric(
+                    "Bulbs to Order",
+                    f"{metrics_dict.get('BULBS_TO_ORDER_30D', 'N/A')} units",
+                    help="Recommended inventory for next 30 days"
+                )
+            else:
+                col1.metric(
+                    "Next 7 Days",
+                    f"{metrics_dict.get('TOTAL_REQUESTS_NEXT_7_DAYS', 'N/A')} requests",
+                    help="Expected total maintenance requests in the next 7 days"
+                )
+                col2.metric(
+                    "Next 30 Days",
+                    f"{metrics_dict.get('TOTAL_REQUESTS_NEXT_30_DAYS', 'N/A')} requests",
+                    help="Expected total maintenance requests in the next 30 days"
+                )
+                col3.metric(
+                    "High Workload Days",
+                    f"{metrics_dict.get('HIGH_WORKLOAD_DAYS', 'N/A')} days",
+                    help="Days with high workload in next 30 days"
+                )
+                col4.metric(
+                    "Parts to Stock",
+                    f"{metrics_dict.get('TOTAL_PARTS_NEEDED', 'N/A')} units",
+                    help="Total parts (bulbs + wiring + poles) for next 30 days"
+                )
+        
+        st.markdown("---")
+        
+        # Controls for filtering
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if forecast_type == "💡 Bulb Failures":
+                priority_filter = st.multiselect(
+                    "Filter by Priority",
+                    options=["HIGH", "MEDIUM", "LOW"],
+                    default=["HIGH", "MEDIUM"]
+                )
+            else:
+                priority_filter = st.multiselect(
+                    "Filter by Workload Level",
+                    options=["HIGH", "MEDIUM", "LOW"],
+                    default=["HIGH", "MEDIUM"]
+                )
+        
+        with col2:
+            view_mode = st.radio(
+                "View Mode",
+                options=["Daily Schedule", "Weekly Summary", "Monthly Budget", "Issue Breakdown"] if forecast_type == "🔧 All Maintenance Issues" else ["Daily Schedule", "Weekly Summary", "Monthly Budget"],
+                horizontal=True
+            )
+        
+        # Filter data based on forecast type
+        filtered_forecast = forecast_30d.copy()
+        if priority_filter and not filtered_forecast.empty:
+            if forecast_type == "💡 Bulb Failures":
+                filtered_forecast = filtered_forecast[filtered_forecast['PRIORITY'].isin(priority_filter)]
+            else:
+                filtered_forecast = filtered_forecast[filtered_forecast['WORKLOAD_LEVEL'].isin(priority_filter)]
+        
+        st.markdown("---")
+        
+        if view_mode == "Daily Schedule":
+            if forecast_type == "💡 Bulb Failures":
+                st.markdown("### 📅 Daily Bulb Replacement Schedule")
+            else:
+                st.markdown("### 📅 Daily Maintenance Schedule")
+            
+            if not filtered_forecast.empty:
+                # Convert columns to proper format based on forecast type
+                if forecast_type == "💡 Bulb Failures":
+                    display_df = filtered_forecast[[
+                        'FORECAST_DATE', 'PREDICTED_FAILURES', 'LOWER_BOUND', 'UPPER_BOUND',
+                        'PRIORITY', 'STAFFING_RECOMMENDATION', 'BULBS_TO_STOCK', 'SEASON'
+                    ]].copy()
+                    priority_col = 'PRIORITY'
+                else:
+                    display_df = filtered_forecast[[
+                        'FORECAST_DATE', 'PREDICTED_REQUESTS', 'LOWER_BOUND', 'UPPER_BOUND',
+                        'WORKLOAD_LEVEL', 'STAFFING_RECOMMENDATION', 'BULBS_TO_STOCK', 
+                        'WIRING_KITS_TO_STOCK', 'POLES_TO_STOCK', 'SEASON'
+                    ]].copy()
+                    priority_col = 'WORKLOAD_LEVEL'
+                
+                # Color code by priority/workload
+                def highlight_priority(row):
+                    priority_colors = {
+                        'HIGH': '#e74c3c',
+                        'MEDIUM': '#f39c12',
+                        'LOW': '#27ae60'
+                    }
+                    color = priority_colors.get(row[priority_col], '#ffffff')
+                    return [f'background-color: {color}; color: white' if col == priority_col 
+                           else '' for col in row.index]
+                
+                st.dataframe(
+                    display_df.style.apply(highlight_priority, axis=1),
+                    width='stretch',
+                    height=400
+                )
+                
+                # Timeline chart
+                if forecast_type == "💡 Bulb Failures":
+                    st.markdown("### 📈 Bulb Failure Forecast Timeline")
+                    y_col = 'PREDICTED_FAILURES'
+                    y_label = 'Predicted Failures'
+                    chart_title = "Snowflake ML Forecast: Daily Bulb Failures"
+                else:
+                    st.markdown("### 📈 Total Maintenance Forecast Timeline")
+                    y_col = 'PREDICTED_REQUESTS'
+                    y_label = 'Predicted Requests'
+                    chart_title = "Snowflake ML Forecast: Daily Maintenance Requests"
+                
+                fig = go.Figure()
+                
+                # Add prediction line
+                fig.add_trace(go.Scatter(
+                    x=filtered_forecast['FORECAST_DATE'],
+                    y=filtered_forecast[y_col],
+                    mode='lines+markers',
+                    name=y_label,
+                    line=dict(color='#3498db', width=2),
+                    marker=dict(size=8)
+                ))
+                
+                # Add confidence interval
+                fig.add_trace(go.Scatter(
+                    x=pd.concat([filtered_forecast['FORECAST_DATE'], filtered_forecast['FORECAST_DATE'][::-1]]),
+                    y=pd.concat([filtered_forecast['UPPER_BOUND'], filtered_forecast['LOWER_BOUND'][::-1]]),
+                    fill='toself',
+                    fillcolor='rgba(52, 152, 219, 0.2)',
+                    line=dict(color='rgba(255,255,255,0)'),
+                    name='95% Confidence Interval'
+                ))
+                
+                fig.update_layout(
+                    title=chart_title,
+                    xaxis_title="Date",
+                    yaxis_title="Number of Failures",
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No forecast data available for selected filters")
+        
+        elif view_mode == "Weekly Summary":
+            st.markdown("### 📊 Weekly Forecast Summary")
+            
+            if forecast_type == "💡 Bulb Failures":
+                weekly_df = get_snowflake_weekly_forecast()
+                y_col = 'TOTAL_PREDICTED_FAILURES'
+                y_label = 'Total Failures'
+            else:
+                weekly_df = get_snowflake_weekly_all_issues_forecast()
+                y_col = 'TOTAL_PREDICTED_REQUESTS'
+                y_label = 'Total Requests'
+            
+            if not weekly_df.empty:
+                # Weekly table
+                st.dataframe(
+                    weekly_df.style.background_gradient(subset=[y_col], cmap='YlOrRd'),
+                    width='stretch'
+                )
+                
+                # Weekly bar chart
+                fig = px.bar(
+                    weekly_df,
+                    x='WEEK_START',
+                    y=y_col,
+                    color='PRIMARY_SEASON',
+                    title=f"Weekly Predicted {y_label}",
+                    labels={
+                        y_col: y_label,
+                        'WEEK_START': 'Week Starting',
+                        'PRIMARY_SEASON': 'Season'
+                    }
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No weekly forecast data available")
+        
+        elif view_mode == "Monthly Budget":
+            st.markdown("### 💰 Monthly Budget Forecast")
+            
+            if forecast_type == "💡 Bulb Failures":
+                budget_df = get_snowflake_monthly_budget()
+                
+                if not budget_df.empty:
+                    st.dataframe(
+                        budget_df.style.format({
+                            'MATERIAL_COST_INR': '₹{:,.0f}',
+                            'LABOR_COST_INR': '₹{:,.0f}',
+                            'TRANSPORT_COST_INR': '₹{:,.0f}',
+                            'OVERHEAD_COST_INR': '₹{:,.0f}',
+                            'TOTAL_MONTHLY_BUDGET_INR': '₹{:,.0f}'
+                        }),
+                        width='stretch'
+                    )
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        fig = px.bar(
+                            budget_df,
+                            x='MONTH',
+                            y='TOTAL_MONTHLY_BUDGET_INR',
+                            title="Monthly Budget Forecast (INR)",
+                            labels={'TOTAL_MONTHLY_BUDGET_INR': 'Total Budget (₹)', 'MONTH': 'Month'}
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    with col2:
+                        total_costs = {
+                            'Material': budget_df['MATERIAL_COST_INR'].sum(),
+                            'Labor': budget_df['LABOR_COST_INR'].sum(),
+                            'Transport': budget_df['TRANSPORT_COST_INR'].sum(),
+                            'Overhead': budget_df['OVERHEAD_COST_INR'].sum()
+                        }
+                        fig = px.pie(
+                            values=list(total_costs.values()),
+                            names=list(total_costs.keys()),
+                            title="Cost Distribution (Bulb Failures Only)"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No budget forecast data available")
+            else:
+                budget_df = get_snowflake_all_issues_monthly_budget()
+                
+                if not budget_df.empty:
+                    st.dataframe(
+                        budget_df.style.format({
+                            'BULB_COST_INR': '₹{:,.0f}',
+                            'WIRING_COST_INR': '₹{:,.0f}',
+                            'POLE_COST_INR': '₹{:,.0f}',
+                            'LABOR_COST_INR': '₹{:,.0f}',
+                            'TRANSPORT_COST_INR': '₹{:,.0f}',
+                            'TOTAL_MONTHLY_BUDGET_INR': '₹{:,.0f}'
+                        }),
+                        width='stretch'
+                    )
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        fig = px.bar(
+                            budget_df,
+                            x='MONTH',
+                            y='TOTAL_MONTHLY_BUDGET_INR',
+                            title="Total Monthly Budget (All Issues)",
+                            labels={'TOTAL_MONTHLY_BUDGET_INR': 'Total Budget (₹)', 'MONTH': 'Month'}
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    
+                    with col2:
+                        total_costs = {
+                            'Bulbs': budget_df['BULB_COST_INR'].sum(),
+                            'Wiring Kits': budget_df['WIRING_COST_INR'].sum(),
+                            'Poles': budget_df['POLE_COST_INR'].sum(),
+                            'Labor': budget_df['LABOR_COST_INR'].sum(),
+                            'Transport': budget_df['TRANSPORT_COST_INR'].sum()
+                        }
+                        fig = px.pie(
+                            values=list(total_costs.values()),
+                            names=list(total_costs.keys()),
+                            title="Cost Distribution (All Issues)"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("No budget forecast data available")
+        
+        elif view_mode == "Issue Breakdown":
+            st.markdown("### 📊 Issue Type Breakdown")
+            
+            # Show forecast comparison
+            comparison_df = get_snowflake_forecast_comparison()
+            issue_dist_df = get_snowflake_issue_type_distribution()
+            
+            if not comparison_df.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.markdown("#### Forecast Comparison (30 Days)")
+                    fig = go.Figure()
+                    
+                    fig.add_trace(go.Bar(
+                        x=comparison_df['FORECAST_DATE'],
+                        y=comparison_df['BULB_FAILURES'],
+                        name='Bulb Failures',
+                        marker_color='#3498db'
+                    ))
+                    fig.add_trace(go.Bar(
+                        x=comparison_df['FORECAST_DATE'],
+                        y=comparison_df['OTHER_ISSUES'],
+                        name='Other Issues',
+                        marker_color='#e74c3c'
+                    ))
+                    
+                    fig.update_layout(
+                        barmode='stack',
+                        title="Daily Breakdown: Bulb Failures vs Other Issues",
+                        xaxis_title="Date",
+                        yaxis_title="Number of Issues"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    st.markdown("#### Historical Issue Distribution")
+                    if not issue_dist_df.empty:
+                        fig = px.pie(
+                            issue_dist_df,
+                            values='TOTAL_COUNT',
+                            names='ISSUE_TYPE',
+                            title="Issue Types (Historical Data)"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # Issue type details table
+                st.markdown("#### Issue Type Details")
+                if not issue_dist_df.empty:
+                    st.dataframe(
+                        issue_dist_df.style.background_gradient(subset=['PERCENTAGE'], cmap='Blues'),
+                        width='stretch'
+                    )
+            else:
+                st.info("No comparison data available")
+        
+        # Seasonal Analysis
+        st.markdown("---")
+        st.markdown("### 🌦️ Seasonal Risk Analysis")
+        
+        seasonal_df = get_snowflake_seasonal_forecast()
         if not seasonal_df.empty:
             col1, col2 = st.columns(2)
             
             with col1:
-                fig = px.bar(seasonal_df, x='season', y='request_count',
-                           title="Historical Maintenance Requests by Season",
-                           labels={'request_count': 'Number of Requests', 'season': 'Season'})
-                st.plotly_chart(fig, width='stretch')
+                fig = px.bar(
+                    seasonal_df,
+                    x='SEASON',
+                    y='AVG_DAILY_FAILURES',
+                    color='SEASONAL_RISK',
+                    color_discrete_map={
+                        'HIGH RISK': '#e74c3c',
+                        'MEDIUM RISK': '#f39c12',
+                        'LOW RISK': '#27ae60'
+                    },
+                    title="Average Daily Failures by Season",
+                    labels={'AVG_DAILY_FAILURES': 'Avg Daily Failures', 'SEASON': 'Season'}
+                )
+                st.plotly_chart(fig, use_container_width=True)
             
             with col2:
-                fig = px.bar(seasonal_df, x='season', y='avg_resolution_hours',
-                           title="Average Resolution Time by Season",
-                           labels={'avg_resolution_hours': 'Hours', 'season': 'Season'})
-                st.plotly_chart(fig, width='stretch')
+                st.dataframe(
+                    seasonal_df[['SEASON', 'TOTAL_FAILURES', 'AVG_DAILY_FAILURES', 'PEAK_DAY_FAILURES', 'SEASONAL_RISK']],
+                    width='stretch'
+                )
+    
     else:
-        st.info("No predictions match the selected criteria")
+        # Fallback to PostGIS predictions when Snowflake is not available
+        st.warning("⚠️ Snowflake ML not connected. Showing local PostGIS-based predictions.")
+        st.caption("Configure Snowflake credentials in `.streamlit/secrets.toml` for ML-powered forecasts")
+        st.markdown("Lights predicted to fail in the near future")
+        
+        # Controls
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            days_ahead = st.slider("Prediction Window (days)", 7, 90, 30, 7)
+        
+        with col2:
+            urgency_filter = st.multiselect(
+                "Filter by Urgency",
+                options=["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+                default=["CRITICAL", "HIGH", "MEDIUM"]
+            )
+        
+        # Load data
+        with st.spinner("Loading predictions..."):
+            predictions_df = get_predicted_failures(days_ahead)
+            neighborhoods_df = get_neighborhoods()
+        
+        # Filter by urgency
+        if urgency_filter:
+            predictions_df = predictions_df[predictions_df['maintenance_urgency'].isin(urgency_filter)]
+        
+        # Metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        if not predictions_df.empty:
+            critical = len(predictions_df[predictions_df['maintenance_urgency'] == 'CRITICAL'])
+            high = len(predictions_df[predictions_df['maintenance_urgency'] == 'HIGH'])
+            medium = len(predictions_df[predictions_df['maintenance_urgency'] == 'MEDIUM'])
+            low = len(predictions_df[predictions_df['maintenance_urgency'] == 'LOW'])
+            
+            col1.metric("Critical", f"{critical:,}", delta_color="inverse")
+            col2.metric("High", f"{high:,}", delta_color="inverse")
+            col3.metric("Medium", f"{medium:,}")
+            col4.metric("Low", f"{low:,}")
+        else:
+            col1.info("No predictions in selected window")
+        
+        st.markdown("---")
+        
+        # Map
+        st.markdown("### Predicted Failures Map")
+        m = create_base_map()
+        m = add_neighborhoods_layer(m, neighborhoods_df)
+        m = add_predicted_failures_layer(m, predictions_df)
+        m = add_fullscreen_control(m)
+        
+        # Legend for urgency
+        legend_items = [
+            ("CRITICAL (0-7 days)", URGENCY_COLORS['CRITICAL']),
+            ("HIGH (7-30 days)", URGENCY_COLORS['HIGH']),
+            ("MEDIUM (30-60 days)", URGENCY_COLORS['MEDIUM']),
+            ("LOW (60+ days)", URGENCY_COLORS['LOW'])
+        ]
+        m.get_root().html.add_child(folium.Element(create_legend_html(legend_items)))
+        
+        st_folium(m, width=1400, height=500)
+        
+        # Table
+        st.markdown("### Prediction Details")
+        if not predictions_df.empty:
+            display_df = predictions_df[[
+                'light_id', 'neighborhood_name', 'predicted_failure_date',
+                'maintenance_urgency', 'failure_risk_score', 'season'
+            ]].copy()
+            
+            # Color code urgency
+            def highlight_urgency(row):
+                color = URGENCY_COLORS.get(row['maintenance_urgency'], '#ffffff')
+                return [f'background-color: {color}; color: white' if col == 'maintenance_urgency' 
+                       else '' for col in row.index]
+            
+            st.dataframe(
+                display_df.style.apply(highlight_urgency, axis=1),
+                width='stretch'
+            )
+            
+            # Timeline chart
+            st.markdown("### Predicted Failures Timeline")
+            timeline_df = predictions_df.groupby('predicted_failure_date').size().reset_index(name='count')
+            timeline_df['predicted_failure_date'] = pd.to_datetime(timeline_df['predicted_failure_date'])
+            
+            fig = px.line(timeline_df, x='predicted_failure_date', y='count',
+                         title=f"Predicted Failures Over Next {days_ahead} Days",
+                         labels={'count': 'Number of Predicted Failures', 
+                                'predicted_failure_date': 'Date'})
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Seasonal patterns
+            st.markdown("### Seasonal Failure Patterns")
+            seasonal_df = get_seasonal_patterns()
+            if not seasonal_df.empty:
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    fig = px.bar(seasonal_df, x='season', y='request_count',
+                               title="Historical Maintenance Requests by Season",
+                               labels={'request_count': 'Number of Requests', 'season': 'Season'})
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                with col2:
+                    fig = px.bar(seasonal_df, x='season', y='avg_resolution_hours',
+                               title="Average Resolution Time by Season",
+                               labels={'avg_resolution_hours': 'Hours', 'season': 'Season'})
+                    st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No predictions match the selected criteria")
 
 elif page == "🏭 Supplier Coverage":
     st.title("🏭 Supplier Coverage Analysis")

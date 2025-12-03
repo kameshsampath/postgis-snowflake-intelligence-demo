@@ -17,6 +17,7 @@
 Generate all sample data for street lights demo
 Runs all data generators in the correct order
 """
+import os
 import sys
 from pathlib import Path
 
@@ -37,6 +38,13 @@ def main():
     print("=" * 50)
     print()
     
+    # Change to data directory so CSV files are written there
+    data_dir = Path(__file__).parent
+    original_dir = os.getcwd()
+    os.chdir(data_dir)
+    print(f"Working directory: {data_dir}")
+    print()
+    
     generators = [
         ("neighborhoods", generate_neighborhoods.main),
         ("street lights", generate_street_lights.main),
@@ -45,14 +53,18 @@ def main():
         ("enrichment data", generate_enrichment_data.main),
     ]
     
-    for i, (name, func) in enumerate(generators, 1):
-        print(f"Step {i}/{len(generators)}: Generating {name}...")
-        try:
-            func()
-            print()
-        except Exception as e:
-            print(f"Error generating {name}: {e}", file=sys.stderr)
-            sys.exit(1)
+    try:
+        for i, (name, func) in enumerate(generators, 1):
+            print(f"Step {i}/{len(generators)}: Generating {name}...")
+            try:
+                func()
+                print()
+            except Exception as e:
+                print(f"Error generating {name}: {e}", file=sys.stderr)
+                sys.exit(1)
+    finally:
+        # Restore original directory
+        os.chdir(original_dir)
     
     # Summary
     print("=" * 50)
@@ -82,13 +94,13 @@ def main():
     print()
     print("Next steps:")
     print("  1. Load data into PostgreSQL:")
-    print("     docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/load_data.sql")
+    print("     psql -U snowflake_admin -d postgres -f ./data/load_data.sql")
     print()
     print("  2. Or use psql from host (if PostgreSQL client installed):")
-    print("     psql -h localhost -U postgres -d streetlights -f data/load_data.sql")
+    print("     psql -h localhost -U snowflake_admin -d postgres -f data/load_data.sql")
     print()
     print("  3. Verify data loaded:")
-    print("     docker exec -it streetlights-postgres psql -U postgres -d streetlights -c 'SELECT COUNT(*) FROM street_lights;'")
+    print("     psql -U snowflake_admin -d postgres -c 'SELECT COUNT(*) FROM streetlights.street_lights;'")
     print()
 
 

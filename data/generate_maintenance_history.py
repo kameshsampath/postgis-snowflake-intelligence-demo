@@ -53,14 +53,13 @@ def generate_maintenance_requests(lights, count=1500):
     """Generate maintenance request history"""
     requests = []
     
-    # Issue types with probabilities
+    # Issue types with probabilities (bulb_failure is ~50% for better ML training)
     issue_types = [
-        'bulb_failure', 'bulb_failure', 'bulb_failure',  # Most common
-        'wiring', 'wiring',
-        'pole_damage',
-        'power_supply',
-        'sensor_failure',
-        'vandalism'
+        'bulb_failure', 'bulb_failure', 'bulb_failure', 'bulb_failure', 'bulb_failure',  # 50% - most common
+        'wiring', 'wiring',          # 20%
+        'pole_damage',               # 10%
+        'power_supply',              # 10%
+        'sensor_failure',            # 10%
     ]
     
     # Generate requests over the past year
