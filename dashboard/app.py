@@ -716,115 +716,115 @@ elif page == "🔮 Predictive Maintenance":
         # Fallback to PostGIS predictions when Snowflake is not available
         st.warning("⚠️ Snowflake ML not connected. Showing local PostGIS-based predictions.")
         st.caption("Configure Snowflake credentials in `.streamlit/secrets.toml` for ML-powered forecasts")
-        st.markdown("Lights predicted to fail in the near future")
+    st.markdown("Lights predicted to fail in the near future")
+    
+    # Controls
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        days_ahead = st.slider("Prediction Window (days)", 7, 90, 30, 7)
+    
+    with col2:
+        urgency_filter = st.multiselect(
+            "Filter by Urgency",
+            options=["CRITICAL", "HIGH", "MEDIUM", "LOW"],
+            default=["CRITICAL", "HIGH", "MEDIUM"]
+        )
+    
+    # Load data
+    with st.spinner("Loading predictions..."):
+        predictions_df = get_predicted_failures(days_ahead)
+        neighborhoods_df = get_neighborhoods()
+    
+    # Filter by urgency
+    if urgency_filter:
+        predictions_df = predictions_df[predictions_df['maintenance_urgency'].isin(urgency_filter)]
+    
+    # Metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    if not predictions_df.empty:
+        critical = len(predictions_df[predictions_df['maintenance_urgency'] == 'CRITICAL'])
+        high = len(predictions_df[predictions_df['maintenance_urgency'] == 'HIGH'])
+        medium = len(predictions_df[predictions_df['maintenance_urgency'] == 'MEDIUM'])
+        low = len(predictions_df[predictions_df['maintenance_urgency'] == 'LOW'])
         
-        # Controls
-        col1, col2 = st.columns(2)
+        col1.metric("Critical", f"{critical:,}", delta_color="inverse")
+        col2.metric("High", f"{high:,}", delta_color="inverse")
+        col3.metric("Medium", f"{medium:,}")
+        col4.metric("Low", f"{low:,}")
+    else:
+        col1.info("No predictions in selected window")
+    
+    st.markdown("---")
+    
+    # Map
+    st.markdown("### Predicted Failures Map")
+    m = create_base_map()
+    m = add_neighborhoods_layer(m, neighborhoods_df)
+    m = add_predicted_failures_layer(m, predictions_df)
+    m = add_fullscreen_control(m)
+    
+    # Legend for urgency
+    legend_items = [
+        ("CRITICAL (0-7 days)", URGENCY_COLORS['CRITICAL']),
+        ("HIGH (7-30 days)", URGENCY_COLORS['HIGH']),
+        ("MEDIUM (30-60 days)", URGENCY_COLORS['MEDIUM']),
+        ("LOW (60+ days)", URGENCY_COLORS['LOW'])
+    ]
+    m.get_root().html.add_child(folium.Element(create_legend_html(legend_items)))
+    
+    st_folium(m, width=1400, height=500)
+    
+    # Table
+    st.markdown("### Prediction Details")
+    if not predictions_df.empty:
+        display_df = predictions_df[[
+            'light_id', 'neighborhood_name', 'predicted_failure_date',
+            'maintenance_urgency', 'failure_risk_score', 'season'
+        ]].copy()
         
-        with col1:
-            days_ahead = st.slider("Prediction Window (days)", 7, 90, 30, 7)
+        # Color code urgency
+        def highlight_urgency(row):
+            color = URGENCY_COLORS.get(row['maintenance_urgency'], '#ffffff')
+            return [f'background-color: {color}; color: white' if col == 'maintenance_urgency' 
+                   else '' for col in row.index]
         
-        with col2:
-            urgency_filter = st.multiselect(
-                "Filter by Urgency",
-                options=["CRITICAL", "HIGH", "MEDIUM", "LOW"],
-                default=["CRITICAL", "HIGH", "MEDIUM"]
-            )
+        st.dataframe(
+            display_df.style.apply(highlight_urgency, axis=1),
+            width='stretch'
+        )
         
-        # Load data
-        with st.spinner("Loading predictions..."):
-            predictions_df = get_predicted_failures(days_ahead)
-            neighborhoods_df = get_neighborhoods()
+        # Timeline chart
+        st.markdown("### Predicted Failures Timeline")
+        timeline_df = predictions_df.groupby('predicted_failure_date').size().reset_index(name='count')
+        timeline_df['predicted_failure_date'] = pd.to_datetime(timeline_df['predicted_failure_date'])
         
-        # Filter by urgency
-        if urgency_filter:
-            predictions_df = predictions_df[predictions_df['maintenance_urgency'].isin(urgency_filter)]
-        
-        # Metrics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        if not predictions_df.empty:
-            critical = len(predictions_df[predictions_df['maintenance_urgency'] == 'CRITICAL'])
-            high = len(predictions_df[predictions_df['maintenance_urgency'] == 'HIGH'])
-            medium = len(predictions_df[predictions_df['maintenance_urgency'] == 'MEDIUM'])
-            low = len(predictions_df[predictions_df['maintenance_urgency'] == 'LOW'])
-            
-            col1.metric("Critical", f"{critical:,}", delta_color="inverse")
-            col2.metric("High", f"{high:,}", delta_color="inverse")
-            col3.metric("Medium", f"{medium:,}")
-            col4.metric("Low", f"{low:,}")
-        else:
-            col1.info("No predictions in selected window")
-        
-        st.markdown("---")
-        
-        # Map
-        st.markdown("### Predicted Failures Map")
-        m = create_base_map()
-        m = add_neighborhoods_layer(m, neighborhoods_df)
-        m = add_predicted_failures_layer(m, predictions_df)
-        m = add_fullscreen_control(m)
-        
-        # Legend for urgency
-        legend_items = [
-            ("CRITICAL (0-7 days)", URGENCY_COLORS['CRITICAL']),
-            ("HIGH (7-30 days)", URGENCY_COLORS['HIGH']),
-            ("MEDIUM (30-60 days)", URGENCY_COLORS['MEDIUM']),
-            ("LOW (60+ days)", URGENCY_COLORS['LOW'])
-        ]
-        m.get_root().html.add_child(folium.Element(create_legend_html(legend_items)))
-        
-        st_folium(m, width=1400, height=500)
-        
-        # Table
-        st.markdown("### Prediction Details")
-        if not predictions_df.empty:
-            display_df = predictions_df[[
-                'light_id', 'neighborhood_name', 'predicted_failure_date',
-                'maintenance_urgency', 'failure_risk_score', 'season'
-            ]].copy()
-            
-            # Color code urgency
-            def highlight_urgency(row):
-                color = URGENCY_COLORS.get(row['maintenance_urgency'], '#ffffff')
-                return [f'background-color: {color}; color: white' if col == 'maintenance_urgency' 
-                       else '' for col in row.index]
-            
-            st.dataframe(
-                display_df.style.apply(highlight_urgency, axis=1),
-                width='stretch'
-            )
-            
-            # Timeline chart
-            st.markdown("### Predicted Failures Timeline")
-            timeline_df = predictions_df.groupby('predicted_failure_date').size().reset_index(name='count')
-            timeline_df['predicted_failure_date'] = pd.to_datetime(timeline_df['predicted_failure_date'])
-            
-            fig = px.line(timeline_df, x='predicted_failure_date', y='count',
-                         title=f"Predicted Failures Over Next {days_ahead} Days",
-                         labels={'count': 'Number of Predicted Failures', 
-                                'predicted_failure_date': 'Date'})
+        fig = px.line(timeline_df, x='predicted_failure_date', y='count',
+                     title=f"Predicted Failures Over Next {days_ahead} Days",
+                     labels={'count': 'Number of Predicted Failures', 
+                            'predicted_failure_date': 'Date'})
             st.plotly_chart(fig, use_container_width=True)
+        
+        # Seasonal patterns
+        st.markdown("### Seasonal Failure Patterns")
+        seasonal_df = get_seasonal_patterns()
+        if not seasonal_df.empty:
+            col1, col2 = st.columns(2)
             
-            # Seasonal patterns
-            st.markdown("### Seasonal Failure Patterns")
-            seasonal_df = get_seasonal_patterns()
-            if not seasonal_df.empty:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    fig = px.bar(seasonal_df, x='season', y='request_count',
-                               title="Historical Maintenance Requests by Season",
-                               labels={'request_count': 'Number of Requests', 'season': 'Season'})
+            with col1:
+                fig = px.bar(seasonal_df, x='season', y='request_count',
+                           title="Historical Maintenance Requests by Season",
+                           labels={'request_count': 'Number of Requests', 'season': 'Season'})
                     st.plotly_chart(fig, use_container_width=True)
-                
-                with col2:
-                    fig = px.bar(seasonal_df, x='season', y='avg_resolution_hours',
-                               title="Average Resolution Time by Season",
-                               labels={'avg_resolution_hours': 'Hours', 'season': 'Season'})
+            
+            with col2:
+                fig = px.bar(seasonal_df, x='season', y='avg_resolution_hours',
+                           title="Average Resolution Time by Season",
+                           labels={'avg_resolution_hours': 'Hours', 'season': 'Season'})
                     st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("No predictions match the selected criteria")
+    else:
+        st.info("No predictions match the selected criteria")
 
 elif page == "🏭 Supplier Coverage":
     st.title("🏭 Supplier Coverage Analysis")

@@ -43,11 +43,13 @@ CREATE TABLE IF NOT EXISTS streetlights.maintenance_requests (
     reported_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     resolved_at TIMESTAMP,
     issue_type TEXT,
+    description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 COMMENT ON TABLE streetlights.maintenance_requests IS 'Maintenance request history for street lights';
 COMMENT ON COLUMN streetlights.maintenance_requests.issue_type IS 'Type of issue: bulb_failure, wiring, pole_damage, etc.';
+COMMENT ON COLUMN streetlights.maintenance_requests.description IS 'Free-text description of the issue reported by field staff or residents';
 
 -- Table: suppliers
 -- Light equipment suppliers and their service coverage

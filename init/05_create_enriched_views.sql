@@ -86,6 +86,7 @@ SELECT
     m.reported_at,
     m.resolved_at,
     m.issue_type,
+    m.description,
     m.created_at,
     
     -- Light location data

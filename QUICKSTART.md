@@ -348,13 +348,13 @@ Train a forecasting model to predict future bulb failures.
 ### 6.1 Create Training Data Views
 
 ```bash
-snow sql -f snowflake/08_ml_training_view.sql
+snow sql -f snowflake/09_ml_training_view.sql
 ```
 
-### 6.2 Train Forecast Model
+### 6.2 Train Forecast Models (Bulb Failures + All Issues)
 
 ```bash
-snow sql -f snowflake/09_ml_model_training.sql
+snow sql -f snowflake/10_ml_model_training.sql
 ```
 
 ### 6.3 View Model Metrics

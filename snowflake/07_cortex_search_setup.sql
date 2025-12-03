@@ -32,8 +32,8 @@ USE SCHEMA ANALYTICS;
 -- =====================================================
 -- STEP 2: Create Searchable Maintenance View
 -- =====================================================
--- Cortex Search needs a text column to search on.
--- We create a view that synthesizes rich descriptions from maintenance data.
+-- Cortex Search uses the free-text description field for semantic search.
+-- The description column contains realistic field reports and resident complaints.
 -- Uses CTEs for modularity, readability, and maintainability.
 -- Note: CDC columns are lowercase quoted, output columns are uppercase
 
@@ -46,7 +46,8 @@ WITH
             "light_id" AS light_id,
             "reported_at" AS reported_at,
             "resolved_at" AS resolved_at,
-            "issue_type" AS issue_type
+            "issue_type" AS issue_type,
+            "description" AS description  -- Free-text field for Cortex Search
         FROM STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
     ),
     
@@ -80,6 +81,7 @@ WITH
             mb.reported_at,
             mb.resolved_at,
             mb.issue_type,
+            mb.description,
             ld.status AS light_status,
             ld.wattage,
             ld.geo_location,
@@ -100,20 +102,18 @@ SELECT
     resolved_at AS RESOLVED_AT,
     issue_type AS ISSUE_TYPE,
     
-    -- Synthesize a searchable description from available data
+    -- Use the real free-text description for semantic search
+    -- This contains realistic field reports: "Light flickering on and off...", 
+    -- "Exposed wires visible near pole base...", "Pole leaning after vehicle collision..."
     CONCAT(
-        'Maintenance request for street light ', light_id, '. ',
-        'Issue type: ', COALESCE(issue_type, 'unknown'), '. ',
-        'Location: ', COALESCE(neighborhood_name, 'Unknown neighborhood'), '. ',
-        'Light status: ', COALESCE(light_status, 'unknown'), '. ',
-        'Light wattage: ', COALESCE(CAST(wattage AS VARCHAR), 'unknown'), 'W. ',
-        'Reported on: ', TO_VARCHAR(reported_at, 'YYYY-MM-DD HH24:MI'), '. ',
-        CASE 
-            WHEN resolved_at IS NOT NULL 
-            THEN CONCAT('Resolved on: ', TO_VARCHAR(resolved_at, 'YYYY-MM-DD HH24:MI'), '.')
-            ELSE 'Status: Open/Pending resolution.'
-        END
+        COALESCE(description, ''),
+        ' Location: ', COALESCE(neighborhood_name, 'Unknown'), '.',
+        ' Light ID: ', light_id, '.',
+        ' Issue type: ', COALESCE(issue_type, 'unknown'), '.'
     ) AS SEARCH_DESCRIPTION,
+    
+    -- Original description for display
+    description AS ORIGINAL_DESCRIPTION,
     
     -- Additional context for search results
     light_status AS LIGHT_STATUS,
@@ -151,13 +151,14 @@ SELECT * FROM MAINTENANCE_SEARCHABLE LIMIT 5;
 -- STEP 3: Create Cortex Search Service
 -- =====================================================
 -- The search service enables semantic search via Snowflake Intelligence
+-- Now uses real free-text descriptions for better semantic matching
 
 CREATE OR REPLACE CORTEX SEARCH SERVICE MAINTENANCE_SEARCH
   ON SEARCH_DESCRIPTION
-  ATTRIBUTES REQUEST_ID, LIGHT_ID, ISSUE_TYPE, NEIGHBORHOOD_NAME, REQUEST_STATUS
+  ATTRIBUTES REQUEST_ID, LIGHT_ID, ISSUE_TYPE, NEIGHBORHOOD_NAME, REQUEST_STATUS, ORIGINAL_DESCRIPTION
   WAREHOUSE = COMPUTE_WH
   TARGET_LAG = '1 min' -- just for demo purposes, for production we would set to value that is more appropriate for the data and the business
-  COMMENT = 'Semantic search for street light maintenance requests'
+  COMMENT = 'Semantic search for street light maintenance requests using free-text descriptions'
 AS (
   SELECT 
     REQUEST_ID,
@@ -166,6 +167,7 @@ AS (
     NEIGHBORHOOD_NAME,
     REQUEST_STATUS,
     SEARCH_DESCRIPTION,
+    ORIGINAL_DESCRIPTION,
     REPORTED_AT,
     RESOLVED_AT,
     LIGHT_STATUS,

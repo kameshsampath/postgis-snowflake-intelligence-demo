@@ -20,7 +20,6 @@ from data import generate_maintenance_history
 from data import generate_suppliers
 from data import generate_enrichment_data
 from data import generate_all
-from data import generate_sample
 
 __all__ = [
     "generate_neighborhoods",
@@ -29,6 +28,5 @@ __all__ = [
     "generate_suppliers",
     "generate_enrichment_data",
     "generate_all",
-    "generate_sample",
 ]
 
