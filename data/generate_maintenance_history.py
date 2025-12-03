@@ -124,6 +124,8 @@ def main():
     print(f"✓ Loaded {len(lights)} street lights")
     
     print("\nGenerating maintenance request history...")
+    # NOTE: For better ML forecasting/anomaly detection results, increase count to 1500+
+    # Current 500 gives ~0.5 bulb failures/day (sparse). 1500 gives ~1.5/day (better patterns)
     requests = generate_maintenance_requests(lights, count=500)
     save_to_csv(requests)
     
