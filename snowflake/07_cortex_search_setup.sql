@@ -155,8 +155,8 @@ SELECT * FROM MAINTENANCE_SEARCHABLE LIMIT 5;
 CREATE OR REPLACE CORTEX SEARCH SERVICE MAINTENANCE_SEARCH
   ON SEARCH_DESCRIPTION
   ATTRIBUTES REQUEST_ID, LIGHT_ID, ISSUE_TYPE, NEIGHBORHOOD_NAME, REQUEST_STATUS
-  WAREHOUSE = COMPUTE_WH  -- Change to your warehouse name
-  TARGET_LAG = '1 hour'   -- How fresh the search index should be
+  WAREHOUSE = COMPUTE_WH
+  TARGET_LAG = '1 min' -- just for demo purposes, for production we would set to value that is more appropriate for the data and the business
   COMMENT = 'Semantic search for street light maintenance requests'
 AS (
   SELECT 
