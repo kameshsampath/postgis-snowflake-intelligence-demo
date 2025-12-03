@@ -16,12 +16,132 @@
 """
 Generate historical maintenance requests with seasonal patterns.
 Monsoon and summer have higher failure rates.
+Includes realistic free-text descriptions for Cortex Search.
 Output: maintenance_requests.csv
 """
 
 import csv
 import random
 from datetime import datetime, timedelta
+
+# Realistic free-text descriptions for each issue type
+# These varied descriptions enable semantic search capabilities
+DESCRIPTIONS = {
+    'bulb_failure': [
+        "Light not working at all. Bulb appears completely dead. Residents complaining about dark street.",
+        "Bulb flickering on and off throughout the night. Very annoying for nearby houses.",
+        "LED bulb burnt out. Black marks visible on the glass. Needs immediate replacement.",
+        "Light dims and then goes out after 30 minutes. Suspect thermal issue with bulb.",
+        "Bulb making buzzing noise before dying. Now completely dark.",
+        "Street light not turning on at dusk. Bulb may have failed.",
+        "Light very dim, barely visible. Bulb near end of life.",
+        "Bulb exploded during thunderstorm. Glass shards on ground. Safety hazard.",
+        "Light turns on but immediately shuts off. Faulty bulb suspected.",
+        "Old sodium vapor bulb flickering orange. Needs LED upgrade.",
+        "Multiple residents reported this light stopped working last week.",
+        "Light was working yesterday but found dead this morning.",
+        "Bulb glowing very faint red color. Clearly malfunctioning.",
+        "New bulb installed last month already failed. Quality issue?",
+        "Light flickers when it gets cold at night. Thermal bulb problem.",
+    ],
+    'wiring': [
+        "Exposed wires visible near the pole base. Dangerous situation, needs urgent attention.",
+        "Sparking observed from junction box during rain. Fire hazard!",
+        "Underground cable damaged by road construction work. Light out.",
+        "Loose connection causing intermittent power. Light goes on/off randomly.",
+        "Burnt smell coming from electrical panel. Wiring overheated.",
+        "Water ingress in wire conduit. Corrosion visible on connections.",
+        "Rodent damage to wiring insulation. Exposed copper visible.",
+        "Old wiring needs complete replacement. Frequent tripping issues.",
+        "Short circuit occurred. Fuse blown multiple times this month.",
+        "Cable joint failed after heavy rain. Connection box flooded.",
+        "Electrical arcing sound heard from pole. Very concerning.",
+        "Power cable cut during excavation work nearby.",
+        "Junction box door missing. Wires exposed to weather.",
+        "Timer circuit malfunction causing erratic on/off behavior.",
+        "Ground fault detected. Light keeps tripping breaker.",
+    ],
+    'pole_damage': [
+        "Pole leaning dangerously after vehicle collision. Immediate attention needed!",
+        "Rust and corrosion at pole base. Structural integrity compromised.",
+        "Concrete pole cracked from ground level. May collapse soon.",
+        "Pole hit by truck. Bent at 45 degree angle. Traffic hazard.",
+        "Termite damage in wooden pole. Needs replacement.",
+        "Storm damage - pole snapped in half. Wires hanging low.",
+        "Vandalism - someone tried to cut the pole with saw.",
+        "Foundation eroded by water drainage. Pole unstable.",
+        "Paint peeling badly. Pole surface corroding underneath.",
+        "Pole arm bracket broken. Light fixture hanging loose.",
+        "Vehicle accident damaged pole yesterday night.",
+        "Old wooden pole rotting from inside. Very weak.",
+        "Metal pole rusted through at weld joint.",
+        "Pole foundation undermined by nearby construction.",
+        "Kids climbing pole caused bracket damage.",
+    ],
+    'power_supply': [
+        "No power reaching the light. Upstream supply issue suspected.",
+        "Voltage fluctuation damaging bulbs frequently. Need stabilizer.",
+        "Power outage in area affecting multiple lights.",
+        "Transformer overloaded. Lights dimming during peak hours.",
+        "Circuit breaker keeps tripping. Overload condition.",
+        "Low voltage supply causing dim lights. BESCOM issue.",
+        "Phase imbalance affecting light performance.",
+        "Power theft nearby might be causing voltage drop.",
+        "Feeder cable fault. Whole street section dark.",
+        "Electricity meter showing abnormal readings.",
+        "Power supply interrupted after storm. Not restored yet.",
+        "Main switch damaged by water seepage.",
+        "Fuse burnt out at distribution panel.",
+        "Underground power cable fault somewhere in section.",
+        "BESCOM maintenance affected street lighting circuit.",
+    ],
+    'sensor_failure': [
+        "Photo sensor not working. Light stays on during daytime.",
+        "Motion sensor stuck. Light never turns on anymore.",
+        "Timer malfunction. Lights coming on at wrong times.",
+        "Dusk sensor damaged by birds. Needs replacement.",
+        "Smart controller not responding to commands.",
+        "Ambient light sensor gives false readings. Light behavior erratic.",
+        "PIR sensor broken. No motion detection happening.",
+        "Rain sensor triggered false alarm. Light turned off.",
+        "Temperature sensor faulty. Light overheating protection not working.",
+        "Wireless controller lost connectivity. Cannot manage remotely.",
+        "Sensor covered by tree leaves. Light thinks its daytime.",
+        "Light stays on 24 hours. Automatic shutoff not working.",
+        "Sensor lens cracked. Reading incorrect light levels.",
+        "Smart meter communication failure. Usage data not updating.",
+        "Controller firmware glitch. Light randomly cycles on/off.",
+    ],
+}
+
+# Season-specific additional context
+SEASON_CONTEXT = {
+    'monsoon': [
+        " Heavy rain last night may have caused this.",
+        " Waterlogging in area affecting electrical systems.",
+        " Lightning strike nearby during storm.",
+        " Flooding damaged underground components.",
+        " Continuous rain for 3 days affecting many lights.",
+        "",  # Sometimes no season context
+    ],
+    'summer': [
+        " Extreme heat may have caused overheating.",
+        " Temperature was 42°C yesterday.",
+        " Heat wave conditions affecting equipment.",
+        " Thermal stress from high temperatures.",
+        "",
+        "",
+    ],
+    'winter': [
+        " Cold weather affecting component performance.",
+        " Morning fog and moisture accumulation.",
+        " Dew condensation inside fixture.",
+        "",
+        "",
+        "",
+    ],
+}
+
 
 def load_street_lights(filename='street_lights.csv'):
     """Load street lights from CSV"""
@@ -48,6 +168,12 @@ def get_seasonal_failure_weight(season):
         'winter': 1.0    # Baseline
     }
     return weights[season]
+
+def generate_description(issue_type, season):
+    """Generate a realistic free-text description for the issue"""
+    base_description = random.choice(DESCRIPTIONS.get(issue_type, DESCRIPTIONS['bulb_failure']))
+    season_context = random.choice(SEASON_CONTEXT.get(season, [""]))
+    return base_description + season_context
 
 def generate_maintenance_requests(lights, count=1500):
     """Generate maintenance request history"""
@@ -86,6 +212,10 @@ def generate_maintenance_requests(lights, count=1500):
         light = random.choice(lights)
         light_id = light['light_id']
         issue_type = random.choice(issue_types)
+        season = get_season(reported_at.month)
+        
+        # Generate realistic free-text description
+        description = generate_description(issue_type, season)
         
         # Resolution time: 1-7 days (most resolved within 3 days)
         resolution_days = random.choices([1, 2, 3, 4, 5, 6, 7], weights=[10, 20, 30, 20, 10, 5, 5])[0]
@@ -100,14 +230,15 @@ def generate_maintenance_requests(lights, count=1500):
             'light_id': light_id,
             'reported_at': reported_at.strftime('%Y-%m-%d %H:%M:%S'),
             'resolved_at': resolved_at.strftime('%Y-%m-%d %H:%M:%S') if resolved_at else '',
-            'issue_type': issue_type
+            'issue_type': issue_type,
+            'description': description
         })
     
     return requests
 
 def save_to_csv(requests, filename='maintenance_requests.csv'):
     """Save requests to CSV file"""
-    fieldnames = ['request_id', 'light_id', 'reported_at', 'resolved_at', 'issue_type']
+    fieldnames = ['request_id', 'light_id', 'reported_at', 'resolved_at', 'issue_type', 'description']
     
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -116,6 +247,7 @@ def save_to_csv(requests, filename='maintenance_requests.csv'):
     
     print(f"✓ Generated {len(requests)} maintenance requests")
     print(f"✓ Saved to {filename}")
+    print(f"✓ Includes free-text descriptions for Cortex Search")
 
 def main():
     print("Loading street lights...")

@@ -28,7 +28,8 @@ SELECT COUNT(*) AS lights_loaded FROM streetlights.street_lights;
 \echo ''
 \echo '3. Loading maintenance requests...'
 -- Note: resolved_at can be empty, handle NULL properly
-\copy streetlights.maintenance_requests(request_id, light_id, reported_at, resolved_at, issue_type) FROM 'data/maintenance_requests.csv' WITH (FORMAT csv, HEADER true, NULL '');
+-- description column contains free-text for Cortex Search
+\copy streetlights.maintenance_requests(request_id, light_id, reported_at, resolved_at, issue_type, description) FROM 'data/maintenance_requests.csv' WITH (FORMAT csv, HEADER true, NULL '');
 SELECT COUNT(*) AS requests_loaded FROM streetlights.maintenance_requests;
 
 -- Load suppliers

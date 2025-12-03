@@ -129,10 +129,10 @@ postgis-nifi-pipeline/
 │
 ├── snowflake/                 # Snowflake SQL scripts
 │   ├── 07_cortex_search_setup.sql
-│   ├── 08_ml_training_view.sql
-│   ├── 09_ml_model_training.sql
-│   ├── 10_ml_queries.sql
-│   ├── 11_cortex_analyst_setup.sql
+│   ├── 08_cortex_analyst_setup.sql
+│   ├── 09_ml_training_view.sql
+│   ├── 10_ml_model_training.sql
+│   ├── 11_ml_queries.sql
 │   ├── streetlights_semantic_model.yaml
 │   └── SNOWFLAKE_INTELLIGENCE_QUESTIONS.md
 │

@@ -115,25 +115,28 @@ All tables are in the `streetlights` schema.
 
 #### `maintenance_requests`
 
-**Purpose**: Historical and active maintenance work orders.
+**Purpose**: Historical and active maintenance work orders with free-text descriptions for semantic search.
 
 | Column | Type | Constraints | Description | Example |
 |--------|------|-------------|-------------|---------|
-| `request_id` | TEXT | PRIMARY KEY | Unique identifier | `MR-0001` |
+| `request_id` | TEXT | PRIMARY KEY | Unique identifier | `REQ-0001` |
 | `light_id` | TEXT | FK → street_lights | Light requiring service | `SL-1234` |
 | `reported_at` | TIMESTAMP | NOT NULL | Issue report time | `2024-01-15 08:30:00` |
 | `resolved_at` | TIMESTAMP | | Resolution time (NULL if open) | `2024-01-18 14:20:00` |
-| `issue_type` | TEXT | | Type of issue | See below |
+| `issue_type` | TEXT | | Structured issue category | `bulb_failure` |
+| `description` | TEXT | | Free-text field report | `"Light flickering on and off throughout the night..."` |
 
 **Issue Types**:
 
-| Type | Description |
-|------|-------------|
-| `bulb_failure` | Bulb burned out or broken |
-| `wiring` | Electrical wiring issues |
-| `pole_damage` | Physical damage to pole |
-| `sensor_malfunction` | Light sensor not working |
-| `flickering` | Intermittent operation |
+| Type | Description | Example Description |
+|------|-------------|---------------------|
+| `bulb_failure` | Bulb burned out or broken | *"LED bulb burnt out. Black marks visible on glass."* |
+| `wiring` | Electrical wiring issues | *"Exposed wires visible near pole base. Dangerous!"* |
+| `pole_damage` | Physical damage to pole | *"Pole leaning after vehicle collision."* |
+| `power_supply` | Power/voltage issues | *"Voltage fluctuation damaging bulbs frequently."* |
+| `sensor_failure` | Sensors/controllers not working | *"Photo sensor broken. Light stays on during day."* |
+
+**Description Field**: Contains realistic free-text reports from field staff and residents. Used by Snowflake Cortex Search for semantic similarity queries.
 
 ---
 

@@ -68,7 +68,7 @@ Operational data for all street lights in the system.
 
 #### 3. `maintenance_requests`
 
-Historical and active maintenance requests for street lights.
+Historical and active maintenance requests for street lights with free-text descriptions.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -76,7 +76,8 @@ Historical and active maintenance requests for street lights.
 | `light_id` | TEXT | Foreign key to street_lights table |
 | `reported_at` | TIMESTAMP | When issue was reported |
 | `resolved_at` | TIMESTAMP | When issue was resolved (NULL if still open) |
-| `issue_type` | TEXT | Type of issue (e.g., "bulb_failure", "wiring", "pole_damage") |
+| `issue_type` | TEXT | Structured category: "bulb_failure", "wiring", "pole_damage", "power_supply", "sensor_failure" |
+| `description` | TEXT | Free-text field report (e.g., "Light flickering on and off throughout the night...") |
 | `created_at` | TIMESTAMP | Record creation timestamp |
 
 ---

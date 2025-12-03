@@ -112,33 +112,56 @@ Plugin:           pgoutput
 
 ---
 
-## Phase 8: Snowflake ML for Predictive Maintenance
+## Phase 8: Snowflake Cortex Analyst
 
 **Status:** ✅ Complete
 
-**Purpose:** ML models for failure prediction
+**Purpose:** Structured analytics via semantic model and SQL generation
 
 ### Files
 
 | File | Purpose |
 |------|---------|
-| `08_ml_training_view.sql` | Prepare training data with features |
-| `09_ml_model_training.sql` | Train ML.CLASSIFICATION model |
-| `10_ml_queries.sql` | Demo queries combining ML + Cortex + Spatial |
+| `08_cortex_analyst_setup.sql` | Upload semantic model and wire to Snowflake Intelligence |
+| `streetlights_semantic_model.yaml` | Semantic model definition for Cortex Analyst |
 
 ### Quick Start
 
-1. **Run training view script**: Execute `08_ml_training_view.sql`
-2. **Train model**: Execute `09_ml_model_training.sql`
-3. **Query predictions**: Use `10_ml_queries.sql` for examples
+1. **Upload semantic model**: Follow instructions in `08_cortex_analyst_setup.sql`
+2. **Wire to Intelligence**: Connect in Snowflake Intelligence UI
+3. **Ask analytical questions**: "How many lights are faulty?", "Average resolution time?"
+
+---
+
+## Phase 9: Snowflake ML for Forecasting
+
+**Status:** ✅ Complete
+
+**Purpose:** ML FORECAST models for bulb failure predictions and total maintenance workload
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `09_ml_training_view.sql` | Prepare time-series training data (bulb failures + all issues) |
+| `10_ml_model_training.sql` | Train FORECAST models (BULB_FAILURE_FORECASTER + ALL_ISSUES_FORECASTER) |
+| `11_ml_queries.sql` | Demo queries for daily/weekly/monthly forecasts |
+
+### Quick Start
+
+1. **Run training view script**: Execute `09_ml_training_view.sql`
+2. **Train models**: Execute `10_ml_model_training.sql` (takes 2-5 minutes)
+3. **Query forecasts**: Use `11_ml_queries.sql` for examples
 
 ### What It Does
 
-- Creates `ML_TRAINING_DATA` view with comprehensive features
-- Trains `MAINTENANCE_PREDICTOR` classification model
-- Generates predictions for all street lights
-- Creates `PREDICTED_FAILURES` view with urgency classification
-- Supports combined ML + Cortex Search + Spatial queries
+- Creates time-series views for bulb failures and all maintenance issues
+- Trains TWO FORECAST models:
+  - `BULB_FAILURE_FORECASTER` - Predicts daily bulb replacements needed
+  - `ALL_ISSUES_FORECASTER` - Predicts total maintenance workload
+- Generates 30-day and 90-day forecasts with confidence intervals
+- Creates actionable views: `BULB_REPLACEMENT_SCHEDULE`, `MAINTENANCE_SCHEDULE`
+- Provides budget and staffing recommendations
 
 ---
 

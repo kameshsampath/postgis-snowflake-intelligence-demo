@@ -15,24 +15,13 @@ This directory contains scripts to generate synthetic data for the Street Lights
 ### Data Generation Scripts (Python)
 - **`generate_neighborhoods.py`** - Generate neighborhood polygons
 - **`generate_street_lights.py`** - Generate street light locations and status
-- **`generate_maintenance_history.py`** - Generate maintenance request history
+- **`generate_maintenance_history.py`** - Generate maintenance request history with free-text descriptions
 - **`generate_suppliers.py`** - Generate supplier locations and details
 - **`generate_enrichment_data.py`** - Generate weather, demographics, and power grid enrichment
 - **`generate_all.py`** - Master script that calls all generators
-- **`generate_all_data.sh`** - Shell wrapper to run all generators
 
 ### Database Loading Scripts (SQL)
-- **`load_data.sql`** - Load full generated dataset (5,000 lights)
-- **`load_sample_data.sql`** - Load minimal sample data (10 lights) - fast testing
-
-### Sample Data Files (Pre-generated)
-- **`sample_neighborhoods.csv`** - 3 sample neighborhoods
-- **`sample_street_lights.csv`** - 10 sample street lights
-- **`sample_maintenance_requests.csv`** - Sample maintenance history
-- **`sample_suppliers.csv`** - 3 sample suppliers
-- **`sample_weather_enrichment.csv`** - Weather enrichment for samples
-- **`sample_demographics_enrichment.csv`** - Demographics for samples
-- **`sample_power_grid_enrichment.csv`** - Power grid data for samples
+- **`load_data.sql`** - Load full generated dataset (5,000 lights, 1,500 maintenance requests)
 
 ### Generated Data Files (Git-ignored)
 After running generation scripts, these files are created:
@@ -48,37 +37,16 @@ After running generation scripts, these files are created:
 
 ## 🚀 Quick Start
 
-### Option 1: Use Sample Data (Fastest - No Dependencies)
-
-Perfect for quick testing and demos:
-
-```bash
-# From project root
-docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/load_sample_data.sql
-```
-
-**What you get:**
-- 3 neighborhoods
-- 10 street lights
-- Sample enrichment data
-- Ready in seconds
-
-### Option 2: Generate Full Dataset
+### Generate Full Dataset
 
 For realistic testing and presentations:
 
 ```bash
-# Install dependencies (if not already)
-uv pip install -e .
-# or: pip install -e .
-
 # Generate all data
-cd data
-./generate_all_data.sh
+uv run generate-all-data
 
 # Load into database
-cd ..
-docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/load_data.sql
+psql -h localhost -U snowflake_admin -d postgres -f data/load_data.sql
 ```
 
 **What you get:**
@@ -113,10 +81,20 @@ docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/
 - **Installation Dates**: 2015-2023 range
 
 ### Maintenance Requests (`generate_maintenance_history.py`)
-- **Count**: 500 historical requests
-- **Issue Types**: bulb_failure, wiring, pole_damage, electrical
-- **Resolution**: 80% resolved, 20% still open
-- **Response Time**: 2-72 hours (realistic variation)
+- **Count**: 1,500 historical requests (365 days)
+- **Issue Types**: 
+  - `bulb_failure` (50%) - Most common, used for ML training
+  - `wiring` (20%)
+  - `pole_damage` (10%)
+  - `power_supply` (10%)
+  - `sensor_failure` (10%)
+- **Descriptions**: Realistic free-text reports (75 unique templates)
+  - *"Light flickering on and off throughout the night..."*
+  - *"Exposed wires visible near pole base. Dangerous!"*
+  - *"Pole leaning after vehicle collision..."*
+- **Seasonal Context**: Weather-related details added based on season
+- **Resolution**: 95% resolved, 5% still open
+- **Response Time**: 1-7 days (most within 3 days)
 
 ### Suppliers (`generate_suppliers.py`)
 - **Count**: 25 suppliers
