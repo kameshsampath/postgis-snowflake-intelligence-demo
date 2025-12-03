@@ -34,6 +34,11 @@ The quickstart covers:
 | **Python 3.12+** | Dashboard and data generation | [python.org](https://www.python.org/) |
 | **uv** | Python package manager | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 
+> **Tip**: Use [~/.pgpass](https://www.postgresql.org/docs/current/libpq-pgpass.html) for secure Snowflake PostgreSQL credentials:
+> ```
+> <host>:5432:postgres:snowflake_admin:<password>
+> ```
+
 ---
 
 ## Architecture
@@ -111,9 +116,10 @@ postgis-nifi-pipeline/
 │   └── 07_create_publication.sql
 │
 ├── data/                      # Data generation and loading
-│   ├── load_data.sql          # Load all data
-│   ├── generate_all.py        # Generate all datasets
-│   ├── SCHEMA_REFERENCE.md    # Complete schema documentation
+│   ├── load_data.sql          # Load full dataset
+│   ├── load_sample_data.sql   # Load sample dataset
+│   ├── generate_all.py        # Generate full datasets (uv run generate-all-data)
+│   ├── generate_sample.py     # Generate sample datasets (uv run generate-sample)
 │   └── *.csv                  # Generated data files
 │
 ├── dashboard/                 # Streamlit dashboard
@@ -163,19 +169,34 @@ postgis-nifi-pipeline/
 
 - **`street_lights_enriched`**: Combines lights with all enrichment data (main CDC view)
 
-See `data/SCHEMA_REFERENCE.md` for complete schema reference.
+See [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) for complete schema documentation.
 
 ---
 
-## Sample Data
+## Data Generation
 
-| Entity | Count | Notes |
-|--------|-------|-------|
-| Street lights | 5,000 | Across Bengaluru |
-| Neighborhoods | 50 | Realistic boundaries |
-| Suppliers | 25 | With service coverage |
-| Maintenance requests | 500 | Historical records |
-| Enrichment records | 15,000 | 3 seasons × 5,000 lights |
+Generate data using `uv run` commands:
+
+```bash
+# Install dependencies first
+uv sync
+
+# Generate full dataset (5,000 lights, 50 neighborhoods, 1,500 maintenance requests)
+uv run generate-all-data
+
+# Generate sample dataset for quick testing (10 lights, 5 neighborhoods)
+uv run generate-sample
+```
+
+### Dataset Sizes
+
+| Entity | Full Dataset | Sample Dataset |
+|--------|--------------|----------------|
+| Street lights | 5,000 | 10 |
+| Neighborhoods | 50 | 5 |
+| Suppliers | 25 | 3 |
+| Maintenance requests | 1,500 | 10 |
+| Enrichment records | 15,000 | 30 |
 
 **Status distribution**: 85% operational, 10% maintenance required, 5% faulty
 
@@ -270,8 +291,8 @@ ORDER BY WEEK_START;
 | Document | Purpose |
 |----------|---------|
 | [QUICKSTART.md](QUICKSTART.md) | Complete setup guide |
+| [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) | Database schema, tables, views, and query patterns |
 | [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Detailed demo walkthrough |
-| [data/SCHEMA_REFERENCE.md](data/SCHEMA_REFERENCE.md) | Complete schema documentation |
 | [snowflake/SNOWFLAKE_INTELLIGENCE_QUESTIONS.md](snowflake/SNOWFLAKE_INTELLIGENCE_QUESTIONS.md) | Sample Cortex queries |
 | [work/snowflake_ml_guide.md](work/snowflake_ml_guide.md) | ML forecasting details |
 
@@ -324,23 +345,6 @@ psql -c "SELECT * FROM pg_publication;"
 
 # Check replication slot
 psql -c "SELECT * FROM pg_replication_slots;"
-```
-
----
-
-## Optional: Docker Setup
-
-For local development without Snowflake-managed PostgreSQL:
-
-```bash
-# Start PostgreSQL + Streamlit containers
-docker-compose up -d
-
-# Load sample data
-docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/load_sample_data.sql
-
-# Access dashboard
-open http://localhost:8501
 ```
 
 ---

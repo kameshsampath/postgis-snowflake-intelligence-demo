@@ -80,7 +80,15 @@ After deployment, retrieve your PostgreSQL connection details from Snowsight:
 cp .env.example .env
 
 # Edit .env with your connection details
-# Update: PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
+# Update: PGHOST, PGPORT, PGDATABASE, PGUSER (snowflake_admin), PGPASSWORD
+```
+
+**Tip**: Use [~/.pgpass](https://www.postgresql.org/docs/current/libpq-pgpass.html) for secure password storage:
+
+```bash
+# Add entry to ~/.pgpass (create if doesn't exist)
+echo "<your-host>:5432:postgres:snowflake_admin:<your-password>" >> ~/.pgpass
+chmod 600 ~/.pgpass
 ```
 
 **Tip**: Use [direnv](https://direnv.net/) for automatic environment loading:
@@ -94,7 +102,13 @@ direnv allow
 
 ## Step 2: Initialize Database and Load Data
 
-### 2.1 Initialize Database Schema
+### 2.1 Install Dependencies
+
+```bash
+uv sync
+```
+
+### 2.2 Initialize Database Schema
 
 Run the master initialization script to create all database objects:
 
@@ -120,10 +134,26 @@ Database Initialization Complete!
 ========================================================
 ```
 
-### 2.2 Load Sample Data
+### 2.3 Generate Data (Optional)
+
+If you need to regenerate the data files:
 
 ```bash
+# Generate full dataset (5,000 lights, 50 neighborhoods, 1,500 maintenance requests)
+uv run generate-all-data
+
+# Or generate small sample dataset for quick testing (10 lights, 5 neighborhoods)
+uv run generate-sample
+```
+
+### 2.4 Load Data
+
+```bash
+# Load full dataset
 psql -f data/load_data.sql
+
+# Or load sample dataset for quick testing
+psql -f data/load_sample_data.sql
 ```
 
 **Expected output:**
@@ -134,7 +164,7 @@ Data loading complete!
 ============================================
 ```
 
-### 2.3 Verify Data
+### 2.5 Verify Data
 
 ```bash
 psql -c "
@@ -163,20 +193,13 @@ FROM streetlights.street_lights_enriched LIMIT 5;"
 
 ## Step 3: Launch Streamlit Dashboard
 
-### 3.1 Install Dependencies
-
-```bash
-# Install project dependencies with uv
-uv sync
-```
-
-### 3.2 Run Dashboard
+### 3.1 Run Dashboard
 
 ```bash
 uv run dashboard
 ```
 
-### 3.3 Access Dashboard
+### 3.2 Access Dashboard
 
 Open your browser to: **http://localhost:8501**
 
