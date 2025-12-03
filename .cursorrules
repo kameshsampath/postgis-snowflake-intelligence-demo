@@ -18,6 +18,7 @@
 - Reference and index official Snowflake documentation at <https://docs.snowflake.com>
 - When answering Snowflake SQL questions or writing Snowflake queries, consult Snowflake-specific documentation
 - Snowflake SQL files are located in the `snowflake/` directory
+- All Snowflake CLI commands should be run using the `snow` CLI tool <https://docs.snowflake.com/en/developer-guide/snowflake-cli/index>
 
 ### PostgreSQL/PostGIS SQL
 

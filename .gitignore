@@ -44,5 +44,4 @@ nifi_logs/
 htmlcov/
 pat.sh
 DEMO_SCRIPT.md
-QUICKSTART.md
 test/
