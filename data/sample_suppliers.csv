@@ -1,4 +1,0 @@
-supplier_id,name,location,contact_phone,service_radius_km,avg_response_hours,specialization
-SUP-001,Acme Lights & Co.,POINT(77.5800 12.9600),+91-80-12345678,10,4,All
-SUP-002,BrightBeam Systems Demo,POINT(77.6000 12.9400),+91-80-23456789,8,6,LED
-SUP-003,CloudGlow Innovations,POINT(77.5500 12.9800),+91-80-34567890,12,3,Sodium Vapor

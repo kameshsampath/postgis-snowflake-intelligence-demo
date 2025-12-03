@@ -14,7 +14,7 @@
 
 """
 Configuration for Streamlit Dashboard
-PostGIS connection parameters and app settings
+PostGIS and Snowflake connection parameters and app settings
 """
 
 import streamlit as st
@@ -39,6 +39,32 @@ except (KeyError, FileNotFoundError):
         "user": os.getenv("POSTGRES_USER", "postgres"),
         "password": os.getenv("POSTGRES_PASSWORD", "password")
     }
+
+# Snowflake Connection for ML Predictions
+# Try to load from Streamlit secrets first, fallback to defaults
+try:
+    SNOWFLAKE_CONFIG = {
+        "account": st.secrets["snowflake"]["account"],
+        "user": st.secrets["snowflake"]["user"],
+        "password": st.secrets["snowflake"]["password"],
+        "warehouse": st.secrets["snowflake"]["warehouse"],
+        "database": st.secrets["snowflake"]["database"],
+        "schema": st.secrets["snowflake"]["schema"]
+    }
+    SNOWFLAKE_ENABLED = True
+except (KeyError, FileNotFoundError):
+    # Fallback to environment variables or defaults if secrets not available
+    import os
+    SNOWFLAKE_CONFIG = {
+        "account": os.getenv("SNOWFLAKE_ACCOUNT", ""),
+        "user": os.getenv("SNOWFLAKE_USER", ""),
+        "password": os.getenv("SNOWFLAKE_PASSWORD", ""),
+        "warehouse": os.getenv("SNOWFLAKE_WAREHOUSE", "COMPUTE_WH"),
+        "database": os.getenv("SNOWFLAKE_DATABASE", "STREETLIGHTS_DEMO"),
+        "schema": os.getenv("SNOWFLAKE_SCHEMA", "ANALYTICS")
+    }
+    # Only enable Snowflake if credentials are provided
+    SNOWFLAKE_ENABLED = bool(SNOWFLAKE_CONFIG["account"] and SNOWFLAKE_CONFIG["user"])
 
 # Streamlit Page Configuration
 PAGE_CONFIG = {

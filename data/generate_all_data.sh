@@ -65,13 +65,13 @@ ls -lh *.csv | awk '{print "  " $9 " (" $5 ")"}'
 echo ""
 echo "Next steps:"
 echo "  1. Load data into PostgreSQL:"
-echo "     docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/load_data.sql"
+echo "     psql -U snowflake_admin -d postgres -f ./data/load_data.sql"
 echo ""
 echo "  2. Or use psql from host (if PostgreSQL client installed):"
-echo "     psql -h localhost -U postgres -d streetlights -f load_data.sql"
+echo "     psql -h localhost -U snowflake_admin -d postgres -f load_data.sql"
 echo ""
 echo "  3. Verify data loaded:"
-echo "     docker exec -it streetlights-postgres psql -U postgres -d streetlights -c 'SELECT COUNT(*) FROM street_lights;'"
+echo "     psql -U snowflake_admin -d postgres -c 'SELECT COUNT(*) FROM street_lights;'"
 echo ""
 
 
