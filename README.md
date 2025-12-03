@@ -55,56 +55,53 @@ The quickstart covers:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Snowflake-Managed PostgreSQL                        │
-│                                                                             │
-│  ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐  │
-│  │   Base Tables    │      │   Enrichment     │      │   Enriched       │  │
-│  │                  │──────│   Tables         │──────│   Views          │  │
-│  │ • street_lights  │      │ • weather        │      │                  │  │
-│  │ • neighborhoods  │      │ • demographics   │      │ street_lights_   │  │
-│  │ • maintenance_   │      │ • power_grid     │      │ _enriched        │  │
-│  │   requests       │      └──────────────────┘      └────────┬─────────┘  │
-│  │ • suppliers      │                                         │            │
-│  └──────────────────┘                                         │            │
-│           │                                                   │            │
-│           │ Publication: streetlights_publication             │            │
-└───────────┼───────────────────────────────────────────────────┼────────────┘
-            │                                                   │
-            │ Snowflake Openflow CDC                            │
-            ▼                                                   ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Snowflake                                      │
-│                                                                             │
-│  ┌──────────────────┐      ┌──────────────────┐      ┌──────────────────┐  │
-│  │   Raw Tables     │      │   Cortex Search  │      │   ML Forecasting │  │
-│  │   (CDC Sync)     │──────│                  │      │                  │  │
-│  │                  │      │ MAINTENANCE_     │      │ BULB_FAILURE_    │  │
-│  │ Real-time sync   │      │ SEARCH           │      │ FORECASTER       │  │
-│  │ from PostgreSQL  │      │                  │      │                  │  │
-│  └──────────────────┘      └──────────────────┘      └──────────────────┘  │
-│                                    │                          │            │
-│                                    ▼                          ▼            │
-│                            ┌──────────────────────────────────────────┐    │
-│                            │        Snowflake Intelligence            │    │
-│                            │                                          │    │
-│                            │ • Cortex Search (semantic queries)       │    │
-│                            │ • Cortex Analyst (analytics via YAML)    │    │
-│                            │ • ML Predictions (30/90-day forecasts)   │    │
-│                            └──────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────────────┘
-            │
-            ▼
-┌──────────────────────────┐
-│   Streamlit Dashboard    │
-│                          │
-│ • Interactive Maps       │
-│ • Faulty Light Analysis  │
-│ • Predictive Maintenance │
-│ • Supplier Coverage      │
-│ • Live Demo Controls     │
-└──────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph PG["Snowflake Postgres"]
+        direction LR
+        subgraph Base["Base Tables"]
+            SL[street_lights]
+            NH[neighborhoods]
+            MR[maintenance_requests]
+            SP[suppliers]
+        end
+        subgraph Enrich["Enrichment Tables"]
+            WE[weather]
+            DE[demographics]
+            PW[power_grid]
+        end
+        EV[("street_lights_enriched<br/>(View)")]
+        Base --> EV
+        Enrich --> EV
+    end
+
+    PUB{{streetlights_publication}}
+    PG --> PUB
+
+    subgraph SF["Snowflake"]
+        direction TB
+        RAW[("Raw Tables<br/>(CDC Sync)")]
+        subgraph AI["Snowflake Intelligence"]
+            CS[Cortex Search<br/>MAINTENANCE_SEARCH]
+            CA[Cortex Analyst<br/>Semantic YAML]
+            ML[ML FORECAST<br/>BULB_FAILURE_FORECASTER]
+        end
+        RAW --> CS
+        RAW --> CA
+        RAW --> ML
+    end
+
+    PUB -->|Openflow CDC| SF
+
+    subgraph DASH["Streamlit Dashboard"]
+        D1[Interactive Maps]
+        D2[Faulty Light Analysis]
+        D3[Predictive Maintenance]
+        D4[Supplier Coverage]
+        D5[Live Demo Controls]
+    end
+
+    SF --> DASH
 ```
 
 ---

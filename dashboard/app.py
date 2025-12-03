@@ -804,7 +804,7 @@ elif page == "🔮 Predictive Maintenance":
                      title=f"Predicted Failures Over Next {days_ahead} Days",
                      labels={'count': 'Number of Predicted Failures', 
                             'predicted_failure_date': 'Date'})
-            st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
         
         # Seasonal patterns
         st.markdown("### Seasonal Failure Patterns")
@@ -816,13 +816,13 @@ elif page == "🔮 Predictive Maintenance":
                 fig = px.bar(seasonal_df, x='season', y='request_count',
                            title="Historical Maintenance Requests by Season",
                            labels={'request_count': 'Number of Requests', 'season': 'Season'})
-                    st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True)
             
             with col2:
                 fig = px.bar(seasonal_df, x='season', y='avg_resolution_hours',
                            title="Average Resolution Time by Season",
                            labels={'avg_resolution_hours': 'Hours', 'season': 'Season'})
-                    st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No predictions match the selected criteria")
 
