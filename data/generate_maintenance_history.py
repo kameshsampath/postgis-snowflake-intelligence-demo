@@ -49,7 +49,7 @@ def get_seasonal_failure_weight(season):
     }
     return weights[season]
 
-def generate_maintenance_requests(lights, count=500):
+def generate_maintenance_requests(lights, count=1500):
     """Generate maintenance request history"""
     requests = []
     
@@ -124,9 +124,8 @@ def main():
     print(f"✓ Loaded {len(lights)} street lights")
     
     print("\nGenerating maintenance request history...")
-    # NOTE: For better ML forecasting/anomaly detection results, increase count to 1500+
-    # Current 500 gives ~0.5 bulb failures/day (sparse). 1500 gives ~1.5/day (better patterns)
-    requests = generate_maintenance_requests(lights, count=500)
+    # Using 1500 requests for better ML forecasting patterns (~1.5 failures/day)
+    requests = generate_maintenance_requests(lights, count=1500)
     save_to_csv(requests)
     
     # Print summary

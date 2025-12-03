@@ -38,7 +38,7 @@ This directory contains scripts to generate synthetic data for the Street Lights
 After running generation scripts, these files are created:
 - `neighborhoods.csv` (50 neighborhoods)
 - `street_lights.csv` (5,000 lights)
-- `maintenance_requests.csv` (500 requests)
+- `maintenance_requests.csv` (1,500 requests)
 - `suppliers.csv` (25 suppliers)
 - `weather_enrichment.csv` (15,000 records - 3 seasons × 5,000 lights)
 - `demographics_enrichment.csv` (50 records)
@@ -84,7 +84,7 @@ docker exec -it streetlights-postgres psql -U postgres -d streetlights -f /data/
 **What you get:**
 - 50 neighborhoods across Bengaluru
 - 5,000 street lights with realistic distribution
-- 500 maintenance requests
+- 1,500 maintenance requests
 - 25 suppliers with service coverage
 - 15,000 enrichment records (seasonal data)
 
@@ -202,7 +202,7 @@ head street_lights.csv
 Expected line counts (including header):
 - `neighborhoods.csv`: 51 lines (50 + header)
 - `street_lights.csv`: 5001 lines (5000 + header)
-- `maintenance_requests.csv`: 501 lines (500 + header)
+- `maintenance_requests.csv`: 1501 lines (1500 + header)
 - `suppliers.csv`: 26 lines (25 + header)
 - `weather_enrichment.csv`: 15001 lines (15000 + header)
 

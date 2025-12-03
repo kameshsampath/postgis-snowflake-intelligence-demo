@@ -56,17 +56,28 @@ def main():
     
     # Summary
     print("=" * 50)
-    print("Data Generation Complete!")
+    print("Full Data Generation Complete!")
     print("=" * 50)
     print()
     print("Generated files in data/ directory:")
     
     data_dir = Path(__file__).parent
-    csv_files = sorted(data_dir.glob("sample_*.csv"))
-    for csv_file in csv_files:
-        size = csv_file.stat().st_size
-        size_kb = size / 1024
-        print(f"  {csv_file.name} ({size_kb:.1f} KB)")
+    # List full dataset files (not sample_*)
+    full_files = [
+        "neighborhoods.csv",
+        "street_lights.csv", 
+        "maintenance_requests.csv",
+        "suppliers.csv",
+        "weather_enrichment.csv",
+        "demographics_enrichment.csv",
+        "power_grid_enrichment.csv",
+    ]
+    for filename in full_files:
+        csv_file = data_dir / filename
+        if csv_file.exists():
+            size = csv_file.stat().st_size
+            size_kb = size / 1024
+            print(f"  {filename} ({size_kb:.1f} KB)")
     
     print()
     print("Next steps:")

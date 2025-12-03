@@ -1,0 +1,5 @@
+request_id,light_id,reported_at,resolved_at,issue_type
+REQ-0001,SL-0002,2024-01-15 08:30:00,2024-01-18 14:20:00,bulb_failure
+REQ-0002,SL-0007,2024-01-20 16:45:00,2024-01-23 10:15:00,wiring
+REQ-0003,SL-0003,2024-02-05 09:20:00,,bulb_failure
+REQ-0004,SL-0010,2024-02-10 14:30:00,,power_supply
