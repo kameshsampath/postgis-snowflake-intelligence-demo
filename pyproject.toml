@@ -24,6 +24,7 @@ dependencies = [
 [project.scripts]
 dashboard = "dashboard.run:main"
 generate-all-data = "data.generate_all:main"
+generate-sample = "data.generate_sample:main"
 generate-neighborhoods = "data.generate_neighborhoods:main"
 generate-lights = "data.generate_street_lights:main"
 generate-maintenance = "data.generate_maintenance_history:main"
