@@ -2,7 +2,8 @@
 
 This directory contains SQL scripts and documentation for Phases 6-8 of the Street Lights Maintenance Demo.
 
-> **Important:** Snowflake Openflow is configured via **Web UI**, not pure SQL.  
+> [!IMPORTANT]
+> Snowflake Openflow is configured via **Web UI**, not pure SQL.  
 > SQL files here provide prerequisites and verification queries only.
 
 ---

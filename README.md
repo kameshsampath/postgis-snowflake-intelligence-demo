@@ -15,7 +15,16 @@ Features:
 Tech Stack: PostgreSQL/PostGIS, Snowflake Openflow, Snowflake Intelligence, Streamlit, Folium
 Use Case: Predictive maintenance for 5,000 street lights in Bengaluru
 
+> [!CAUTION]
 > **DISCLAIMER**: This project uses entirely fictitious data for demonstration and educational purposes. All company names, supplier names, contact information, and other data are computer-generated and do not represent real entities.
+
+---
+
+## 🎬 Demo Video
+
+[![Watch the Demo](https://img.shields.io/badge/YouTube-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://youtu.be/fbCA06cdUTU)
+
+See the complete end-to-end demo showcasing PostGIS, Snowflake Openflow CDC, and Snowflake Intelligence in action.
 
 ---
 
@@ -30,8 +39,8 @@ The quickstart covers:
 3. Database initialization and data loading
 4. Streamlit dashboard launch
 5. Snowflake CDC configuration
-6. Cortex Search and Analyst setup
-7. ML Forecasting configuration
+6. Snowflake Intelligence (Cortex Search + Cortex Analyst) setup and configuration
+7. Snowflake ML Forecasting setup and configuration
 
 ---
 
@@ -45,7 +54,8 @@ The quickstart covers:
 | **Python 3.12+** | Dashboard and data generation | [python.org](https://www.python.org/) |
 | **uv** | Python package manager | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 
-> **Tip**: Use [~/.pgpass](https://www.postgresql.org/docs/current/libpq-pgpass.html) for secure Snowflake PostgreSQL credentials:
+> [!TIP]
+> Use [~/.pgpass](https://www.postgresql.org/docs/current/libpq-pgpass.html) for secure Snowflake PostgreSQL credentials:
 >
 > ```
 > <host>:5432:postgres:snowflake_admin:<password>
@@ -102,55 +112,6 @@ flowchart TB
     end
 
     SF --> DASH
-```
-
----
-
-## Project Structure
-
-```
-postgis-nifi-pipeline/
-├── QUICKSTART.md              # Setup guide (start here!)
-├── DEMO_SCRIPT.md             # Detailed demo walkthrough
-├── pyproject.toml             # Python project configuration
-│
-├── init/                      # PostgreSQL initialization scripts
-│   ├── 00_init_all.sql        # Master init script (run this)
-│   ├── 01_enable_extensions.sql
-│   ├── 02_enable_wal.sql
-│   ├── 03_create_base_tables.sql
-│   ├── 04_create_enrichment_tables.sql
-│   ├── 05_create_enriched_views.sql
-│   ├── 06_create_indexes.sql
-│   └── 07_create_publication.sql
-│
-├── data/                      # Data generation and loading
-│   ├── load_data.sql          # Load full dataset
-│   ├── load_sample_data.sql   # Load sample dataset
-│   ├── generate_all.py        # Generate full datasets (uv run generate-all-data)
-│   ├── generate_sample.py     # Generate sample datasets (uv run generate-sample)
-│   └── *.csv                  # Generated data files
-│
-├── dashboard/                 # Streamlit dashboard
-│   ├── app.py                 # Main dashboard application
-│   ├── run.py                 # Dashboard runner (uv run dashboard)
-│   └── requirements.txt
-│
-├── snowflake/                 # Snowflake SQL scripts
-│   ├── 07_cortex_search_setup.sql
-│   ├── 08_cortex_analyst_setup.sql
-│   ├── 09_ml_training_view.sql
-│   ├── 10_ml_model_training.sql
-│   ├── 11_ml_queries.sql
-│   ├── streetlights_semantic_model.yaml
-│   └── SNOWFLAKE_INTELLIGENCE_QUESTIONS.md
-│
-├── queries/postgis/           # PostGIS query examples
-│   └── *.sql
-│
-└── work/                      # Implementation notes
-    ├── snowflake_ml_guide.md
-    └── *.md
 ```
 
 ---
@@ -244,6 +205,7 @@ uv run generate-sample
   longitude that were parsed from the SQL result in the response
 ```
 
+> [!NOTE]
 > [WKT (Well-Known Text)](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry) is a standard format for geometry like `POINT(77.5946 12.9716)`.
 
 ### ML Forecasting

@@ -2,6 +2,7 @@
 
 This directory contains scripts to generate synthetic data for the Street Lights Maintenance demo.
 
+> [!CAUTION]
 > **DISCLAIMER**: All data is fictitious. See [DATA_DISCLAIMER.md](DATA_DISCLAIMER.md) for details.
 
 ---
@@ -140,7 +141,8 @@ python generate_street_lights.py
 ./generate_all_data.sh
 ```
 
-**Note**: Regeneration creates new random data. If you want reproducible data, modify the scripts to set a random seed.
+> [!NOTE]
+> Regeneration creates new random data. If you want reproducible data, modify the scripts to set a random seed.
 
 ---
 

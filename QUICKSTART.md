@@ -83,20 +83,22 @@ cp .env.example .env
 # Update: PGHOST, PGPORT, PGDATABASE, PGUSER (snowflake_admin), PGPASSWORD
 ```
 
-**Tip**: Use [~/.pgpass](https://www.postgresql.org/docs/current/libpq-pgpass.html) for secure password storage:
+> [!TIP]
+> Use [~/.pgpass](https://www.postgresql.org/docs/current/libpq-pgpass.html) for secure password storage:
+>
+> ```bash
+> # Add entry to ~/.pgpass (create if doesn't exist)
+> echo "<your-host>:5432:postgres:snowflake_admin:<your-password>" >> ~/.pgpass
+> chmod 600 ~/.pgpass
+> ```
 
-```bash
-# Add entry to ~/.pgpass (create if doesn't exist)
-echo "<your-host>:5432:postgres:snowflake_admin:<your-password>" >> ~/.pgpass
-chmod 600 ~/.pgpass
-```
-
-**Tip**: Use [direnv](https://direnv.net/) for automatic environment loading:
-
-```bash
-echo "dotenv" > .envrc
-direnv allow
-```
+> [!TIP]
+> Use [direnv](https://direnv.net/) for automatic environment loading:
+>
+> ```bash
+> echo "dotenv" > .envrc
+> direnv allow
+> ```
 
 ---
 
@@ -201,7 +203,7 @@ uv run dashboard
 
 ### 3.2 Access Dashboard
 
-Open your browser to: **http://localhost:8501**
+Open your browser to: **<http://localhost:8501>**
 
 **Dashboard Pages:**
 
@@ -327,7 +329,8 @@ In Snowflake Intelligence settings, add these orchestration instructions:
 - *CRITICAL*: Wherever possible provide Google Map URL with latitude and longitude that were parsed from the SQL result in the response
 ```
 
-> **Note**: [WKT (Well-Known Text)](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry) is a standard text format for representing geometry objects like `POINT(77.5946 12.9716)`.
+> [!NOTE]
+> [WKT (Well-Known Text)](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry) is a standard text format for representing geometry objects like `POINT(77.5946 12.9716)`.
 
 ### 5.6 Test Combined Capabilities
 
@@ -437,7 +440,7 @@ SELECT 'Phase: ML Forecasting',
 
 ---
 
-## Demo Complete!
+## Demo Complete
 
 Your environment now has:
 

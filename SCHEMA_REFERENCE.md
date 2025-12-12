@@ -2,6 +2,7 @@
 
 Complete data dictionary for the Street Lights Maintenance Demo.
 
+> [!CAUTION]
 > **DISCLAIMER**: All sample data is fictitious and created solely for demonstration purposes. Company names, contact information, and other identifiers do not represent real entities.
 
 ---
@@ -261,7 +262,8 @@ Tables synced from PostgreSQL (in lowercase schema `"streetlights"`):
 | `"streetlights"."demographics_enrichment"` | `streetlights.demographics_enrichment` |
 | `"streetlights"."power_grid_enrichment"` | `streetlights.power_grid_enrichment` |
 
-> **Note**: Use double quotes for lowercase schema/table names in Snowflake SQL.
+> [!NOTE]
+> Use double quotes for lowercase schema/table names in Snowflake SQL.
 
 ---
 

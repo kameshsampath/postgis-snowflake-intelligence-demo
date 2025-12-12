@@ -9,6 +9,8 @@
 - All summary and user reference documentation files should be created in the `work/` directory
 - Only create documentation files when explicitly necessary or requested by the user
 - Do not proactively generate documentation unless there is a clear need
+- Avoid adding "Project Structure" or directory tree sections to README or documentation files as they become outdated quickly
+- Use GitHub admonitions for callouts: `> [!NOTE]`, `> [!TIP]`, `> [!IMPORTANT]`, `> [!WARNING]`, `> [!CAUTION]`
 
 ## SQL Standards
 
