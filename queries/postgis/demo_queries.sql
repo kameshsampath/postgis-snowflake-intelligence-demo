@@ -25,9 +25,10 @@
 --   - Type casting (::geography, ::numeric) and unit conversions
 --
 -- Compare this with Snowflake Intelligence where you can simply ask:
---   "Which neighborhoods have the most faulty lights?"
---   "Find the nearest supplier to faulty light SL-0208"
---   "Show me high-risk lights that need maintenance"
+--   "Which neighborhoods have the most faulty lights?"      → Cortex Analyst
+--   "Find the nearest supplier to faulty light SL-0208"     → Cortex Analyst
+--   "Find safety hazards and dangerous situations"          → Cortex Search
+--   "Show me issues similar to flickering lights"           → Cortex Search
 -- ============================================================================
 
 \echo '============================================================================'
@@ -228,10 +229,68 @@ GROUP BY p.grid_zone
 ORDER BY faulty_pct DESC;
 
 -- ============================================================================
--- 10. GEOGRAPHIC QUERY - Lights Within 1km of Koramangala
+-- 10. TEXT SEARCH - Find Safety Hazards in Descriptions
+-- ============================================================================
+-- Compare with Cortex Search: "Find safety hazards and dangerous situations"
+-- PostgreSQL requires: ILIKE patterns, OR conditions, no semantic understanding
+\echo ''
+\echo '>>> 10. Text Search: Safety Hazards (requires ILIKE, no semantics)'
+\echo ''
+
+SELECT 
+    m.request_id,
+    m.light_id,
+    n.name AS neighborhood,
+    m.issue_type,
+    LEFT(m.description, 60) || '...' AS description_preview,
+    CASE WHEN m.resolved_at IS NULL THEN 'OPEN' ELSE 'CLOSED' END AS status
+FROM maintenance_requests m
+JOIN street_lights l ON m.light_id = l.light_id
+LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+WHERE 
+    -- Must manually specify every keyword variant - no semantic understanding!
+    m.description ILIKE '%danger%'
+    OR m.description ILIKE '%hazard%'
+    OR m.description ILIKE '%urgent%'
+    OR m.description ILIKE '%exposed wire%'
+    OR m.description ILIKE '%fire%'
+    OR m.description ILIKE '%spark%'
+    OR m.description ILIKE '%leaning%'
+ORDER BY m.reported_at DESC
+LIMIT 10;
+
+-- ============================================================================
+-- 11. TEXT SEARCH - Find Flickering Light Issues
+-- ============================================================================
+-- Compare with Cortex Search: "Find lights that flicker on and off"
+-- Cortex Search understands: flickering ≈ blinking ≈ intermittent ≈ unstable
+\echo ''
+\echo '>>> 11. Text Search: Flickering Issues (no synonym matching)'
+\echo ''
+
+SELECT 
+    m.request_id,
+    m.light_id,
+    n.name AS neighborhood,
+    m.issue_type,
+    LEFT(m.description, 70) || '...' AS description_preview
+FROM maintenance_requests m
+JOIN street_lights l ON m.light_id = l.light_id
+LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+WHERE 
+    -- Must list every possible term - misses semantic equivalents!
+    m.description ILIKE '%flicker%'
+    OR m.description ILIKE '%blink%'
+    OR m.description ILIKE '%intermittent%'
+    OR m.description ILIKE '%on and off%'
+ORDER BY m.reported_at DESC
+LIMIT 10;
+
+-- ============================================================================
+-- 12. GEOGRAPHIC QUERY - Lights Within 1km of a Point
 -- ============================================================================
 \echo ''
-\echo '>>> 10. Lights Near Koramangala Center (within 1 km)'
+\echo '>>> 12. Lights Near Koramangala Center (within 1 km)'
 \echo ''
 
 -- Using a point near Koramangala, Bengaluru (77.62, 12.93) with 1km radius
@@ -258,10 +317,18 @@ LIMIT 10;
 \echo '============================================================================'
 \echo 'Demo Complete!'
 \echo ''
-\echo 'Key PostGIS Functions Demonstrated:'
+\echo 'PostGIS Spatial Functions Used:'
 \echo '  - ST_Within(point, polygon)     Point-in-polygon containment'
 \echo '  - ST_Distance(geog, geog)       Accurate distance in meters'
 \echo '  - ST_DWithin(geog, geog, dist)  Find features within distance'
 \echo '  - <-> operator                  KNN (K-Nearest Neighbor) index'
-\echo '  - ::geography cast              Convert geometry to geography for meters'
+\echo ''
+\echo 'Text Search Limitations Demonstrated:'
+\echo '  - ILIKE requires exact keyword matches'
+\echo '  - No semantic understanding (flickering != blinking)'
+\echo '  - Must manually list all synonyms'
+\echo ''
+\echo 'With Snowflake Intelligence, just ask in plain English:'
+\echo '  - Cortex Analyst: "How many lights are faulty by neighborhood?"'
+\echo '  - Cortex Search:  "Find safety hazards and dangerous situations"'
 \echo '============================================================================'

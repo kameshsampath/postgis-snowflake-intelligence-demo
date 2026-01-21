@@ -322,11 +322,36 @@ snow stage copy ./snowflake/streetlights_semantic_model.yaml '@streetlights_demo
 In Snowflake Intelligence settings, add these orchestration instructions:
 
 ```
-- Whenever possible try to visualize the data graphically
+## ROUTING RULES - CRITICAL
 
-- *CRITICAL*: When you get WKT format for location, try parsing it as geometric location as latitude and longitude. Don't show that you encountered SQL parsing error.
+Use CORTEX SEARCH (MAINTENANCE_SEARCH) for questions about:
+- Finding issues by description: "flickering", "sparking", "exposed wires", "water damage"
+- Safety hazards, dangerous situations, urgent repairs
+- Semantic similarity: "find issues similar to...", "show me complaints about..."
+- Free-text content in maintenance descriptions
 
-- *CRITICAL*: Wherever possible provide Google Map URL with latitude and longitude that were parsed from the SQL result in the response
+Use CORTEX ANALYST (semantic model) for questions about:
+- Counts and aggregations: "how many", "total", "average"
+- Rankings: "which neighborhoods have the most..."
+- Status breakdowns: "lights by status", "open vs closed requests"
+- Time-based analytics: resolution times, trends
+
+## OUTPUT & ORCHESTRATION GUIDELINES
+
+1. DATA VISUALIZATION
+- Prioritize Graphics: Whenever the result set structure permits, visualize the data graphically (charts, graphs, plots) rather than outputting raw tabular text.
+
+2. FINANCIAL FORMATTING
+- Currency Standard: All monetary values must be converted and displayed in Indian Rupees (INR / ₹).
+
+3. LOCATION & GEOSPATIAL HANDLING (CRITICAL)
+- WKT Parsing: If the query result contains location data in WKT (Well-Known Text) format, parse the geometry to extract Latitude and Longitude.
+- Error Suppression: Handle all parsing logic internally. Do NOT expose SQL parsing errors or code stack traces to the end user.
+- Map Link Generation: Construct a Google Maps URL using extracted coordinates (e.g., https://www.google.com/maps/search/?api=1&query=LAT,LONG).
+- Display Logic:
+  * Hide Raw Coordinates: Never display raw Latitude and Longitude values in the final response.
+  * Anchor Text Rule: Use the specific Place Name from the data record as the hyperlink text.
+  * Fallback: If the Place Name is unavailable, use the text "Show in Maps" as the hyperlink anchor.
 ```
 
 > [!NOTE]

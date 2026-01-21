@@ -168,6 +168,34 @@ tasks:
         LIMIT 10;
         "
 
+  pg-query:text-search:
+    desc: "Text search - requires ILIKE, no semantic understanding (vs Cortex Search)"
+    cmds:
+      - |
+        psql -c "
+        SET search_path TO streetlights, public;
+        -- Compare with Cortex Search: 'Find safety hazards and dangerous situations'
+        -- PostgreSQL has no semantic understanding - must list every keyword!
+        SELECT 
+            m.request_id,
+            m.light_id,
+            n.name AS neighborhood,
+            m.issue_type,
+            LEFT(m.description, 50) || '...' AS description_preview
+        FROM maintenance_requests m
+        JOIN street_lights l ON m.light_id = l.light_id
+        LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
+        WHERE 
+            m.description ILIKE '%danger%'
+            OR m.description ILIKE '%hazard%'
+            OR m.description ILIKE '%urgent%'
+            OR m.description ILIKE '%exposed wire%'
+            OR m.description ILIKE '%fire%'
+            OR m.description ILIKE '%spark%'
+        ORDER BY m.reported_at DESC
+        LIMIT 10;
+        "
+
   # ============================================================================
   # Database Management
   # ============================================================================
