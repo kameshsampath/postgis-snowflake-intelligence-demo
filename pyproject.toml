@@ -1,10 +1,11 @@
 [project]
-name = "postgis-nifi-pipeline"
-version = "0.0.1"
-description = "PostGIS + Apache NiFi + Snowflake ML Demo - Street Lights Maintenance"
+name = "postgis-snowflake-intelligence-demo"
+version = "1.0.0"
+description = "PostgreSQL/PostGIS + Snowflake Openflow CDC + Snowflake Intelligence Demo - Street Lights Maintenance"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"}
+    {name = "Kamesh Sampath"}
 ]
+license = {text = "Apache-2.0"}
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

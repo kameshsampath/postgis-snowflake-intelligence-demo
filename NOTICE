@@ -1,0 +1,103 @@
+Street Lights AI Maintenance Demo
+Copyright 2025 Kamesh Sampath
+
+This product is licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+================================================================================
+DISCLAIMER
+================================================================================
+
+This project uses entirely fictitious data for demonstration and educational
+purposes. All company names, supplier names, contact information, geographic
+boundaries, and other data are computer-generated and do not represent real
+entities, locations, or individuals.
+
+================================================================================
+THIRD-PARTY DEPENDENCIES
+================================================================================
+
+This project includes or depends on the following third-party software:
+
+PostgreSQL
+  License: PostgreSQL License (BSD-like)
+  <https://www.postgresql.org/about/licence/>
+
+PostGIS
+  License: GNU General Public License v2.0 (GPLv2)
+  <https://postgis.net/>
+
+Streamlit
+  License: Apache License 2.0
+  <https://github.com/streamlit/streamlit>
+
+Folium
+  License: MIT License
+  <https://github.com/python-visualization/folium>
+
+Pandas
+  License: BSD 3-Clause License
+  <https://github.com/pandas-dev/pandas>
+
+NumPy
+  License: BSD 3-Clause License
+  <https://github.com/numpy/numpy>
+
+Shapely
+  License: BSD 3-Clause License
+  <https://github.com/shapely/shapely>
+
+Plotly
+  License: MIT License
+  <https://github.com/plotly/plotly.py>
+
+SQLAlchemy
+  License: MIT License
+  <https://github.com/sqlalchemy/sqlalchemy>
+
+psycopg2
+  License: GNU Lesser General Public License v3.0 or later (LGPLv3+)
+  <https://www.psycopg.org/>
+
+python-dotenv
+  License: BSD 3-Clause License
+  <https://github.com/theskumar/python-dotenv>
+
+snowflake-connector-python
+  License: Apache License 2.0
+  <https://github.com/snowflakedb/snowflake-connector-python>
+
+Apache NiFi
+  License: Apache License 2.0
+  <https://nifi.apache.org/>
+
+================================================================================
+TRADEMARKS
+================================================================================
+
+Apache, Apache NiFi, and NiFi are either registered trademarks or trademarks
+of The Apache Software Foundation in the United States and/or other countries.
+
+Snowflake is a registered trademark of Snowflake Inc.
+
+Streamlit is a trademark of Snowflake Inc.
+
+PostgreSQL and Postgres are registered trademarks of the PostgreSQL Community
+Association of Canada.
+
+PostGIS is an OSGeo project. OSGeo is a registered trademark of the Open Source
+Geospatial Foundation.
+
+Python is a registered trademark of the Python Software Foundation.
+
+All other trademarks are the property of their respective owners.
+
+No endorsement by any trademark holder is implied by the use of these marks.

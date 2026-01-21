@@ -1,5 +1,8 @@
 # Street Lights AI Maintenance Demo
 
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Citation](https://img.shields.io/badge/Citation-CFF-green.svg)](CITATION.cff)
+
 ## PostgreSQL/PostGIS → Snowflake Openflow → Snowflake Cortex Intelligence → ML FORECAST
 
 Complete demo showcasing modern data pipeline with PostgreSQL/PostGIS, Snowflake Openflow CDC, and Snowflake Intelligence (Cortex Search + Cortex Analyst + ML FORECAST).
@@ -285,6 +288,12 @@ psql -c "SELECT * FROM pg_replication_slots;"
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 Copyright 2025 Kamesh Sampath
+
+See [NOTICE](NOTICE) for third-party attributions.
+
+### Citation
+
+If you use this project in your research or work, please cite it using the information in [CITATION.cff](CITATION.cff).
 
 ---
 

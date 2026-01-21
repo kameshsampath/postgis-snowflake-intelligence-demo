@@ -1,0 +1,39 @@
+# Copyright 2025 Kamesh Sampath
+# SPDX-License-Identifier: Apache-2.0
+#
+# This CITATION.cff file was generated to enable citation of this software.
+# See https://citation-file-format.github.io/ for more information.
+
+cff-version: 1.2.0
+title: "Street Lights AI Maintenance Demo"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Sampath
+    given-names: Kamesh
+    orcid:
+repository-code: "https://github.com/kameshsampath/postgis-snowflake-intelligence-demo"
+url: "https://github.com/kameshsampath/postgis-snowflake-intelligence-demo"
+abstract: >-
+  A complete demonstration showcasing modern data pipeline architecture with  PostgreSQL/PostGIS, Snowflake Openflow
+  CDC, and Snowflake Intelligence  (Cortex Search + Cortex Analyst + ML FORECAST). Features real-time Change  Data
+  Capture, semantic search on maintenance descriptions, natural language  analytics, ML-powered failure forecasting, and
+  interactive Streamlit dashboard  with spatial visualizations for smart city infrastructure management.
+keywords:
+  - PostgreSQL
+  - PostGIS
+  - Snowflake
+  - CDC
+  - Change Data Capture
+  - Openflow
+  - Cortex Search
+  - Cortex Analyst
+  - ML Forecasting
+  - Streamlit
+  - Spatial Data
+  - Smart City
+  - Predictive Maintenance
+  - Apache NiFi
+license: Apache-2.0
+version: "1.0.0"
+date-released: "2025-01-01"
