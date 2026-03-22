@@ -182,7 +182,7 @@ SELECT
 
 | neighborhoods | street_lights | suppliers | maintenance_requests |
 |---------------|---------------|-----------|----------------------|
-| 50            | 5000          | 25        | 500                  |
+| 50            | 5000          | 25        | 1500                  |
 
 Test the enriched view:
 
