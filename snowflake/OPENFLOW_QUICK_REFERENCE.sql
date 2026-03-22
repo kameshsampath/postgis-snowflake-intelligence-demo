@@ -97,19 +97,21 @@ ORDER BY table_name;
 -- =====================================================
 -- Verify geography columns exist
 DESC TABLE "streetlights"."street_lights";
--- Look for: location GEOGRAPHY
+-- Look for: location (GEOGRAPHY or VARCHAR depending on CDC connector version)
 
 DESC TABLE "streetlights"."neighborhoods";
--- Look for: boundary GEOGRAPHY
+-- Look for: boundary (GEOGRAPHY or VARCHAR depending on CDC connector version)
 
 DESC TABLE "streetlights"."suppliers";
--- Look for: location GEOGRAPHY
+-- Look for: location (GEOGRAPHY or VARCHAR depending on CDC connector version)
 
 -- Test spatial query (using quoted lowercase columns)
+-- Note: After CDC redo, location may be VARCHAR (WKT) instead of GEOGRAPHY.
+-- Use TRY_TO_GEOGRAPHY() to handle both cases.
 SELECT 
   "light_id",
-  ST_X("location") as longitude,
-  ST_Y("location") as latitude,
+  ST_X(TRY_TO_GEOGRAPHY("location")) as longitude,
+  ST_Y(TRY_TO_GEOGRAPHY("location")) as latitude,
   "status",
   "neighborhood_id"
 FROM "streetlights"."street_lights"
@@ -119,7 +121,7 @@ LIMIT 10;
 SELECT 
   l1."light_id" as light_1,
   l2."light_id" as light_2,
-  ST_DISTANCE(l1."location", l2."location") as distance_meters
+  ST_DISTANCE(TRY_TO_GEOGRAPHY(l1."location"), TRY_TO_GEOGRAPHY(l2."location")) as distance_meters
 FROM "streetlights"."street_lights" l1
 CROSS JOIN "streetlights"."street_lights" l2
 WHERE l1."light_id" = 'SL-0001'
@@ -164,6 +166,7 @@ LEFT JOIN "streetlights"."power_grid_enrichment" p ON sl."light_id" = p."light_i
 LIMIT 10;
 
 -- Faulty lights with nearest supplier
+-- Uses TRY_TO_GEOGRAPHY() since CDC may replicate location as VARCHAR (WKT)
 WITH faulty AS (
   SELECT "light_id", "location", "status", "neighborhood_id"
   FROM "streetlights"."street_lights"
@@ -175,8 +178,8 @@ nearest_supplier AS (
     s."supplier_id",
     s."name" as supplier_name,
     s."contact_phone",
-    ST_DISTANCE(f."location", s."location")/1000 as distance_km,
-    ROW_NUMBER() OVER (PARTITION BY f."light_id" ORDER BY ST_DISTANCE(f."location", s."location")) as rn
+    ST_DISTANCE(TRY_TO_GEOGRAPHY(f."location"), TRY_TO_GEOGRAPHY(s."location"))/1000 as distance_km,
+    ROW_NUMBER() OVER (PARTITION BY f."light_id" ORDER BY ST_DISTANCE(TRY_TO_GEOGRAPHY(f."location"), TRY_TO_GEOGRAPHY(s."location"))) as rn
   FROM faulty f
   CROSS JOIN "streetlights"."suppliers" s
 )
