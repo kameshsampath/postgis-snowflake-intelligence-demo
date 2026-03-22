@@ -14,1206 +14,1113 @@
 
 name: STREETLIGHTS_INTELLIGENCE
 tables:
-    - name: street_lights
-      synonyms:
-          - lamps
-          - light poles
-          - lighting fixtures
-          - lights
-          - luminaires
-          - outdoor lights
-          - street lamps
-      description:
-          Core operational data for all street lights in the city, including location coordinates, operational status,
-          power consumption, and maintenance history. This is the central fact table for infrastructure analytics.
-      base_table:
-          database: STREETLIGHTS_DEMO
-          schema: '"streetlights"'
-          table: '"street_lights"'
-      dimensions:
-          - name: _SNOWFLAKE_DELETED
-            synonyms:
-                - deleted_flag
-                - is_deleted
-                - removed
-            description:
-                Indicates whether the record has been deleted in the source PostgreSQL system. Used for CDC soft delete
-                tracking.
-            expr: _SNOWFLAKE_DELETED
-            data_type: BOOLEAN
-            sample_values:
-                - "FALSE"
-          - name: light_id
-            synonyms:
-                - asset_id
-                - fixture_id
-                - lamp_id
-                - light_identifier
-                - pole_id
-            description:
-                Unique identifier for each street light in the format SL-XXXX. This is the primary key used to track
-                individual light fixtures across all tables.
-            expr: '"light_id"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - SL-0001
-                - SL-0500
-                - SL-2500
-          - name: location
-            synonyms:
-                - coordinates
-                - geo_point
-                - gps_location
-                - position
-            description:
-                Geographic coordinates of the light in Well-Known Text (WKT) format as a POINT geometry. Uses WGS84
-                coordinate system (SRID 4326) for GPS compatibility.
-            expr: '"location"'
-            data_type: VARCHAR(16777216)
-          - name: neighborhood_id
-            synonyms:
-                - area_id
-                - district_id
-                - locality_id
-                - zone_id
-            description:
-                Foreign key reference to the neighborhood where the light is located. Used to join with the
-                neighborhoods table for geographic analysis and aggregation.
-            expr: '"neighborhood_id"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - NH-001
-                - NH-025
-                - NH-050
-          - name: status
-            synonyms:
-                - condition
-                - light_status
-                - operational_status
-                - state
-                - working_status
-            description:
-                Current operational status of the street light. Values include operational (working normally), faulty
-                (not working), and maintenance_required (needs attention but still partially functional).
-            expr: '"status"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - operational
-                - faulty
-                - maintenance_required
-      time_dimensions:
-          - name: _SNOWFLAKE_INSERTED_AT
-            synonyms:
-                - cdc_inserted_at
-                - record_created
-                - synced_at
-            description:
-                Timestamp when the record was first inserted into Snowflake via CDC replication from PostgreSQL. Useful
-                for tracking when data first appeared in the data warehouse.
-            expr: _SNOWFLAKE_INSERTED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: _SNOWFLAKE_UPDATED_AT
-            synonyms:
-                - cdc_updated_at
-                - last_modified
-                - last_synced
-            description:
-                Timestamp when the record was last updated in Snowflake via CDC. This reflects the most recent change
-                captured from the PostgreSQL source system.
-            expr: _SNOWFLAKE_UPDATED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: installation_date
-            synonyms:
-                - commissioned_date
-                - deployment_date
-                - install_date
-                - setup_date
-            description:
-                Date when the street light was originally installed and commissioned. Used to calculate the age of the
-                light fixture for maintenance planning and replacement scheduling.
-            expr: '"installation_date"'
-            data_type: DATE
-          - name: last_maintenance
-            synonyms:
-                - last_inspection
-                - last_repair
-                - last_service
-                - maintenance_date
-            description:
-                Timestamp of the most recent maintenance performed on the light. Includes both scheduled preventive
-                maintenance and reactive repairs.
-            expr: '"last_maintenance"'
-            data_type: TIMESTAMP_NTZ(9)
-      facts:
-          - name: wattage
-            synonyms:
-                - energy_usage
-                - power
-                - power_consumption
-                - power_rating
-                - watts
-            description:
-                Power consumption of the street light in watts. Common values range from 100W for LED fixtures to 250W
-                for traditional sodium vapor lamps. Used for energy cost analysis.
-            expr: '"wattage"'
-            data_type: NUMBER(38,0)
-            sample_values:
-                - "100"
-                - "150"
-                - "200"
-                - "250"
-      primary_key:
-          columns:
-              - LIGHT_ID
-    - name: maintenance_requests
-      synonyms:
-          - complaints
-          - issues
-          - maintenance_tickets
-          - repairs
-          - service_requests
-          - tickets
-          - work_orders
-      description:
-          Historical and active maintenance requests for street lights, tracking when issues are reported, resolved, and
-          the type of problem encountered. Key table for analyzing response times, common failure patterns, and service
-          level performance.
-      base_table:
-          database: STREETLIGHTS_DEMO
-          schema: '"streetlights"'
-          table: '"maintenance_requests"'
-      dimensions:
-          - name: _SNOWFLAKE_DELETED
-            description:
-                Indicates whether the maintenance request record has been deleted in the source PostgreSQL system. Used
-                for CDC soft delete tracking.
-            expr: _SNOWFLAKE_DELETED
-            data_type: BOOLEAN
-            sample_values:
-                - "FALSE"
-          - name: issue_type
-            synonyms:
-                - defect_type
-                - failure_type
-                - fault_type
-                - issue_category
-                - problem_category
-                - problem_type
-            description:
-                Category of the maintenance issue. Common types include bulb_failure, wiring, pole_damage,
-                sensor_malfunction, timer_issue, vandalism, and storm_damage. Used for failure pattern analysis.
-            expr: '"issue_type"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - bulb_failure
-                - wiring
-                - pole_damage
-                - sensor_malfunction
-                - timer_issue
-          - name: light_id
-            synonyms:
-                - asset_id
-                - fixture_id
-                - lamp_id
-            description:
-                Foreign key to the street light requiring maintenance. Links each request to a specific light fixture
-                for tracking repair history per asset.
-            expr: '"light_id"'
-            data_type: VARCHAR(16777216)
-          - name: request_id
-            synonyms:
-                - case_id
-                - incident_id
-                - issue_id
-                - ticket_id
-                - work_order_id
-            description:
-                Unique identifier for each maintenance request in the format REQ-XXXX. This is the primary key used to
-                track individual service requests through their lifecycle.
-            expr: '"request_id"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - REQ-0001
-                - REQ-0250
-                - REQ-0500
-      time_dimensions:
-          - name: _SNOWFLAKE_INSERTED_AT
-            description:
-                Timestamp when the maintenance request record was first inserted into Snowflake via CDC replication from
-                PostgreSQL.
-            expr: _SNOWFLAKE_INSERTED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: _SNOWFLAKE_UPDATED_AT
-            description:
-                Timestamp when the maintenance request record was last updated in Snowflake via CDC. Reflects the most
-                recent status change or data modification.
-            expr: _SNOWFLAKE_UPDATED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: reported_at
-            synonyms:
-                - created_at
-                - opened_at
-                - report_date
-                - reported_date
-                - submission_date
-            description:
-                Timestamp when the maintenance issue was originally reported. This marks the start of the service
-                request lifecycle and is used to calculate resolution time metrics.
-            expr: '"reported_at"'
-            data_type: TIMESTAMP_NTZ(9)
-          - name: resolved_at
-            synonyms:
-                - closed_at
-                - completed_at
-                - fixed_at
-                - repair_date
-                - resolution_date
-            description:
-                Timestamp when the maintenance issue was resolved and the request closed. NULL value indicates the
-                request is still open and pending resolution.
-            expr: '"resolved_at"'
-            data_type: TIMESTAMP_NTZ(9)
-      facts: []
-      primary_key:
-          columns:
-              - REQUEST_ID
-    - name: neighborhoods
-      synonyms:
-          - areas
-          - districts
-          - localities
-          - regions
-          - wards
-          - zones
-      description:
-          Geographic boundaries and demographic data for city neighborhoods. Used for spatial aggregation,
-          population-weighted analysis, and geographic grouping of street light infrastructure.
-      base_table:
-          database: STREETLIGHTS_DEMO
-          schema: '"streetlights"'
-          table: '"neighborhoods"'
-      dimensions:
-          - name: _SNOWFLAKE_DELETED
-            description:
-                Indicates whether the neighborhood record has been deleted in the source PostgreSQL system. Used for CDC
-                soft delete tracking.
-            expr: _SNOWFLAKE_DELETED
-            data_type: BOOLEAN
-            sample_values:
-                - "FALSE"
-          - name: boundary
-            synonyms:
-                - area_boundary
-                - geographic_boundary
-                - polygon
-            description:
-                Geographic boundary of the neighborhood in Well-Known Text (WKT) format as a POLYGON geometry. Uses
-                WGS84 coordinate system (SRID 4326) for spatial queries.
-            expr: '"boundary"'
-            data_type: VARCHAR(16777216)
-          - name: name
-            synonyms:
-                - area_name
-                - district_name
-                - locality_name
-                - neighborhood_name
-            description:
-                Human-readable name of the neighborhood. Uses actual Bengaluru neighborhood names for demo realism, such
-                as Koramangala, Indiranagar, Whitefield, and Electronic City.
-            expr: '"name"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - Koramangala
-                - Indiranagar
-                - Whitefield
-                - Electronic City
-          - name: neighborhood_id
-            synonyms:
-                - area_id
-                - district_id
-                - locality_id
-                - zone_id
-            description:
-                Unique identifier for each neighborhood in the format NH-XXX. This is the primary key used to link
-                street lights and demographics data to geographic areas.
-            expr: '"neighborhood_id"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - NH-001
-                - NH-025
-                - NH-050
-      time_dimensions:
-          - name: _SNOWFLAKE_INSERTED_AT
-            description:
-                Timestamp when the neighborhood record was first inserted into Snowflake via CDC replication from
-                PostgreSQL.
-            expr: _SNOWFLAKE_INSERTED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: _SNOWFLAKE_UPDATED_AT
-            description:
-                Timestamp when the neighborhood record was last updated in Snowflake via CDC. Reflects the most recent
-                boundary or metadata change.
-            expr: _SNOWFLAKE_UPDATED_AT
-            data_type: TIMESTAMP_NTZ(9)
-      facts:
-          - name: population
-            synonyms:
-                - inhabitants
-                - people
-                - population_count
-                - residents
-            description:
-                Estimated population of the neighborhood. Used for calculating lights per capita and prioritizing
-                maintenance in high-population areas.
-            expr: '"population"'
-            data_type: NUMBER(38,0)
-            sample_values:
-                - "50000"
-                - "125000"
-                - "200000"
-      primary_key:
-          columns:
-              - NEIGHBORHOOD_ID
-    - name: suppliers
-      synonyms:
-          - contractors
-          - maintenance_companies
-          - repair_companies
-          - service_providers
-          - vendors
-      description:
-          Light equipment suppliers and maintenance contractors with their service coverage areas, response times, and
-          specializations. Used for dispatch optimization, supplier performance analysis, and service level agreement
+  - name: street_lights
+    synonyms:
+      - lamps
+      - light poles
+      - lighting fixtures
+      - lights
+      - luminaires
+      - outdoor lights
+      - street lamps
+    description:
+      Core operational data for all street lights in the city, including location coordinates, operational status, power
+      consumption, and maintenance history. This is the central fact table for infrastructure analytics.
+    base_table:
+      database: STREETLIGHTS_DEMO
+      schema: '"streetlights"'
+      table: '"street_lights"'
+    dimensions:
+      - name: _SNOWFLAKE_DELETED
+        synonyms:
+          - deleted_flag
+          - is_deleted
+          - removed
+        description:
+          Indicates whether the record has been deleted in the source PostgreSQL system. Used for CDC soft delete
           tracking.
-      base_table:
-          database: STREETLIGHTS_DEMO
-          schema: '"streetlights"'
-          table: '"suppliers"'
-      dimensions:
-          - name: _SNOWFLAKE_DELETED
-            description:
-                Indicates whether the supplier record has been deleted in the source PostgreSQL system. Used for CDC
-                soft delete tracking.
-            expr: _SNOWFLAKE_DELETED
-            data_type: BOOLEAN
-            sample_values:
-                - "FALSE"
-          - name: contact_phone
-            synonyms:
-                - contact
-                - phone
-                - phone_number
-                - telephone
-            description:
-                Contact phone number for the supplier. Used for dispatch coordination and emergency contact. Note that
-                all phone numbers are fictitious.
-            expr: '"contact_phone"'
-            data_type: VARCHAR(16777216)
-          - name: location
-            synonyms:
-                - coordinates
-                - office_location
-                - position
-            description:
-                Geographic location of the supplier office in Well-Known Text (WKT) format as a POINT geometry. Used for
-                calculating distance to lights needing service.
-            expr: '"location"'
-            data_type: VARCHAR(16777216)
-          - name: name
-            synonyms:
-                - company_name
-                - contractor_name
-                - supplier_name
-                - vendor_name
-            description:
-                Name of the supplier company. Note that all supplier names are fictitious and created solely for
-                demonstration purposes.
-            expr: '"name"'
-            data_type: VARCHAR(16777216)
-          - name: specialization
-            synonyms:
-                - equipment_type
-                - expertise
-                - focus_area
-                - specialty
-            description:
-                Type of lighting equipment the supplier specializes in. Values include LED (modern efficient fixtures),
-                Sodium Vapor (traditional high-intensity), and All (full-service providers).
-            expr: '"specialization"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - LED
-                - Sodium Vapor
-                - All
-          - name: supplier_id
-            synonyms:
-                - company_id
-                - contractor_id
-                - vendor_id
-            description:
-                Unique identifier for each supplier in the format SUP-XXX. This is the primary key used to track
-                supplier performance and service assignments.
-            expr: '"supplier_id"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - SUP-001
-                - SUP-010
-                - SUP-020
-      time_dimensions:
-          - name: _SNOWFLAKE_INSERTED_AT
-            description:
-                Timestamp when the supplier record was first inserted into Snowflake via CDC replication from
-                PostgreSQL.
-            expr: _SNOWFLAKE_INSERTED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: _SNOWFLAKE_UPDATED_AT
-            description:
-                Timestamp when the supplier record was last updated in Snowflake via CDC. Reflects the most recent
-                contact or service area change.
-            expr: _SNOWFLAKE_UPDATED_AT
-            data_type: TIMESTAMP_NTZ(9)
-      facts:
-          - name: avg_response_hours
-            synonyms:
-                - average_response
-                - response_time
-                - sla_hours
-                - turnaround_time
-            description:
-                Average time in hours for the supplier to respond to a service request. Lower values indicate faster
-                response and better service levels.
-            expr: '"avg_response_hours"'
-            data_type: NUMBER(38,0)
-            sample_values:
-                - "3"
-                - "4"
-                - "6"
-          - name: service_radius_km
-            synonyms:
-                - coverage_distance
-                - coverage_radius
-                - service_area
-            description:
-                Maximum distance in kilometers the supplier will travel for service calls. Used for dispatch
-                optimization to find suppliers within range of faulty lights.
-            expr: '"service_radius_km"'
-            data_type: NUMBER(38,0)
-            sample_values:
-                - "8"
-                - "10"
-                - "12"
-      primary_key:
-          columns:
-              - SUPPLIER_ID
-    - name: weather_enrichment
-      synonyms:
-          - climate_data
-          - seasonal_data
-          - weather_data
-          - weather_factors
-      description:
-          Seasonal weather patterns and their impact on street light failure rates. Contains ML-predicted failure dates
-          based on weather conditions. Used for predictive maintenance planning and seasonal resource allocation.
-      base_table:
-          database: STREETLIGHTS_DEMO
-          schema: '"streetlights"'
-          table: '"weather_enrichment"'
-      dimensions:
-          - name: _SNOWFLAKE_DELETED
-            description:
-                Indicates whether the weather enrichment record has been deleted in the source PostgreSQL system. Used
-                for CDC soft delete tracking.
-            expr: _SNOWFLAKE_DELETED
-            data_type: BOOLEAN
-            sample_values:
-                - "FALSE"
-          - name: light_id
-            synonyms:
-                - fixture_id
-                - lamp_id
-            description:
-                Foreign key to the street light this weather data applies to. Each light has weather data for multiple
-                seasons to support seasonal analysis.
-            expr: '"light_id"'
-            data_type: VARCHAR(16777216)
-          - name: season
-            synonyms:
-                - seasonal_period
-                - time_of_year
-                - weather_season
-            description:
-                Season identifier for the weather data. Values are monsoon (June through September with high rainfall),
-                summer (March through May with high temperatures), and winter (December through February with moderate
-                conditions).
-            expr: '"season"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - monsoon
-                - summer
-                - winter
-      time_dimensions:
-          - name: _SNOWFLAKE_INSERTED_AT
-            description:
-                Timestamp when the weather enrichment record was first inserted into Snowflake via CDC replication from
-                PostgreSQL.
-            expr: _SNOWFLAKE_INSERTED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: _SNOWFLAKE_UPDATED_AT
-            description:
-                Timestamp when the weather enrichment record was last updated in Snowflake via CDC. Reflects the most
-                recent prediction model update.
-            expr: _SNOWFLAKE_UPDATED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: predicted_failure_date
-            synonyms:
-                - expected_failure
-                - failure_prediction
-                - predicted_outage
-            description:
-                ML-predicted date when the light is expected to fail based on weather conditions, age, and historical
-                patterns. Used for proactive maintenance scheduling.
-            expr: '"predicted_failure_date"'
-            data_type: DATE
-      facts:
-          - name: avg_temperature_c
-            synonyms:
-                - average_temperature
-                - avg_temp
-                - temperature
-            description:
-                Average temperature in Celsius for the season at this light location. Summer typically ranges 32-38C,
-                monsoon 26-30C, and winter 18-25C for Bengaluru.
-            expr: '"avg_temperature_c"'
-            data_type: NUMBER(5,2)
-            sample_values:
-                - "22.80"
-                - "28.50"
-                - "35.20"
-          - name: failure_risk_score
-            synonyms:
-                - failure_likelihood
-                - failure_probability
-                - risk_level
-                - risk_score
-            description:
-                Predicted probability of failure ranging from 0.0 to 1.0 based on weather conditions, light age, and
-                historical data. Monsoon typically has scores of 0.7-0.9, summer 0.5-0.7, and winter 0.2-0.4.
-            expr: '"failure_risk_score"'
-            data_type: NUMBER(3,2)
-            sample_values:
-                - "0.35"
-                - "0.62"
-                - "0.78"
-          - name: rainfall_mm
-            synonyms:
-                - average_rainfall
-                - precipitation
-                - rain
-            description:
-                Average rainfall in millimeters for the season. Monsoon season sees significantly higher values
-                (150-250mm) compared to summer (20-40mm) and winter (5-15mm).
-            expr: '"rainfall_mm"'
-            data_type: NUMBER(6,2)
-            sample_values:
-                - "10.50"
-                - "25.30"
-                - "185.75"
-      primary_key:
-          columns:
-              - LIGHT_ID
-              - SEASON
-    - name: demographics_enrichment
-      synonyms:
-          - area_demographics
-          - census_data
-          - demographics
-          - population_data
-      description:
-          Neighborhood demographic characteristics for infrastructure planning and priority-based maintenance
-          scheduling. High-density urban areas typically receive faster response times.
-      base_table:
-          database: STREETLIGHTS_DEMO
-          schema: '"streetlights"'
-          table: '"demographics_enrichment"'
-      dimensions:
-          - name: _SNOWFLAKE_DELETED
-            description:
-                Indicates whether the demographics enrichment record has been deleted in the source PostgreSQL system.
-                Used for CDC soft delete tracking.
-            expr: _SNOWFLAKE_DELETED
-            data_type: BOOLEAN
-            sample_values:
-                - "FALSE"
-          - name: neighborhood_id
-            synonyms:
-                - area_id
-                - district_id
-                - zone_id
-            description:
-                Foreign key to the neighborhood. Each neighborhood has one demographics record with population and
-                classification data.
-            expr: '"neighborhood_id"'
-            data_type: VARCHAR(16777216)
-          - name: urban_classification
-            synonyms:
-                - area_type
-                - development_level
-                - urbanization
-                - zone_type
-            description:
-                Classification of the neighborhood by development level. Values are urban (high density, commercial
-                areas), suburban (residential, moderate density), and rural (low density, peripheral areas).
-            expr: '"urban_classification"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - urban
-                - suburban
-                - rural
-      time_dimensions:
-          - name: _SNOWFLAKE_INSERTED_AT
-            description:
-                Timestamp when the demographics enrichment record was first inserted into Snowflake via CDC replication
-                from PostgreSQL.
-            expr: _SNOWFLAKE_INSERTED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: _SNOWFLAKE_UPDATED_AT
-            description:
-                Timestamp when the demographics enrichment record was last updated in Snowflake via CDC. Reflects the
-                most recent census or classification update.
-            expr: _SNOWFLAKE_UPDATED_AT
-            data_type: TIMESTAMP_NTZ(9)
-      facts:
-          - name: population_density
-            synonyms:
-                - density
-                - people_per_sqkm
-                - residents_per_area
-            description:
-                Population density measured in people per square kilometer. Urban areas typically have density above
-                10000, suburban areas 5000-10000, and rural areas below 5000.
-            expr: '"population_density"'
-            data_type: NUMBER(38,0)
-            sample_values:
-                - "5200"
-                - "9800"
-                - "12500"
-      primary_key:
-          columns:
-              - NEIGHBORHOOD_ID
-    - name: power_grid_enrichment
-      synonyms:
-          - electrical_data
-          - grid_data
-          - power_grid
-          - power_supply
-      description:
-          Electrical grid zone data for each street light, including load patterns and historical outage information.
-          Used for correlating light failures with grid issues and identifying infrastructure bottlenecks.
-      base_table:
-          database: STREETLIGHTS_DEMO
-          schema: '"streetlights"'
-          table: '"power_grid_enrichment"'
-      dimensions:
-          - name: _SNOWFLAKE_DELETED
-            description:
-                Indicates whether the power grid enrichment record has been deleted in the source PostgreSQL system.
-                Used for CDC soft delete tracking.
-            expr: _SNOWFLAKE_DELETED
-            data_type: BOOLEAN
-            sample_values:
-                - "FALSE"
-          - name: grid_zone
-            synonyms:
-                - electrical_zone
-                - grid_area
-                - power_zone
-                - supply_zone
-            description:
-                Identifier for the power grid zone such as ZONE-A, ZONE-B, or ZONE-C. Each zone represents a distinct
-                electrical supply area with its own load characteristics.
-            expr: '"grid_zone"'
-            data_type: VARCHAR(16777216)
-            sample_values:
-                - ZONE-A
-                - ZONE-B
-                - ZONE-C
-          - name: light_id
-            synonyms:
-                - fixture_id
-                - lamp_id
-            description:
-                Foreign key to the street light. Each light has one power grid record linking it to its electrical
-                supply zone.
-            expr: '"light_id"'
-            data_type: VARCHAR(16777216)
-      time_dimensions:
-          - name: _SNOWFLAKE_INSERTED_AT
-            description:
-                Timestamp when the power grid enrichment record was first inserted into Snowflake via CDC replication
-                from PostgreSQL.
-            expr: _SNOWFLAKE_INSERTED_AT
-            data_type: TIMESTAMP_NTZ(9)
-          - name: _SNOWFLAKE_UPDATED_AT
-            description:
-                Timestamp when the power grid enrichment record was last updated in Snowflake via CDC. Reflects the most
-                recent load or outage data update.
-            expr: _SNOWFLAKE_UPDATED_AT
-            data_type: TIMESTAMP_NTZ(9)
-      facts:
-          - name: avg_load_percent
-            synonyms:
-                - capacity_usage
-                - grid_load
-                - load_percentage
-                - power_load
-            description:
-                Average power grid load as a percentage of total capacity. Values above 80 percent indicate potential
-                stress on the grid that could contribute to outages or voltage fluctuations.
-            expr: '"avg_load_percent"'
-            data_type: NUMBER(5,2)
-            sample_values:
-                - "65.40"
-                - "78.50"
-                - "82.30"
-          - name: outage_history_count
-            synonyms:
-                - blackouts
-                - outage_count
-                - outages
-                - power_outages
-            description:
-                Historical count of power outages recorded in this grid zone. Higher counts indicate less reliable power
-                supply that may contribute to light failures.
-            expr: '"outage_history_count"'
-            data_type: NUMBER(38,0)
-            sample_values:
-                - "1"
-                - "3"
-                - "5"
-      primary_key:
-          columns:
-              - LIGHT_ID
+        expr: _SNOWFLAKE_DELETED
+        data_type: BOOLEAN
+        sample_values:
+          - "FALSE"
+      - name: light_id
+        synonyms:
+          - asset_id
+          - fixture_id
+          - lamp_id
+          - light_identifier
+          - pole_id
+        description:
+          Unique identifier for each street light in the format SL-XXXX. This is the primary key used to track
+          individual light fixtures across all tables.
+        expr: '"light_id"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SL-0001
+          - SL-0500
+          - SL-2500
+      - name: location
+        synonyms:
+          - coordinates
+          - geo_point
+          - gps_location
+          - position
+        description:
+          Geographic coordinates of the light as a WKT POINT geometry (converted from EWKB via CDC). Uses WGS84
+          coordinate system (SRID 4326) for GPS compatibility.
+        expr: 'ST_ASWKT(ST_GEOGRAPHYFROMWKB(TO_BINARY("location", ''HEX'')))'
+        data_type: VARCHAR(16777216)
+      - name: neighborhood_id
+        synonyms:
+          - area_id
+          - district_id
+          - locality_id
+          - zone_id
+        description:
+          Foreign key reference to the neighborhood where the light is located. Used to join with the neighborhoods
+          table for geographic analysis and aggregation.
+        expr: '"neighborhood_id"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - NH-001
+          - NH-025
+          - NH-050
+      - name: status
+        synonyms:
+          - condition
+          - light_status
+          - operational_status
+          - state
+          - working_status
+        description:
+          Current operational status of the street light. Values include operational (working normally), faulty (not
+          working), and maintenance_required (needs attention but still partially functional).
+        expr: '"status"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - operational
+          - faulty
+          - maintenance_required
+    time_dimensions:
+      - name: installation_date
+        synonyms:
+          - commissioned_date
+          - deployment_date
+          - install_date
+          - setup_date
+        description:
+          Date when the street light was originally installed and commissioned. Used to calculate the age of the light
+          fixture for maintenance planning and replacement scheduling.
+        expr: '"installation_date"'
+        data_type: DATE
+      - name: last_maintenance
+        synonyms:
+          - last_inspection
+          - last_repair
+          - last_service
+          - maintenance_date
+        description:
+          Timestamp of the most recent maintenance performed on the light. Includes both scheduled preventive
+          maintenance and reactive repairs.
+        expr: '"last_maintenance"'
+        data_type: TIMESTAMP_NTZ(9)
+    facts:
+      - name: wattage
+        synonyms:
+          - energy_usage
+          - power
+          - power_consumption
+          - power_rating
+          - watts
+        description:
+          Power consumption of the street light in watts. Common values range from 100W for LED fixtures to 250W for
+          traditional sodium vapor lamps. Used for energy cost analysis.
+        expr: '"wattage"'
+        data_type: NUMBER(38,0)
+        sample_values:
+          - "100"
+          - "150"
+          - "200"
+          - "250"
+    primary_key:
+      columns:
+        - LIGHT_ID
+  - name: maintenance_requests
+    synonyms:
+      - complaints
+      - issues
+      - maintenance_tickets
+      - repairs
+      - service_requests
+      - tickets
+      - work_orders
+    description:
+      Historical and active maintenance requests for street lights, tracking when issues are reported, resolved, and the
+      type of problem encountered. Key table for analyzing response times, common failure patterns, and service level
+      performance.
+    base_table:
+      database: STREETLIGHTS_DEMO
+      schema: '"streetlights"'
+      table: '"maintenance_requests"'
+    dimensions:
+      - name: _SNOWFLAKE_DELETED
+        description:
+          Indicates whether the maintenance request record has been deleted in the source PostgreSQL system. Used for
+          CDC soft delete tracking.
+        expr: _SNOWFLAKE_DELETED
+        data_type: BOOLEAN
+        sample_values:
+          - "FALSE"
+      - name: issue_type
+        synonyms:
+          - defect_type
+          - failure_type
+          - fault_type
+          - issue_category
+          - problem_category
+          - problem_type
+        description:
+          Category of the maintenance issue. Common types include bulb_failure, wiring, pole_damage, sensor_malfunction,
+          timer_issue, vandalism, and storm_damage. Used for failure pattern analysis.
+        expr: '"issue_type"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - bulb_failure
+          - wiring
+          - pole_damage
+          - sensor_malfunction
+          - timer_issue
+      - name: light_id
+        synonyms:
+          - asset_id
+          - fixture_id
+          - lamp_id
+        description:
+          Foreign key to the street light requiring maintenance. Links each request to a specific light fixture for
+          tracking repair history per asset.
+        expr: '"light_id"'
+        data_type: VARCHAR(16777216)
+      - name: request_id
+        synonyms:
+          - case_id
+          - incident_id
+          - issue_id
+          - ticket_id
+          - work_order_id
+        description:
+          Unique identifier for each maintenance request in the format REQ-XXXX. This is the primary key used to track
+          individual service requests through their lifecycle.
+        expr: '"request_id"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - REQ-0001
+          - REQ-0250
+          - REQ-0500
+    time_dimensions:
+      - name: reported_at
+        synonyms:
+          - created_at
+          - opened_at
+          - report_date
+          - reported_date
+          - submission_date
+        description:
+          Timestamp when the maintenance issue was originally reported. This marks the start of the service request
+          lifecycle and is used to calculate resolution time metrics.
+        expr: '"reported_at"'
+        data_type: TIMESTAMP_NTZ(9)
+      - name: resolved_at
+        synonyms:
+          - closed_at
+          - completed_at
+          - fixed_at
+          - repair_date
+          - resolution_date
+        description:
+          Timestamp when the maintenance issue was resolved and the request closed. NULL value indicates the request is
+          still open and pending resolution.
+        expr: '"resolved_at"'
+        data_type: TIMESTAMP_NTZ(9)
+    facts: []
+    primary_key:
+      columns:
+        - REQUEST_ID
+  - name: neighborhoods
+    synonyms:
+      - areas
+      - districts
+      - localities
+      - regions
+      - wards
+      - zones
+    description:
+      Geographic boundaries and demographic data for city neighborhoods. Used for spatial aggregation,
+      population-weighted analysis, and geographic grouping of street light infrastructure.
+    base_table:
+      database: STREETLIGHTS_DEMO
+      schema: '"streetlights"'
+      table: '"neighborhoods"'
+    dimensions:
+      - name: _SNOWFLAKE_DELETED
+        description:
+          Indicates whether the neighborhood record has been deleted in the source PostgreSQL system. Used for CDC soft
+          delete tracking.
+        expr: _SNOWFLAKE_DELETED
+        data_type: BOOLEAN
+        sample_values:
+          - "FALSE"
+      - name: boundary
+        synonyms:
+          - area_boundary
+          - geographic_boundary
+          - polygon
+        description:
+          Geographic boundary of the neighborhood as a WKT POLYGON geometry (converted from EWKB via CDC). Uses WGS84
+          coordinate system (SRID 4326) for spatial queries.
+        expr: 'ST_ASWKT(ST_GEOGRAPHYFROMWKB(TO_BINARY("boundary", ''HEX'')))'
+        data_type: VARCHAR(16777216)
+      - name: name
+        synonyms:
+          - area_name
+          - district_name
+          - locality_name
+          - neighborhood_name
+        description:
+          Human-readable name of the neighborhood. Uses actual Bengaluru neighborhood names for demo realism, such as
+          Koramangala, Indiranagar, Whitefield, and Electronic City.
+        expr: '"name"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - Koramangala
+          - Indiranagar
+          - Whitefield
+          - Electronic City
+      - name: neighborhood_id
+        synonyms:
+          - area_id
+          - district_id
+          - locality_id
+          - zone_id
+        description:
+          Unique identifier for each neighborhood in the format NH-XXX. This is the primary key used to link street
+          lights and demographics data to geographic areas.
+        expr: '"neighborhood_id"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - NH-001
+          - NH-025
+          - NH-050
+    time_dimensions: []
+    facts:
+      - name: population
+        synonyms:
+          - inhabitants
+          - people
+          - population_count
+          - residents
+        description:
+          Estimated population of the neighborhood. Used for calculating lights per capita and prioritizing maintenance
+          in high-population areas.
+        expr: '"population"'
+        data_type: NUMBER(38,0)
+        sample_values:
+          - "50000"
+          - "125000"
+          - "200000"
+    primary_key:
+      columns:
+        - NEIGHBORHOOD_ID
+  - name: suppliers
+    synonyms:
+      - contractors
+      - maintenance_companies
+      - repair_companies
+      - service_providers
+      - vendors
+    description:
+      Light equipment suppliers and maintenance contractors with their service coverage areas, response times, and
+      specializations. Used for dispatch optimization, supplier performance analysis, and service level agreement
+      tracking.
+    base_table:
+      database: STREETLIGHTS_DEMO
+      schema: '"streetlights"'
+      table: '"suppliers"'
+    dimensions:
+      - name: _SNOWFLAKE_DELETED
+        description:
+          Indicates whether the supplier record has been deleted in the source PostgreSQL system. Used for CDC soft
+          delete tracking.
+        expr: _SNOWFLAKE_DELETED
+        data_type: BOOLEAN
+        sample_values:
+          - "FALSE"
+      - name: contact_phone
+        synonyms:
+          - contact
+          - phone
+          - phone_number
+          - telephone
+        description:
+          Contact phone number for the supplier. Used for dispatch coordination and emergency contact. Note that all
+          phone numbers are fictitious.
+        expr: '"contact_phone"'
+        data_type: VARCHAR(16777216)
+      - name: location
+        synonyms:
+          - coordinates
+          - office_location
+          - position
+        description:
+          Geographic location of the supplier office as a WKT POINT geometry (converted from EWKB via CDC). Used for
+          calculating distance to lights needing service.
+        expr: 'ST_ASWKT(ST_GEOGRAPHYFROMWKB(TO_BINARY("location", ''HEX'')))'
+        data_type: VARCHAR(16777216)
+      - name: name
+        synonyms:
+          - company_name
+          - contractor_name
+          - supplier_name
+          - vendor_name
+        description:
+          Name of the supplier company. Note that all supplier names are fictitious and created solely for demonstration
+          purposes.
+        expr: '"name"'
+        data_type: VARCHAR(16777216)
+      - name: specialization
+        synonyms:
+          - equipment_type
+          - expertise
+          - focus_area
+          - specialty
+        description:
+          Type of lighting equipment the supplier specializes in. Values include LED (modern efficient fixtures), Sodium
+          Vapor (traditional high-intensity), and All (full-service providers).
+        expr: '"specialization"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - LED
+          - Sodium Vapor
+          - All
+      - name: supplier_id
+        synonyms:
+          - company_id
+          - contractor_id
+          - vendor_id
+        description:
+          Unique identifier for each supplier in the format SUP-XXX. This is the primary key used to track supplier
+          performance and service assignments.
+        expr: '"supplier_id"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - SUP-001
+          - SUP-010
+          - SUP-020
+    time_dimensions: []
+    facts:
+      - name: avg_response_hours
+        synonyms:
+          - average_response
+          - response_time
+          - sla_hours
+          - turnaround_time
+        description:
+          Average time in hours for the supplier to respond to a service request. Lower values indicate faster response
+          and better service levels.
+        expr: '"avg_response_hours"'
+        data_type: NUMBER(38,0)
+        sample_values:
+          - "3"
+          - "4"
+          - "6"
+      - name: service_radius_km
+        synonyms:
+          - coverage_distance
+          - coverage_radius
+          - service_area
+        description:
+          Maximum distance in kilometers the supplier will travel for service calls. Used for dispatch optimization to
+          find suppliers within range of faulty lights.
+        expr: '"service_radius_km"'
+        data_type: NUMBER(38,0)
+        sample_values:
+          - "8"
+          - "10"
+          - "12"
+    primary_key:
+      columns:
+        - SUPPLIER_ID
+  - name: weather_enrichment
+    synonyms:
+      - climate_data
+      - seasonal_data
+      - weather_data
+      - weather_factors
+    description:
+      Seasonal weather patterns and their impact on street light failure rates. Contains ML-predicted failure dates
+      based on weather conditions. Used for predictive maintenance planning and seasonal resource allocation.
+    base_table:
+      database: STREETLIGHTS_DEMO
+      schema: '"streetlights"'
+      table: '"weather_enrichment"'
+    dimensions:
+      - name: _SNOWFLAKE_DELETED
+        description:
+          Indicates whether the weather enrichment record has been deleted in the source PostgreSQL system. Used for CDC
+          soft delete tracking.
+        expr: _SNOWFLAKE_DELETED
+        data_type: BOOLEAN
+        sample_values:
+          - "FALSE"
+      - name: light_id
+        synonyms:
+          - fixture_id
+          - lamp_id
+        description:
+          Foreign key to the street light this weather data applies to. Each light has weather data for multiple seasons
+          to support seasonal analysis.
+        expr: '"light_id"'
+        data_type: VARCHAR(16777216)
+      - name: season
+        synonyms:
+          - seasonal_period
+          - time_of_year
+          - weather_season
+        description:
+          Season identifier for the weather data. Values are monsoon (June through September with high rainfall), summer
+          (March through May with high temperatures), and winter (December through February with moderate conditions).
+        expr: '"season"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - monsoon
+          - summer
+          - winter
+    time_dimensions:
+      - name: predicted_failure_date
+        synonyms:
+          - expected_failure
+          - failure_prediction
+          - predicted_outage
+        description:
+          ML-predicted date when the light is expected to fail based on weather conditions, age, and historical
+          patterns. Used for proactive maintenance scheduling.
+        expr: '"predicted_failure_date"'
+        data_type: DATE
+    facts:
+      - name: avg_temperature_c
+        synonyms:
+          - average_temperature
+          - avg_temp
+          - temperature
+        description:
+          Average temperature in Celsius for the season at this light location. Summer typically ranges 32-38C, monsoon
+          26-30C, and winter 18-25C for Bengaluru.
+        expr: '"avg_temperature_c"'
+        data_type: NUMBER(5,2)
+        sample_values:
+          - "22.80"
+          - "28.50"
+          - "35.20"
+      - name: failure_risk_score
+        synonyms:
+          - failure_likelihood
+          - failure_probability
+          - risk_level
+          - risk_score
+        description:
+          Predicted probability of failure ranging from 0.0 to 1.0 based on weather conditions, light age, and
+          historical data. Monsoon typically has scores of 0.7-0.9, summer 0.5-0.7, and winter 0.2-0.4.
+        expr: '"failure_risk_score"'
+        data_type: NUMBER(3,2)
+        sample_values:
+          - "0.35"
+          - "0.62"
+          - "0.78"
+      - name: rainfall_mm
+        synonyms:
+          - average_rainfall
+          - precipitation
+          - rain
+        description:
+          Average rainfall in millimeters for the season. Monsoon season sees significantly higher values (150-250mm)
+          compared to summer (20-40mm) and winter (5-15mm).
+        expr: '"rainfall_mm"'
+        data_type: NUMBER(6,2)
+        sample_values:
+          - "10.50"
+          - "25.30"
+          - "185.75"
+    primary_key:
+      columns:
+        - LIGHT_ID
+        - SEASON
+  - name: demographics_enrichment
+    synonyms:
+      - area_demographics
+      - census_data
+      - demographics
+      - population_data
+    description:
+      Neighborhood demographic characteristics for infrastructure planning and priority-based maintenance scheduling.
+      High-density urban areas typically receive faster response times.
+    base_table:
+      database: STREETLIGHTS_DEMO
+      schema: '"streetlights"'
+      table: '"demographics_enrichment"'
+    dimensions:
+      - name: _SNOWFLAKE_DELETED
+        description:
+          Indicates whether the demographics enrichment record has been deleted in the source PostgreSQL system. Used
+          for CDC soft delete tracking.
+        expr: _SNOWFLAKE_DELETED
+        data_type: BOOLEAN
+        sample_values:
+          - "FALSE"
+      - name: neighborhood_id
+        synonyms:
+          - area_id
+          - district_id
+          - zone_id
+        description:
+          Foreign key to the neighborhood. Each neighborhood has one demographics record with population and
+          classification data.
+        expr: '"neighborhood_id"'
+        data_type: VARCHAR(16777216)
+      - name: urban_classification
+        synonyms:
+          - area_type
+          - development_level
+          - urbanization
+          - zone_type
+        description:
+          Classification of the neighborhood by development level. Values are urban (high density, commercial areas),
+          suburban (residential, moderate density), and rural (low density, peripheral areas).
+        expr: '"urban_classification"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - urban
+          - suburban
+          - rural
+    time_dimensions: []
+    facts:
+      - name: population_density
+        synonyms:
+          - density
+          - people_per_sqkm
+          - residents_per_area
+        description:
+          Population density measured in people per square kilometer. Urban areas typically have density above 10000,
+          suburban areas 5000-10000, and rural areas below 5000.
+        expr: '"population_density"'
+        data_type: NUMBER(38,0)
+        sample_values:
+          - "5200"
+          - "9800"
+          - "12500"
+    primary_key:
+      columns:
+        - NEIGHBORHOOD_ID
+  - name: power_grid_enrichment
+    synonyms:
+      - electrical_data
+      - grid_data
+      - power_grid
+      - power_supply
+    description:
+      Electrical grid zone data for each street light, including load patterns and historical outage information. Used
+      for correlating light failures with grid issues and identifying infrastructure bottlenecks.
+    base_table:
+      database: STREETLIGHTS_DEMO
+      schema: '"streetlights"'
+      table: '"power_grid_enrichment"'
+    dimensions:
+      - name: _SNOWFLAKE_DELETED
+        description:
+          Indicates whether the power grid enrichment record has been deleted in the source PostgreSQL system. Used for
+          CDC soft delete tracking.
+        expr: _SNOWFLAKE_DELETED
+        data_type: BOOLEAN
+        sample_values:
+          - "FALSE"
+      - name: grid_zone
+        synonyms:
+          - electrical_zone
+          - grid_area
+          - power_zone
+          - supply_zone
+        description:
+          Identifier for the power grid zone such as ZONE-A, ZONE-B, or ZONE-C. Each zone represents a distinct
+          electrical supply area with its own load characteristics.
+        expr: '"grid_zone"'
+        data_type: VARCHAR(16777216)
+        sample_values:
+          - ZONE-A
+          - ZONE-B
+          - ZONE-C
+      - name: light_id
+        synonyms:
+          - fixture_id
+          - lamp_id
+        description:
+          Foreign key to the street light. Each light has one power grid record linking it to its electrical supply
+          zone.
+        expr: '"light_id"'
+        data_type: VARCHAR(16777216)
+    time_dimensions: []
+    facts:
+      - name: avg_load_percent
+        synonyms:
+          - capacity_usage
+          - grid_load
+          - load_percentage
+          - power_load
+        description:
+          Average power grid load as a percentage of total capacity. Values above 80 percent indicate potential stress
+          on the grid that could contribute to outages or voltage fluctuations.
+        expr: '"avg_load_percent"'
+        data_type: NUMBER(5,2)
+        sample_values:
+          - "65.40"
+          - "78.50"
+          - "82.30"
+      - name: outage_history_count
+        synonyms:
+          - blackouts
+          - outage_count
+          - outages
+          - power_outages
+        description:
+          Historical count of power outages recorded in this grid zone. Higher counts indicate less reliable power
+          supply that may contribute to light failures.
+        expr: '"outage_history_count"'
+        data_type: NUMBER(38,0)
+        sample_values:
+          - "1"
+          - "3"
+          - "5"
+    primary_key:
+      columns:
+        - LIGHT_ID
 relationships:
-    - name: lights_to_neighborhoods
-      left_table: street_lights
-      right_table: neighborhoods
-      relationship_columns:
-          - left_column: neighborhood_id
-            right_column: NEIGHBORHOOD_ID
-    - name: requests_to_lights
-      left_table: maintenance_requests
-      right_table: street_lights
-      relationship_columns:
-          - left_column: light_id
-            right_column: LIGHT_ID
-    - name: weather_to_lights
-      left_table: weather_enrichment
-      right_table: street_lights
-      relationship_columns:
-          - left_column: light_id
-            right_column: LIGHT_ID
-    - name: demographics_to_neighborhoods
-      left_table: demographics_enrichment
-      right_table: neighborhoods
-      relationship_columns:
-          - left_column: neighborhood_id
-            right_column: NEIGHBORHOOD_ID
-    - name: power_grid_to_lights
-      left_table: power_grid_enrichment
-      right_table: street_lights
-      relationship_columns:
-          - left_column: light_id
-            right_column: LIGHT_ID
+  - name: lights_to_neighborhoods
+    left_table: street_lights
+    right_table: neighborhoods
+    relationship_columns:
+      - left_column: neighborhood_id
+        right_column: NEIGHBORHOOD_ID
+  - name: requests_to_lights
+    left_table: maintenance_requests
+    right_table: street_lights
+    relationship_columns:
+      - left_column: light_id
+        right_column: LIGHT_ID
+  - name: weather_to_lights
+    left_table: weather_enrichment
+    right_table: street_lights
+    relationship_columns:
+      - left_column: light_id
+        right_column: LIGHT_ID
+  - name: demographics_to_neighborhoods
+    left_table: demographics_enrichment
+    right_table: neighborhoods
+    relationship_columns:
+      - left_column: neighborhood_id
+        right_column: NEIGHBORHOOD_ID
+  - name: power_grid_to_lights
+    left_table: power_grid_enrichment
+    right_table: street_lights
+    relationship_columns:
+      - left_column: light_id
+        right_column: LIGHT_ID
 verified_queries:
-    - name: Total street lights by status
-      question: How many street lights do we have by status?
-      sql: |-
-          SELECT
-            "status" AS status,
-            COUNT(*) AS light_count
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."street_lights"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            "status"
-          ORDER BY
-            light_count DESC
-      use_as_onboarding_question: true
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Lights per neighborhood
-      question: Show me how many lights are in each neighborhood
-      sql: |-
-          SELECT
-            n."name" AS neighborhood_name,
-            n."population" AS population,
-            COUNT(l."light_id") AS light_count
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."street_lights" l
-            LEFT JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
-              ON l."neighborhood_id" = n."neighborhood_id"
-          WHERE
-            l._SNOWFLAKE_DELETED = FALSE
-            AND n._SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            n."name", n."population"
-          ORDER BY
-            light_count DESC
-      use_as_onboarding_question: true
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Open maintenance requests
-      question: How many maintenance requests are currently open?
-      sql: |-
-          SELECT
-            COUNT(*) AS open_requests
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-            AND "resolved_at" IS NULL
-      use_as_onboarding_question: true
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Maintenance by issue type
-      question: What are the most common maintenance issues?
-      sql: |-
-          SELECT
-            "issue_type" AS issue_type,
-            COUNT(*) AS request_count,
-            SUM(CASE WHEN "resolved_at" IS NULL THEN 1 ELSE 0 END) AS still_open
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            "issue_type"
-          ORDER BY
-            request_count DESC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Average resolution time by issue type
-      question: What is the average resolution time for each issue type?
-      sql: |-
-          SELECT
-            "issue_type" AS issue_type,
-            COUNT(*) AS resolved_count,
-            ROUND(AVG(DATEDIFF('hour', "reported_at", "resolved_at")), 1) AS avg_resolution_hours
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-            AND "resolved_at" IS NOT NULL
-          GROUP BY
-            "issue_type"
-          ORDER BY
-            avg_resolution_hours DESC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Maintenance requests by neighborhood
-      question: Which neighborhoods have the most maintenance issues?
-      sql: |-
-          SELECT
-            n."name" AS neighborhood_name,
-            COUNT(m."request_id") AS total_requests,
-            SUM(CASE WHEN m."resolved_at" IS NULL THEN 1 ELSE 0 END) AS open_requests
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."maintenance_requests" m
-            JOIN STREETLIGHTS_DEMO."streetlights"."street_lights" l
-              ON m."light_id" = l."light_id"
-            JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
-              ON l."neighborhood_id" = n."neighborhood_id"
-          WHERE
-            m._SNOWFLAKE_DELETED = FALSE
-            AND l._SNOWFLAKE_DELETED = FALSE
-            AND n._SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            n."name"
-          ORDER BY
-            total_requests DESC
-      use_as_onboarding_question: true
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: High risk lights
-      question: Which lights have the highest failure risk?
-      sql: |-
-          SELECT
-            w."light_id" AS light_id,
-            l."status" AS current_status,
-            n."name" AS neighborhood,
-            w."season" AS season,
-            w."failure_risk_score" AS risk_score,
-            w."predicted_failure_date" AS predicted_failure
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."weather_enrichment" w
-            JOIN STREETLIGHTS_DEMO."streetlights"."street_lights" l
-              ON w."light_id" = l."light_id"
-            LEFT JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
-              ON l."neighborhood_id" = n."neighborhood_id"
-          WHERE
-            w._SNOWFLAKE_DELETED = FALSE
-            AND l._SNOWFLAKE_DELETED = FALSE
-            AND w."failure_risk_score" >= 0.7
-          ORDER BY
-            w."failure_risk_score" DESC
-          LIMIT 20
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Average risk by season
-      question: What is the average failure risk by season?
-      sql: |-
-          SELECT
-            "season" AS season,
-            ROUND(AVG("failure_risk_score"), 2) AS avg_risk_score,
-            ROUND(AVG("avg_temperature_c"), 1) AS avg_temperature,
-            ROUND(AVG("rainfall_mm"), 1) AS avg_rainfall,
-            COUNT(*) AS light_count
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."weather_enrichment"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            "season"
-          ORDER BY
-            avg_risk_score DESC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Outages by grid zone
-      question: Which power grid zones have the most outages?
-      sql: |-
-          SELECT
-            "grid_zone" AS grid_zone,
-            COUNT(*) AS light_count,
-            ROUND(AVG("avg_load_percent"), 1) AS avg_load_pct,
-            SUM("outage_history_count") AS total_outages
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."power_grid_enrichment"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            "grid_zone"
-          ORDER BY
-            total_outages DESC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Supplier response times
-      question: What are the average response times by supplier?
-      sql: |-
-          SELECT
-            "name" AS supplier_name,
-            "specialization" AS specialization,
-            "service_radius_km" AS service_radius_km,
-            "avg_response_hours" AS avg_response_hours
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."suppliers"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-          ORDER BY
-            "avg_response_hours" ASC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Suppliers by specialization
-      question: How many suppliers do we have for each specialization?
-      sql: |-
-          SELECT
-            "specialization" AS specialization,
-            COUNT(*) AS supplier_count,
-            ROUND(AVG("avg_response_hours"), 1) AS avg_response_time,
-            ROUND(AVG("service_radius_km"), 1) AS avg_service_radius
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."suppliers"
-          WHERE
-            _SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            "specialization"
-          ORDER BY
-            supplier_count DESC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Lights by urban classification
-      question: How are lights distributed across urban, suburban, and rural areas?
-      sql: |-
-          SELECT
-            d."urban_classification" AS classification,
-            COUNT(DISTINCT n."neighborhood_id") AS neighborhood_count,
-            SUM(n."population") AS total_population,
-            ROUND(AVG(d."population_density"), 0) AS avg_density,
-            COUNT(l."light_id") AS total_lights
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."demographics_enrichment" d
-            JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
-              ON d."neighborhood_id" = n."neighborhood_id"
-            LEFT JOIN STREETLIGHTS_DEMO."streetlights"."street_lights" l
-              ON n."neighborhood_id" = l."neighborhood_id"
-          WHERE
-            d._SNOWFLAKE_DELETED = FALSE
-            AND n._SNOWFLAKE_DELETED = FALSE
-            AND l._SNOWFLAKE_DELETED = FALSE
-          GROUP BY
-            d."urban_classification"
-          ORDER BY
-            total_lights DESC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Recently synced changes
-      question: Show me records modified today via CDC
-      sql: |-
-          SELECT
-            'street_lights' AS table_name,
-            COUNT(*) AS records_modified
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."street_lights"
-          WHERE
-            TO_DATE(_SNOWFLAKE_UPDATED_AT) = CURRENT_DATE
-          UNION ALL
-          SELECT
-            'maintenance_requests' AS table_name,
-            COUNT(*) AS records_modified
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
-          WHERE
-            TO_DATE(_SNOWFLAKE_UPDATED_AT) = CURRENT_DATE
-          ORDER BY
-            records_modified DESC
-      use_as_onboarding_question: true
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Total power consumption
-      question: What is the total power consumption by neighborhood?
-      sql: |-
-          SELECT
-            n."name" AS neighborhood_name,
-            COUNT(l."light_id") AS light_count,
-            SUM(l."wattage") AS total_wattage_w,
-            ROUND(SUM(l."wattage") / 1000.0, 2) AS total_wattage_kw
-          FROM
-            STREETLIGHTS_DEMO."streetlights"."street_lights" l
-            JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
-              ON l."neighborhood_id" = n."neighborhood_id"
-          WHERE
-            l._SNOWFLAKE_DELETED = FALSE
-            AND n._SNOWFLAKE_DELETED = FALSE
-            AND l."status" = 'operational'
-          GROUP BY
-            n."name"
-          ORDER BY
-            total_wattage_kw DESC
-      use_as_onboarding_question: false
-      verified_by: Demo
-      verified_at: 1733100000
-    - name: Where are the faulty street lights?
-      question: Where are the faulty street lights?
-      sql: |-
-          SELECT
-            sl.light_id,
-            ST_X(TRY_TO_GEOGRAPHY(sl.location)) AS longitude,
-            ST_Y(TRY_TO_GEOGRAPHY(sl.location)) AS latitude,
-            n.name AS neighborhood_name
-          FROM
-            street_lights AS sl
-            LEFT OUTER JOIN neighborhoods AS n ON sl.neighborhood_id = n.neighborhood_id
-          WHERE
-            sl.status = 'faulty'
-            AND sl._snowflake_deleted = FALSE
-            AND n._snowflake_deleted = FALSE
-          ORDER BY
-            n.name,
-            sl.light_id
-      use_as_onboarding_question: true
-      verified_by: Kamesh Sampath
-      verified_at: 1764692685
-    - name: What are the most common issues reported?
-      question: What are the most common issues reported?
-      sql: |-
-          SELECT
-            issue_type,
-            COUNT(*) AS issue_count
-          FROM
-            maintenance_requests
-          WHERE
-            _snowflake_deleted = FALSE
-          GROUP BY
-            issue_type
-          ORDER BY
-            issue_count DESC NULLS LAST
-      use_as_onboarding_question: false
-      verified_by: Kamesh Sampath
-      verified_at: 1764692901
-    - name: show me count of faulty street lights by neighborhood, ordered by highest count first
-      question: show me count of faulty street lights by neighborhood, ordered by highest count first
-      sql: |-
-          SELECT
-            n.name AS neighborhood_name,
-            COUNT(sl.light_id) AS faulty_light_count,
-            COUNT(DISTINCT sl.neighborhood_id) AS neighborhoods_with_faulty_lights
-          FROM
-            street_lights AS sl
-            LEFT OUTER JOIN neighborhoods AS n ON sl.neighborhood_id = n.neighborhood_id
-          WHERE
-            sl.status = 'faulty'
-            AND sl._snowflake_deleted = FALSE
-            AND (
-              n._snowflake_deleted = FALSE
-              OR n._snowflake_deleted IS NULL
-            )
-          GROUP BY
-            n.name
-          ORDER BY
-            faulty_light_count DESC NULLS LAST,
-            n.name
-      use_as_onboarding_question: false
-      verified_by: Kamesh Sampath
-      verified_at: 1764692912
-    - name: show me all street lights and their status without any date filters
-      question: show me all street lights and their status without any date filters
-      sql: |-
-          SELECT
-            sl.light_id,
-            sl.status,
-            sl.neighborhood_id,
-            ST_X(TRY_TO_GEOGRAPHY(sl.location)) AS longitude,
-            ST_Y(TRY_TO_GEOGRAPHY(sl.location)) AS latitude,
-            sl.installation_date,
-            sl.last_maintenance,
-            sl.wattage
-          FROM
-            street_lights AS sl
-          WHERE
-            sl._snowflake_deleted = FALSE
-          ORDER BY
-            sl.status,
-            sl.light_id
-      use_as_onboarding_question: false
-      verified_by: Kamesh Sampath
-      verified_at: 1764692923
-    - name: show me all faulty street lights with their locations and neighborhoods
-      question: show me all faulty street lights with their locations and neighborhoods
-      sql: |-
-          SELECT
-            sl.light_id,
-            ST_X(TRY_TO_GEOGRAPHY(sl.location)) AS longitude,
-            ST_Y(TRY_TO_GEOGRAPHY(sl.location)) AS latitude,
-            n.name AS neighborhood_name,
-            sl.status
-          FROM
-            street_lights AS sl
-            LEFT OUTER JOIN neighborhoods AS n ON sl.neighborhood_id = n.neighborhood_id
-          WHERE
-            sl.status = 'faulty'
-            AND sl._snowflake_deleted = FALSE
-            AND (n._snowflake_deleted = FALSE OR n._snowflake_deleted IS NULL)
-          ORDER BY
-            n.name,
-            sl.light_id
-      use_as_onboarding_question: false
-      verified_by: Kamesh Sampath
-      verified_at: 1764692952
+  - name: Total street lights by status
+    question: How many street lights do we have by status?
+    sql: |-
+      SELECT
+        "status" AS status,
+        COUNT(*) AS light_count
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."street_lights"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        "status"
+      ORDER BY
+        light_count DESC
+    use_as_onboarding_question: true
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Lights per neighborhood
+    question: Show me how many lights are in each neighborhood
+    sql: |-
+      SELECT
+        n."name" AS neighborhood_name,
+        n."population" AS population,
+        COUNT(l."light_id") AS light_count
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."street_lights" l
+        LEFT JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
+          ON l."neighborhood_id" = n."neighborhood_id"
+      WHERE
+        l._SNOWFLAKE_DELETED = FALSE
+        AND n._SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        n."name", n."population"
+      ORDER BY
+        light_count DESC
+    use_as_onboarding_question: true
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Open maintenance requests
+    question: How many maintenance requests are currently open?
+    sql: |-
+      SELECT
+        COUNT(*) AS open_requests
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+        AND "resolved_at" IS NULL
+    use_as_onboarding_question: true
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Maintenance by issue type
+    question: What are the most common maintenance issues?
+    sql: |-
+      SELECT
+        "issue_type" AS issue_type,
+        COUNT(*) AS request_count,
+        SUM(CASE WHEN "resolved_at" IS NULL THEN 1 ELSE 0 END) AS still_open
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        "issue_type"
+      ORDER BY
+        request_count DESC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Average resolution time by issue type
+    question: What is the average resolution time for each issue type?
+    sql: |-
+      SELECT
+        "issue_type" AS issue_type,
+        COUNT(*) AS resolved_count,
+        ROUND(AVG(DATEDIFF('hour', "reported_at", "resolved_at")), 1) AS avg_resolution_hours
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+        AND "resolved_at" IS NOT NULL
+      GROUP BY
+        "issue_type"
+      ORDER BY
+        avg_resolution_hours DESC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Maintenance requests by neighborhood
+    question: Which neighborhoods have the most maintenance issues?
+    sql: |-
+      SELECT
+        n."name" AS neighborhood_name,
+        COUNT(m."request_id") AS total_requests,
+        SUM(CASE WHEN m."resolved_at" IS NULL THEN 1 ELSE 0 END) AS open_requests
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."maintenance_requests" m
+        JOIN STREETLIGHTS_DEMO."streetlights"."street_lights" l
+          ON m."light_id" = l."light_id"
+        JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
+          ON l."neighborhood_id" = n."neighborhood_id"
+      WHERE
+        m._SNOWFLAKE_DELETED = FALSE
+        AND l._SNOWFLAKE_DELETED = FALSE
+        AND n._SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        n."name"
+      ORDER BY
+        total_requests DESC
+    use_as_onboarding_question: true
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: High risk lights
+    question: Which lights have the highest failure risk?
+    sql: |-
+      SELECT
+        w."light_id" AS light_id,
+        l."status" AS current_status,
+        n."name" AS neighborhood,
+        w."season" AS season,
+        w."failure_risk_score" AS risk_score,
+        w."predicted_failure_date" AS predicted_failure
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."weather_enrichment" w
+        JOIN STREETLIGHTS_DEMO."streetlights"."street_lights" l
+          ON w."light_id" = l."light_id"
+        LEFT JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
+          ON l."neighborhood_id" = n."neighborhood_id"
+      WHERE
+        w._SNOWFLAKE_DELETED = FALSE
+        AND l._SNOWFLAKE_DELETED = FALSE
+        AND w."failure_risk_score" >= 0.7
+      ORDER BY
+        w."failure_risk_score" DESC
+      LIMIT 20
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Average risk by season
+    question: What is the average failure risk by season?
+    sql: |-
+      SELECT
+        "season" AS season,
+        ROUND(AVG("failure_risk_score"), 2) AS avg_risk_score,
+        ROUND(AVG("avg_temperature_c"), 1) AS avg_temperature,
+        ROUND(AVG("rainfall_mm"), 1) AS avg_rainfall,
+        COUNT(*) AS light_count
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."weather_enrichment"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        "season"
+      ORDER BY
+        avg_risk_score DESC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Outages by grid zone
+    question: Which power grid zones have the most outages?
+    sql: |-
+      SELECT
+        "grid_zone" AS grid_zone,
+        COUNT(*) AS light_count,
+        ROUND(AVG("avg_load_percent"), 1) AS avg_load_pct,
+        SUM("outage_history_count") AS total_outages
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."power_grid_enrichment"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        "grid_zone"
+      ORDER BY
+        total_outages DESC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Supplier response times
+    question: What are the average response times by supplier?
+    sql: |-
+      SELECT
+        "name" AS supplier_name,
+        "specialization" AS specialization,
+        "service_radius_km" AS service_radius_km,
+        "avg_response_hours" AS avg_response_hours
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."suppliers"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+      ORDER BY
+        "avg_response_hours" ASC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Suppliers by specialization
+    question: How many suppliers do we have for each specialization?
+    sql: |-
+      SELECT
+        "specialization" AS specialization,
+        COUNT(*) AS supplier_count,
+        ROUND(AVG("avg_response_hours"), 1) AS avg_response_time,
+        ROUND(AVG("service_radius_km"), 1) AS avg_service_radius
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."suppliers"
+      WHERE
+        _SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        "specialization"
+      ORDER BY
+        supplier_count DESC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Lights by urban classification
+    question: How are lights distributed across urban, suburban, and rural areas?
+    sql: |-
+      SELECT
+        d."urban_classification" AS classification,
+        COUNT(DISTINCT n."neighborhood_id") AS neighborhood_count,
+        SUM(n."population") AS total_population,
+        ROUND(AVG(d."population_density"), 0) AS avg_density,
+        COUNT(l."light_id") AS total_lights
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."demographics_enrichment" d
+        JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
+          ON d."neighborhood_id" = n."neighborhood_id"
+        LEFT JOIN STREETLIGHTS_DEMO."streetlights"."street_lights" l
+          ON n."neighborhood_id" = l."neighborhood_id"
+      WHERE
+        d._SNOWFLAKE_DELETED = FALSE
+        AND n._SNOWFLAKE_DELETED = FALSE
+        AND l._SNOWFLAKE_DELETED = FALSE
+      GROUP BY
+        d."urban_classification"
+      ORDER BY
+        total_lights DESC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Recently synced changes
+    question: Show me records modified today via CDC
+    sql: |-
+      SELECT
+        'street_lights' AS table_name,
+        COUNT(*) AS records_modified
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."street_lights"
+      WHERE
+        TO_DATE(_SNOWFLAKE_UPDATED_AT) = CURRENT_DATE
+      UNION ALL
+      SELECT
+        'maintenance_requests' AS table_name,
+        COUNT(*) AS records_modified
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."maintenance_requests"
+      WHERE
+        TO_DATE(_SNOWFLAKE_UPDATED_AT) = CURRENT_DATE
+      ORDER BY
+        records_modified DESC
+    use_as_onboarding_question: true
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Total power consumption
+    question: What is the total power consumption by neighborhood?
+    sql: |-
+      SELECT
+        n."name" AS neighborhood_name,
+        COUNT(l."light_id") AS light_count,
+        SUM(l."wattage") AS total_wattage_w,
+        ROUND(SUM(l."wattage") / 1000.0, 2) AS total_wattage_kw
+      FROM
+        STREETLIGHTS_DEMO."streetlights"."street_lights" l
+        JOIN STREETLIGHTS_DEMO."streetlights"."neighborhoods" n
+          ON l."neighborhood_id" = n."neighborhood_id"
+      WHERE
+        l._SNOWFLAKE_DELETED = FALSE
+        AND n._SNOWFLAKE_DELETED = FALSE
+        AND l."status" = 'operational'
+      GROUP BY
+        n."name"
+      ORDER BY
+        total_wattage_kw DESC
+    use_as_onboarding_question: false
+    verified_by: Demo
+    verified_at: 1733100000
+  - name: Where are the faulty street lights?
+    question: Where are the faulty street lights?
+    sql: |-
+      SELECT
+        sl.light_id,
+        ST_X(TRY_TO_GEOGRAPHY(sl.location)) AS longitude,
+        ST_Y(TRY_TO_GEOGRAPHY(sl.location)) AS latitude,
+        n.name AS neighborhood_name
+      FROM
+        street_lights AS sl
+        LEFT OUTER JOIN neighborhoods AS n ON sl.neighborhood_id = n.neighborhood_id
+      WHERE
+        sl.status = 'faulty'
+        AND sl._snowflake_deleted = FALSE
+        AND n._snowflake_deleted = FALSE
+      ORDER BY
+        n.name,
+        sl.light_id
+    use_as_onboarding_question: true
+    verified_by: Kamesh Sampath
+    verified_at: 1764692685
+  - name: What are the most common issues reported?
+    question: What are the most common issues reported?
+    sql: |-
+      SELECT
+        issue_type,
+        COUNT(*) AS issue_count
+      FROM
+        maintenance_requests
+      WHERE
+        _snowflake_deleted = FALSE
+      GROUP BY
+        issue_type
+      ORDER BY
+        issue_count DESC NULLS LAST
+    use_as_onboarding_question: false
+    verified_by: Kamesh Sampath
+    verified_at: 1764692901
+  - name: show me count of faulty street lights by neighborhood, ordered by highest count first
+    question: show me count of faulty street lights by neighborhood, ordered by highest count first
+    sql: |-
+      SELECT
+        n.name AS neighborhood_name,
+        COUNT(sl.light_id) AS faulty_light_count,
+        COUNT(DISTINCT sl.neighborhood_id) AS neighborhoods_with_faulty_lights
+      FROM
+        street_lights AS sl
+        LEFT OUTER JOIN neighborhoods AS n ON sl.neighborhood_id = n.neighborhood_id
+      WHERE
+        sl.status = 'faulty'
+        AND sl._snowflake_deleted = FALSE
+        AND (
+          n._snowflake_deleted = FALSE
+          OR n._snowflake_deleted IS NULL
+        )
+      GROUP BY
+        n.name
+      ORDER BY
+        faulty_light_count DESC NULLS LAST,
+        n.name
+    use_as_onboarding_question: false
+    verified_by: Kamesh Sampath
+    verified_at: 1764692912
+  - name: show me all street lights and their status without any date filters
+    question: show me all street lights and their status without any date filters
+    sql: |-
+      SELECT
+        sl.light_id,
+        sl.status,
+        sl.neighborhood_id,
+        ST_X(TRY_TO_GEOGRAPHY(sl.location)) AS longitude,
+        ST_Y(TRY_TO_GEOGRAPHY(sl.location)) AS latitude,
+        sl.installation_date,
+        sl.last_maintenance,
+        sl.wattage
+      FROM
+        street_lights AS sl
+      WHERE
+        sl._snowflake_deleted = FALSE
+      ORDER BY
+        sl.status,
+        sl.light_id
+    use_as_onboarding_question: false
+    verified_by: Kamesh Sampath
+    verified_at: 1764692923
+  - name: show me all faulty street lights with their locations and neighborhoods
+    question: show me all faulty street lights with their locations and neighborhoods
+    sql: |-
+      SELECT
+        sl.light_id,
+        ST_X(TRY_TO_GEOGRAPHY(sl.location)) AS longitude,
+        ST_Y(TRY_TO_GEOGRAPHY(sl.location)) AS latitude,
+        n.name AS neighborhood_name,
+        sl.status
+      FROM
+        street_lights AS sl
+        LEFT OUTER JOIN neighborhoods AS n ON sl.neighborhood_id = n.neighborhood_id
+      WHERE
+        sl.status = 'faulty'
+        AND sl._snowflake_deleted = FALSE
+        AND (n._snowflake_deleted = FALSE OR n._snowflake_deleted IS NULL)
+      ORDER BY
+        n.name,
+        sl.light_id
+    use_as_onboarding_question: false
+    verified_by: Kamesh Sampath
+    verified_at: 1764692952
