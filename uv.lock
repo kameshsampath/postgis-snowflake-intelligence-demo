@@ -964,8 +964,8 @@ wheels = [
 ]
 
 [[package]]
-name = "postgis-nifi-pipeline"
-version = "0.0.1"
+name = "postgis-snowflake-intelligence-demo"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "folium" },

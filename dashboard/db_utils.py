@@ -17,15 +17,16 @@ Database utility functions for Streamlit Dashboard
 Handles PostgreSQL/PostGIS and Snowflake connections and queries
 """
 
-import psycopg2
 import pandas as pd
+import psycopg2
 import streamlit as st
-from sqlalchemy import create_engine
 from config import POSTGIS_CONFIG, SNOWFLAKE_CONFIG, SNOWFLAKE_ENABLED
+from sqlalchemy import create_engine
 
 # Import Snowflake connector if available
 try:
     import snowflake.connector as sf_connector
+
     SNOWFLAKE_AVAILABLE = True
 except ImportError:
     sf_connector = None
@@ -40,9 +41,11 @@ def get_sqlalchemy_engine():
     """
     try:
         # Build SQLAlchemy connection string from config
+        # Set search_path to streetlights,public so PostGIS operators are found
         connection_string = (
             f"postgresql://{POSTGIS_CONFIG['user']}:{POSTGIS_CONFIG['password']}"
             f"@{POSTGIS_CONFIG['host']}:{POSTGIS_CONFIG['port']}/{POSTGIS_CONFIG['database']}"
+            f"?options=-csearch_path%3Dstreetlights,public"
         )
         engine = create_engine(connection_string)
         return engine
@@ -58,7 +61,10 @@ def get_connection():
     Returns psycopg2 connection object
     """
     try:
-        conn = psycopg2.connect(**POSTGIS_CONFIG)
+        conn = psycopg2.connect(
+            **POSTGIS_CONFIG,
+            options="-c search_path=streetlights,public"
+        )
         return conn
     except Exception as e:
         st.error(f"Database connection failed: {e}")
@@ -72,9 +78,10 @@ def execute_query(query, params=None):
     engine = get_sqlalchemy_engine()
     if engine is None:
         return pd.DataFrame()
-    
+
     try:
-        df = pd.read_sql(query, engine, params=params)
+        with engine.connect() as conn:
+            df = pd.read_sql(query, conn, params=params)
         return df
     except Exception as e:
         st.error(f"Query failed: {e}")
@@ -160,7 +167,8 @@ def get_faulty_lights_with_supplier():
 @st.cache_data(ttl=60)
 def get_predicted_failures(days_ahead=30):
     """Get lights predicted to fail soon"""
-    query = """
+    query = (
+        """
     SELECT 
         light_id, longitude, latitude, status,
         neighborhood_name, 
@@ -174,7 +182,9 @@ def get_predicted_failures(days_ahead=30):
       AND predicted_failure_date <= CURRENT_DATE + INTERVAL '%s days'
       AND status != 'faulty'
     ORDER BY predicted_failure_date
-    """ % days_ahead
+    """
+        % days_ahead
+    )
     return execute_query(query)
 
 
@@ -297,10 +307,10 @@ def simulate_light_failure(light_id=None):
     conn = get_connection()
     if conn is None:
         return False, "No database connection"
-    
+
     try:
         cursor = conn.cursor()
-        
+
         if light_id is None:
             # Pick random operational light
             cursor.execute("""
@@ -314,22 +324,25 @@ def simulate_light_failure(light_id=None):
                 light_id = result[0]
             else:
                 return False, "No operational lights found"
-        
+
         # Update light to faulty
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE streetlights.street_lights
             SET status = 'faulty', last_maintenance = NOW()
             WHERE light_id = %s
-        """, (light_id,))
-        
+        """,
+            (light_id,),
+        )
+
         conn.commit()
         cursor.close()
-        
+
         # Clear cache to show updated data
         st.cache_data.clear()
-        
+
         return True, f"Light {light_id} set to faulty"
-        
+
     except Exception as e:
         return False, f"Failed to simulate failure: {e}"
 
@@ -341,11 +354,12 @@ def trigger_scheduled_maintenance(count=5):
     conn = get_connection()
     if conn is None:
         return False, "No database connection"
-    
+
     try:
         cursor = conn.cursor()
-        
-        cursor.execute("""
+
+        cursor.execute(
+            """
             UPDATE streetlights.street_lights
             SET status = 'maintenance_required'
             WHERE light_id IN (
@@ -354,17 +368,19 @@ def trigger_scheduled_maintenance(count=5):
                 ORDER BY RANDOM() 
                 LIMIT %s
             )
-        """, (count,))
-        
+        """,
+            (count,),
+        )
+
         affected = cursor.rowcount
         conn.commit()
         cursor.close()
-        
+
         # Clear cache
         st.cache_data.clear()
-        
+
         return True, f"{affected} lights set to maintenance_required"
-        
+
     except Exception as e:
         return False, f"Failed to trigger maintenance: {e}"
 
@@ -373,6 +389,7 @@ def trigger_scheduled_maintenance(count=5):
 # SNOWFLAKE CONNECTION AND QUERIES
 # =============================================================================
 
+
 @st.cache_resource
 def get_snowflake_connection():
     """
@@ -380,12 +397,14 @@ def get_snowflake_connection():
     Returns snowflake.connector connection object
     """
     if not SNOWFLAKE_AVAILABLE:
-        st.warning("Snowflake connector not installed. Install with: pip install snowflake-connector-python")
+        st.warning(
+            "Snowflake connector not installed. Install with: pip install snowflake-connector-python"
+        )
         return None
-    
+
     if not SNOWFLAKE_ENABLED:
         return None
-    
+
     try:
         conn = sf_connector.connect(
             account=SNOWFLAKE_CONFIG["account"],
@@ -393,7 +412,7 @@ def get_snowflake_connection():
             password=SNOWFLAKE_CONFIG["password"],
             warehouse=SNOWFLAKE_CONFIG["warehouse"],
             database=SNOWFLAKE_CONFIG["database"],
-            schema=SNOWFLAKE_CONFIG["schema"]
+            schema=SNOWFLAKE_CONFIG["schema"],
         )
         return conn
     except Exception as e:
@@ -408,19 +427,19 @@ def execute_snowflake_query(query, params=None):
     conn = get_snowflake_connection()
     if conn is None:
         return pd.DataFrame()
-    
+
     try:
         cursor = conn.cursor()
         if params:
             cursor.execute(query, params)
         else:
             cursor.execute(query)
-        
+
         # Fetch all results
         columns = [desc[0] for desc in cursor.description]
         data = cursor.fetchall()
         cursor.close()
-        
+
         return pd.DataFrame(data, columns=columns)
     except Exception as e:
         st.error(f"Snowflake query failed: {e}")
@@ -429,7 +448,11 @@ def execute_snowflake_query(query, params=None):
 
 def is_snowflake_available():
     """Check if Snowflake connection is available and working"""
-    return SNOWFLAKE_AVAILABLE and SNOWFLAKE_ENABLED and get_snowflake_connection() is not None
+    return (
+        SNOWFLAKE_AVAILABLE
+        and SNOWFLAKE_ENABLED
+        and get_snowflake_connection() is not None
+    )
 
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
@@ -584,6 +607,7 @@ def get_snowflake_monthly_budget():
 # =============================================================================
 # ALL ISSUES FORECAST QUERIES (Total Maintenance Workload)
 # =============================================================================
+
 
 @st.cache_data(ttl=300)
 def get_snowflake_all_issues_forecast_30d():
@@ -760,5 +784,3 @@ def get_snowflake_all_issues_monthly_budget():
     ORDER BY MONTH
     """
     return execute_snowflake_query(query)
-
-
