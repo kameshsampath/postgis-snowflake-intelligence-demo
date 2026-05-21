@@ -59,45 +59,109 @@ The following account parameters must be enabled:
 
 ## Quick Start (Cortex Code)
 
-The recommended path uses Cortex Code's guided workflow:
+The recommended path uses Cortex Code's guided workflow. Each step follows a
+**What we'll do → Proceed? → Execute → What we did** pattern — you always see
+what's about to happen and confirm before anything runs.
+
+### 1. Open Cortex Code in this project
 
 ```bash
-# 1. Initialize configuration
-$streetlights-demo setup
-
-# 2. Generate location-aware synthetic data
-$streetlights-demo step 1
-
-# 3. Create Snowflake Postgres instance
-$streetlights-demo step 2
-
-# 4. Create schema and load data
-$streetlights-demo step 3
-
-# 5. Create CLD (Catalog-Linked Database)
-$streetlights-demo step 4
-
-# 6. Create Semantic View
-$streetlights-demo step 5
-
-# 7. Create Cortex Search service
-$streetlights-demo step 6
-
-# 8. Create Intelligence Agent
-$streetlights-demo step 7
-
-# 9. Train ML Forecast model
-$streetlights-demo step 8
-
-# 10. Deploy Streamlit app
-$streetlights-demo step 9
-
-# 11. Validate everything works
-$streetlights-demo step 10
+cd postgis-snowflake-intelligence-demo
+cortex
 ```
 
-Each step includes pre-flight checks, verification gates, and user confirmations
-for billable actions.
+### 2. Run the guided setup
+
+Type in the Cortex Code prompt:
+
+```
+$streetlights-demo setup
+```
+
+This will:
+- Ask for your **resource prefix** (e.g., `kameshs` → resources named `KAMESHS_STREETLIGHTS_*`)
+- Auto-detect your **city** (or ask you to pick one)
+- Ask which **Snowflake connection** to use
+- Write `.streetlights-demo/manifest.toml` (gitignored, local only)
+
+### 3. Walk through steps 1–10
+
+Each step shows what it will do, asks you to confirm, executes, then shows results:
+
+```
+$streetlights-demo step 1    # Generate synthetic data (7 CSVs for your city)
+$streetlights-demo step 2    # Create Snowflake Postgres instance (⚠️ billable)
+$streetlights-demo step 3    # Create Iceberg tables + load data
+$streetlights-demo step 4    # Create CLD — zero-pipeline sync (⚠️ billable)
+$streetlights-demo step 5    # Create Semantic View
+$streetlights-demo step 6    # Create Cortex Search service
+$streetlights-demo step 7    # Create Intelligence Agent
+$streetlights-demo step 8    # Train ML Forecast model
+$streetlights-demo step 9    # Deploy Streamlit app
+$streetlights-demo step 10   # Validate everything + demo questions
+```
+
+> **Tip**: You can run steps individually or ask CoCo to "run all remaining steps"
+> and it will walk you through each one sequentially.
+
+### 4. Test the demo end-to-end
+
+After step 10 completes, your Intelligence Agent is live. Test it in **Snowflake Intelligence** (Snowsight) or directly via CoCo:
+
+```sql
+-- In Snowsight → Intelligence → select your agent
+-- Or via SQL:
+SELECT SNOWFLAKE.CORTEX.AGENT(
+  '{PREFIX}_STREETLIGHTS_CLD.streetlights.streetlights_agent',
+  'How many street lights are currently faulty?'
+);
+```
+
+**Top 5 questions to try:**
+
+| # | Question | What it tests |
+|---|----------|---------------|
+| 1 | "How many street lights are currently faulty?" | Status aggregation (Analyst) |
+| 2 | "Which neighborhoods have the highest energy consumption?" | Cross-table join (Analyst) |
+| 3 | "Find maintenance reports about exposed wires or sparking" | Semantic search (Search) |
+| 4 | "What is the average repair cost by maintenance type?" | Grouped metrics (Analyst) |
+| 5 | "Show me the top 5 neighborhoods by maintenance frequency" | Rankings (Analyst) |
+
+**Bonus — combined queries** (Agent routes to both tools):
+- "Tell me about maintenance issues in the busiest neighborhood"
+- "What's the situation with faulty lights and their repair status?"
+
+The Agent will:
+- Route structured questions to **Cortex Analyst** (generates SQL via Semantic View)
+- Route text/description queries to **Cortex Search** (semantic similarity)
+- Generate **map links** when results include lat/lng coordinates
+- Produce **charts** when data is suitable for visualization
+
+### 5. Clean up when done
+
+```
+$streetlights-demo cleanup
+```
+
+Tears down all resources in reverse order (drops Agent → Search → View → CLD → PG instance).
+Confirms each destructive step before executing.
+
+---
+
+### What each step verifies (gate checks)
+
+| Step | Gate Check | What it confirms |
+|------|-----------|-----------------|
+| setup | `manifest_exists` | Config file parseable |
+| 2 | `pg_reachable` + `pg_managed_storage` | Instance up + managed storage |
+| 3 | Row count queries | All 7 tables loaded |
+| 4 | `cld_healthy` (30s retry) | CLD propagation complete, 7 tables visible |
+| 5 | `semantic_view_exists` | DDL succeeded |
+| 6 | `cortex_search_ready` | Service status = ACTIVE |
+| 7 | `agent_accessible` | Agent responds to test query |
+| 8 | `forecast_model_ready` | Model trained |
+| 9 | `SHOW STREAMLITS` | App deployed |
+| 10 | `sanity_gate.py` | Full end-to-end smoke test |
 
 ## Manual Path (Taskfile)
 
