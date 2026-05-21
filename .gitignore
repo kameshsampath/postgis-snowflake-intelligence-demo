@@ -38,3 +38,4 @@ htmlcov/
 pat.sh
 DEMO_SCRIPT.md
 test/
+.cortex/plans/
