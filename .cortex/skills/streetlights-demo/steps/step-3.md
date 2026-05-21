@@ -5,19 +5,36 @@ description: Create Iceberg tables and load synthetic data
 
 # Step 3: Create Schema + Load Data
 
-## Prerequisites
+## What we'll do
+
+Create the `streetlights` schema with Iceberg tables on the Postgres instance and load all 7 CSV files. This gives pg_lake the data it will sync to Snowflake via CLD.
+
+- Enable PostGIS and pg_lake extensions
+- Create Iceberg tables in the `streetlights` schema
+- Load all CSV data via `\copy`
+
+## ⚠️ Proceed?
+
+Use `ask_user_question` to confirm:
+- Header: "Step 3"
+- Question: "Ready to create Iceberg tables and load data into Postgres?"
+- Options: ["Yes, proceed", "Skip this step"]
+
+If user skips: note it was skipped, move to next step.
+
+## Execution
+
+### Prerequisites
 
 - PG instance exists and is reachable (Step 2 complete)
 - CSV data files exist in `data/` (Step 1 complete)
 
-## Sequence (order matters!)
+### Sequence (order matters!)
 
 1. Enable extensions (`init/01_enable_extensions.sql`)
 2. Create schema (`CREATE SCHEMA IF NOT EXISTS streetlights`)
 3. Create Iceberg tables (`init/07_create_iceberg_tables.sql`)
 4. Load data from CSVs: `\copy` for each of the 7 tables
-
-## Execution
 
 ```bash
 psql -h {pg_host} -U {pg_user} -d streetlights -f init/01_enable_extensions.sql
@@ -40,7 +57,7 @@ psql -h {pg_host} -U {pg_user} -d streetlights \
   -c "\copy streetlights.power_grid_zones FROM 'data/power_grid_zones.csv' CSV HEADER"
 ```
 
-## Verification
+### Verification
 
 - Query row counts for all 7 tables
 - Show summary table to user:
@@ -54,3 +71,10 @@ psql -h {pg_host} -U {pg_user} -d streetlights \
 | weather_enrichment | ~1500 |
 | demographics | ~20 |
 | power_grid_zones | ~10 |
+
+## What we did
+
+- ✅ Extensions enabled (PostGIS, pg_lake)
+- ✅ Iceberg tables created in `streetlights` schema
+- ✅ All 7 CSV files loaded successfully
+- ✅ Row counts verified

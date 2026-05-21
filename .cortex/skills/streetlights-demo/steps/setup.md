@@ -5,7 +5,24 @@ description: Initialize the streetlights demo manifest and configuration
 
 # Setup: Initialize Streetlights Demo
 
-## Steps
+## What we'll do
+
+Configure the demo by collecting your Snowflake connection, resource prefix, and city location. This creates the `.streetlights-demo/manifest.toml` that all subsequent steps depend on.
+
+- Detect or ask for Snowflake connection
+- Set a resource prefix (all objects will be `${PREFIX}_STREETLIGHTS_*`)
+- Auto-detect or ask for city + coordinates for data generation
+
+## ⚠️ Proceed?
+
+Use `ask_user_question` to confirm:
+- Header: "Setup"
+- Question: "Ready to initialize the streetlights demo configuration?"
+- Options: ["Yes, proceed", "Skip this step"]
+
+If user skips: note it was skipped, move to next step.
+
+## Execution
 
 1. **Check if `.streetlights-demo/manifest.toml` already exists**
    - If yes: load it, show current config, ask if user wants to reconfigure
@@ -51,3 +68,9 @@ description: Initialize the streetlights demo manifest and configuration
 6. **Verify setup**
    - Run `gate.py check_manifest_exists`
    - Show summary table of all configured values
+
+## What we did
+
+- ✅ Manifest created at `.streetlights-demo/manifest.toml`
+- ✅ Resource prefix, connection, and city configured
+- ✅ Gate check: `check_manifest_exists` passed

@@ -5,12 +5,31 @@ description: Deploy multi-page Streamlit in Snowflake application
 
 # Step 9: Deploy SiS App
 
-## Prerequisites
+## What we'll do
+
+Deploy the multi-page Streamlit in Snowflake (SiS) application that provides a visual dashboard for the streetlight data, including maps, charts, search, and an agent chat interface.
+
+- Deploy app source from `app/` directory
+- Configure warehouse and database references
+- Verify the app loads and all pages work
+
+## ⚠️ Proceed?
+
+Use `ask_user_question` to confirm:
+- Header: "Step 9"
+- Question: "Ready to deploy the Streamlit dashboard app?"
+- Options: ["Yes, proceed", "Skip this step"]
+
+If user skips: note it was skipped, move to next step.
+
+## Execution
+
+### Prerequisites
 
 - All Snowflake objects created (Steps 5-8 complete)
 - App source exists in `app/` directory
 
-## Steps
+### Steps
 
 1. Read manifest for database/warehouse names
 2. Route to `$developing-with-streamlit-in-snowflake` to deploy:
@@ -23,7 +42,7 @@ description: Deploy multi-page Streamlit in Snowflake application
 
 3. Verify the app is accessible
 
-## App Pages
+### App Pages
 
 | Page | Purpose |
 |------|---------|
@@ -34,7 +53,7 @@ description: Deploy multi-page Streamlit in Snowflake application
 | Forecasting | ML predictions visualization |
 | Ask Agent | Chat interface to Intelligence Agent |
 
-## Verification
+### Verification
 
 - Verify the STREAMLIT object exists:
   ```sql
@@ -42,3 +61,9 @@ description: Deploy multi-page Streamlit in Snowflake application
   ```
 - Open the app URL and confirm it loads
 - Test navigation between pages
+
+## What we did
+
+- ✅ Streamlit app deployed to Snowflake
+- ✅ All 6 pages accessible
+- ✅ App URL available for sharing

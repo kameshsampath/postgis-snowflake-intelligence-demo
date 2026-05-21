@@ -5,13 +5,30 @@ description: Create Catalog Integration and CLD database
 
 # Step 4: Catalog Integration + CLD
 
-**BILLABLE ACTION** — Confirm with user before proceeding.
+## What we'll do
 
-## Pre-flight
+Create the Snowflake catalog integration pointing to the Postgres instance, then create a Catalog-Linked Database (CLD) that auto-syncs Iceberg tables. This is a **billable action**.
+
+- Create catalog integration with `CATALOG_SOURCE = SNOWFLAKE_POSTGRES`
+- Create CLD database linked to the catalog
+- Wait for table propagation (~30 seconds)
+
+## ⚠️ Proceed?
+
+Use `ask_user_question` to confirm:
+- Header: "Step 4"
+- Question: "Ready to create the Catalog Integration and CLD? (billable — enables continuous sync)"
+- Options: ["Yes, proceed", "Skip this step"]
+
+If user skips: note it was skipped, move to next step.
+
+## Execution
+
+### Pre-flight
 
 - Run `gate.py check_pg_managed_storage` — CLD ONLY works with managed storage
 
-## Steps
+### Steps
 
 Route to `$snowflake-postgres` pg_lake to:
 
@@ -30,14 +47,21 @@ Route to `$snowflake-postgres` pg_lake to:
      LINKED_CATALOG = TRUE;
    ```
 
-## CLD Propagation
+### CLD Propagation
 
 After CLD creation, tables take ~30 seconds to appear.
 - Wait 30s, then verify: `SHOW TABLES IN DATABASE {cld_database}`
 - If tables not visible after 3 retries (30s each): STOP and report issue
 
-## Verification
+### Verification
 
 - Run `gate.py check_cld_healthy`
 - Show table list from CLD to user
 - Confirm all 7 tables are visible
+
+## What we did
+
+- ✅ Catalog integration created
+- ✅ CLD database created and linked
+- ✅ All 7 tables propagated and visible
+- ✅ Gate check: `check_cld_healthy` passed

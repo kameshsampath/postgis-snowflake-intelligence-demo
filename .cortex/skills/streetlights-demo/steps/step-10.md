@@ -5,11 +5,26 @@ description: Run end-to-end validation and demonstrate the complete pipeline
 
 # Step 10: Validate & Demo
 
-## Prerequisites
+## What we'll do
 
-- All previous steps (1-9) complete
+Run the full end-to-end sanity gate to verify all components are operational, then demonstrate the Intelligence Agent with sample queries.
 
-## Validation
+- Execute the sanity gate script (checks all 8 components)
+- Display top 5 demo questions with routing explanation
+- Show bonus combined queries for advanced testing
+
+## ⚠️ Proceed?
+
+Use `ask_user_question` to confirm:
+- Header: "Step 10"
+- Question: "Ready to run end-to-end validation?"
+- Options: ["Yes, proceed", "Skip this step"]
+
+If user skips: note it was skipped, move to next step.
+
+## Execution
+
+### Validation
 
 1. Run the end-to-end sanity gate:
    ```bash
@@ -25,19 +40,7 @@ description: Run end-to-end validation and demonstrate the complete pipeline
    - Forecast model trained
    - SiS app accessible
 
-## Demo Queries
-
-Try these natural language questions with the Intelligence Agent:
-
-| Question | Expected Source |
-|----------|---------------|
-| "How many street lights are faulty?" | Semantic View |
-| "Which neighborhoods have the most maintenance issues?" | Semantic View |
-| "Find reports about exposed wires or sparking" | Cortex Search |
-| "What's the average energy consumption by zone?" | Semantic View |
-| "Show me urgent safety hazards" | Cortex Search |
-
-## Forecast Demo
+### Forecast Demo
 
 ```sql
 -- 30-day failure forecast
@@ -46,14 +49,31 @@ CALL {database}.{schema}.BULB_FAILURE_FORECASTER!FORECAST(
 );
 ```
 
-## Celebration
+## What we did
+
+- ✅ All gates passed (manifest, PG, CLD, Semantic View, Search, Agent, Forecast, SiS)
+- ✅ End-to-end sanity check passed
+
+## Try these with Snowflake Intelligence
+
+| # | Question | Routing | What it tests |
+|---|----------|---------|---------------|
+| 1 | "How many street lights are currently faulty?" | Analyst → SQL | Status aggregation |
+| 2 | "Which neighborhoods have the highest energy consumption?" | Analyst → SQL | Cross-table join |
+| 3 | "Find maintenance reports about exposed wires or sparking" | Search → text | Semantic similarity |
+| 4 | "What is the average repair cost by maintenance type?" | Analyst → SQL | Grouped metrics |
+| 5 | "Show me the top 5 neighborhoods by maintenance frequency" | Analyst → SQL | Rankings |
+
+**Bonus — try these combined queries:**
+- "Tell me about maintenance issues in the busiest neighborhood" (Agent routes to both tools)
+- "What's the situation with faulty lights and their repair status?" (Combined routing)
 
 The demo is fully operational. You now have:
 - PostgreSQL with pg_lake Iceberg tables
 - Native CLD sync to Snowflake (no CDC pipeline needed)
 - Semantic View for structured analytics
 - Cortex Search for text retrieval
-- Intelligence Agent combining both
+- Intelligence Agent combining both + chart generation
 - ML Forecast for predictive maintenance
 - Multi-page Streamlit dashboard
 

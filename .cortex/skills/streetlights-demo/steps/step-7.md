@@ -5,12 +5,31 @@ description: Create Intelligence Agent with Semantic View and Cortex Search
 
 # Step 7: Create Intelligence Agent
 
-## Prerequisites
+## What we'll do
+
+Create the Cortex Intelligence Agent that combines Semantic View (structured analytics) with Cortex Search (text retrieval) and chart generation into a single natural language interface.
+
+- Deploy Agent DDL with full FROM SPECIFICATION (orchestration rules, tools, sample questions)
+- Verify the agent routes queries correctly
+- Test both structured and unstructured queries
+
+## ⚠️ Proceed?
+
+Use `ask_user_question` to confirm:
+- Header: "Step 7"
+- Question: "Ready to create the Intelligence Agent?"
+- Options: ["Yes, proceed", "Skip this step"]
+
+If user skips: note it was skipped, move to next step.
+
+## Execution
+
+### Prerequisites
 
 - Semantic View exists (Step 5 complete)
 - Cortex Search service is ACTIVE (Step 6 complete)
 
-## Steps
+### Steps
 
 1. Read manifest for database/warehouse names
 2. Execute Agent DDL:
@@ -19,23 +38,31 @@ description: Create Intelligence Agent with Semantic View and Cortex Search
    ```
 3. Verify agent responds to a test query
 
-## Key Details
+### Key Details
 
-- The Intelligence Agent combines TWO data sources:
-  - **Semantic View** — for structured SQL queries (counts, aggregations, rankings)
-  - **Cortex Search** — for unstructured text retrieval (descriptions, issues)
-- This enables natural language questions that span both structured and unstructured data
+- The Intelligence Agent combines THREE tools:
+  - **StreetlightsAnalyst** (Cortex Analyst) — for structured SQL queries (counts, aggregations, rankings)
+  - **MaintenanceSearch** (Cortex Search) — for unstructured text retrieval (descriptions, issues)
+  - **data_to_chart** — for generating visualizations from query results
+- Orchestration instructions control routing between tools
+- Map links are auto-generated when results include lat/lng columns
 
-## Verification
+### Verification
 
 - Run `gate.py check_agent_accessible`
-- Test with a sample question:
+- Test with a structured query:
   ```
   "How many street lights are currently faulty?"
   ```
-- Verify agent returns a coherent answer using the Semantic View
-- Test text retrieval:
+- Test with a text search query:
   ```
   "Find maintenance records about exposed wires"
   ```
-- Verify agent uses Cortex Search for this type of query
+- Verify routing: structured → Analyst, text → Search
+
+## What we did
+
+- ✅ Intelligence Agent created with FROM SPECIFICATION
+- ✅ Orchestration routing rules configured (Analyst vs Search)
+- ✅ Map link generation enabled for lat/lng results
+- ✅ Gate check: `check_agent_accessible` passed
