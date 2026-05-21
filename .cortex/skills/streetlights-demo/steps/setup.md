@@ -77,3 +77,33 @@ If user skips: note it was skipped, move to next step.
 - ✅ Manifest created at `.streetlights-demo/manifest.toml`
 - ✅ Resource prefix, connection, and city configured
 - ✅ Gate check: `check_manifest_exists` passed
+
+## Connecting to PostgreSQL
+
+After Step 2 creates your PG instance, the `$snowflake-postgres` skill saves
+connection details to `~/.pg_service.conf` + `~/.pgpass` (standard PostgreSQL files).
+
+To use `psql` without typing host/user/password every time, export these env vars:
+
+```bash
+export PGSERVICE="<pg_service>"       # from manifest — matches ~/.pg_service.conf entry
+export PGDATABASE="streetlights"
+```
+
+Then connect with just:
+
+```bash
+psql "service=$PGSERVICE connect_timeout=10"
+```
+
+**How to load these automatically** (pick one):
+
+| Method | Setup |
+|--------|-------|
+| **direnv** (recommended) | `brew install direnv` + add hook to shell. The `.envrc` in this project loads them automatically. |
+| **source manually** | Add to your `~/.bashrc` / `~/.zshrc`: `source /path/to/project/.envrc` |
+| **export directly** | Copy the two `export` lines above into your shell session |
+| **dotenv** | Create a `.env` file with `PGSERVICE=<value>` and source it with your preferred tool |
+
+> **Note**: You do NOT need `PGHOST`, `PGUSER`, or `PGPASSWORD` env vars.
+> The `PGSERVICE` var tells psql to look up everything from `~/.pg_service.conf` + `~/.pgpass`.
