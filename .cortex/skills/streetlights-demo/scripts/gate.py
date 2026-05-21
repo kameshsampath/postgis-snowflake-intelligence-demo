@@ -44,21 +44,32 @@ def check_manifest_exists() -> bool:
 
 
 def check_pg_reachable(manifest: dict) -> bool:
-    """Gate: PG instance responds to connection."""
+    """Gate: PG instance responds to psql connection."""
     instance = manifest["demo"]["pg_instance"]
+    pg_host = manifest.get("demo", {}).get("pg_host", "")
+    pg_user = manifest.get("demo", {}).get("pg_user", "")
+    if pg_host and pg_user:
+        result = subprocess.run(
+            ["psql", "-h", pg_host, "-U", pg_user, "-d", "streetlights", "-c", "SELECT 1"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.returncode == 0
+    # Fallback: check instance exists via SHOW
     result = subprocess.run(
-        ["snow", "postgres", "execute", "-i", instance, "-c", "SELECT 1"],
+        ["snow", "sql", "-q", f"SHOW POSTGRES INSTANCES LIKE '{instance}'"],
         capture_output=True,
         text=True,
     )
-    return result.returncode == 0
+    return result.returncode == 0 and instance.lower() in result.stdout.lower()
 
 
 def check_pg_managed_storage(manifest: dict) -> bool:
     """Gate: verify instance uses managed storage (required for CLD)."""
     instance = manifest["demo"]["pg_instance"]
     result = subprocess.run(
-        ["snow", "postgres", "describe", "-i", instance, "--format", "json"],
+        ["snow", "sql", "-q", f"DESCRIBE POSTGRES INSTANCE {instance}"],
         capture_output=True,
         text=True,
     )

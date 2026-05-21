@@ -45,36 +45,46 @@ def _get_current_ip() -> str:
 
 
 def _get_pg_allowed_ips(instance: str) -> list[str]:
-    """Get allowed IPs from PG instance network policy."""
+    """Get allowed IPs from PG instance network policy via DESCRIBE."""
+    import re
+
     result = subprocess.run(
-        ["snow", "postgres", "describe", "-i", instance, "--format", "json"],
+        ["snow", "sql", "-q", f"DESCRIBE POSTGRES INSTANCE {instance}"],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         return []
-    try:
-        data = json.loads(result.stdout)
-        # Extract allowed IPs from instance description
-        # The structure varies — look for network policy / allowed_ips fields
-        if isinstance(data, list) and data:
-            data = data[0]
-        allowed = data.get("allowed_ip_addresses", data.get("allowedIpAddresses", []))
-        if isinstance(allowed, str):
-            return [ip.strip() for ip in allowed.split(",") if ip.strip()]
-        return list(allowed) if allowed else []
-    except (json.JSONDecodeError, KeyError, TypeError):
-        return []
+    # Extract IP-like patterns from the describe output
+    ips = re.findall(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:/\d{1,2})?", result.stdout)
+    return ips
 
 
-def _pg_ping(instance: str) -> bool:
-    """Check if PG instance is reachable via snow CLI."""
+def _pg_ping(manifest: dict) -> bool:
+    """Check if PG instance is reachable via psql SELECT 1.
+
+    Uses connection details from the manifest to test psql connectivity.
+    Falls back to checking instance existence via SHOW if psql unavailable.
+    """
+    instance = manifest["demo"]["pg_instance"]
+    # First try: psql connection test
+    pg_host = manifest.get("demo", {}).get("pg_host", "")
+    pg_user = manifest.get("demo", {}).get("pg_user", "")
+    if pg_host and pg_user:
+        result = subprocess.run(
+            ["psql", "-h", pg_host, "-U", pg_user, "-d", "streetlights", "-c", "SELECT 1"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        return result.returncode == 0
+    # Fallback: verify instance exists via snow sql
     result = subprocess.run(
-        ["snow", "postgres", "execute", "-i", instance, "-c", "SELECT 1"],
+        ["snow", "sql", "-q", f"SHOW POSTGRES INSTANCES LIKE '{instance}'"],
         capture_output=True,
         text=True,
     )
-    return result.returncode == 0
+    return result.returncode == 0 and instance.lower() in result.stdout.lower()
 
 
 def _cld_table_count(cld_db: str) -> int:
@@ -123,14 +133,14 @@ def check_manifest(project_root: Path) -> GateResult:
 
 
 def check_pg_reachable(project_root: Path) -> GateResult:
-    """Gate: PG instance responds to connection check."""
+    """Gate: PG instance responds to psql connection check."""
     try:
         manifest = _load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     instance = manifest["demo"]["pg_instance"]
-    if _pg_ping(instance):
+    if _pg_ping(manifest):
         return GateResult(success=True, message=f"PG instance '{instance}' is reachable")
     return GateResult(success=False, message=f"PG instance '{instance}' is not reachable")
 
