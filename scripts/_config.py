@@ -116,3 +116,38 @@ def _resolve_path(
 
     # Return default (will trigger FileNotFoundError in caller)
     return cwd / MANIFEST_REL_PATH
+
+
+def write_env(config: DemoConfig, project_root: Path | None = None) -> Path:
+    """Generate .env from manifest values (manifest is source of truth).
+
+    The .env file is a derived convenience — never hand-edit it.
+    Re-run `$streetlights-demo setup` or call this function to regenerate.
+
+    Returns:
+        Path to the written .env file.
+    """
+    if project_root is None:
+        project_root = Path.cwd()
+
+    env_path = project_root / ".env"
+    lines = [
+        "# AUTO-GENERATED from .streetlights-demo/manifest.toml",
+        "# Do not edit manually — re-run setup to regenerate.",
+        "",
+        "# PostgreSQL Connection",
+        f"PGSERVICE={config.pg_service}",
+        "PGDATABASE=streetlights",
+        "",
+        "# Snowflake Connection",
+        f"SNOWFLAKE_CONNECTION={config.snowflake_connection}",
+        "",
+        "# Demo Configuration",
+        f"DEMO_PREFIX={config.demo_resource_prefix}",
+        f"DEMO_WAREHOUSE={config.warehouse}",
+        f"DEMO_CITY={config.city or ''}",
+        f"DEMO_CENTER_LAT={config.center_lat or ''}",
+        f"DEMO_CENTER_LNG={config.center_lng or ''}",
+    ]
+    env_path.write_text("\n".join(lines) + "\n")
+    return env_path

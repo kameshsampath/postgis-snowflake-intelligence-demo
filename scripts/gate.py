@@ -164,6 +164,62 @@ def check_manifest(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Manifest parse error: {e}")
 
 
+def check_env_sync(project_root: Path) -> GateResult:
+    """Gate: .env is in sync with manifest (no drift).
+
+    Manifest is the source of truth. If .env has stale values,
+    warn the user to re-run setup or regenerate.
+    """
+    try:
+        manifest = _load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    env_path = project_root / ".env"
+    if not env_path.exists():
+        return GateResult(
+            success=False,
+            message=".env not found — run `$streetlights-demo setup` to generate it",
+        )
+
+    # Parse .env (simple KEY=VALUE format)
+    env_vars: dict[str, str] = {}
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" in line:
+            key, _, value = line.partition("=")
+            env_vars[key.strip()] = value.strip()
+
+    # Check key values against manifest
+    drift: list[str] = []
+    demo = manifest.get("demo", {})
+    expected = {
+        "PGSERVICE": demo.get("pg_service", demo.get("pg_instance", "")),
+        "SNOWFLAKE_CONNECTION": manifest.get("snowflake", {}).get("connection", ""),
+        "DEMO_PREFIX": manifest.get("project", {}).get("demo_resource_prefix", ""),
+        "DEMO_WAREHOUSE": demo.get("warehouse", ""),
+    }
+
+    for key, manifest_val in expected.items():
+        env_val = env_vars.get(key, "")
+        if manifest_val and env_val and env_val != manifest_val:
+            drift.append(f"{key}: .env='{env_val}' vs manifest='{manifest_val}'")
+
+    if drift:
+        return GateResult(
+            success=False,
+            message=(
+                f".env is out of sync with manifest ({len(drift)} drifted):\n"
+                + "\n".join(f"  - {d}" for d in drift)
+                + "\nRe-run `$streetlights-demo setup` to regenerate."
+            ),
+        )
+
+    return GateResult(success=True, message=".env is in sync with manifest")
+
+
 def check_pg_reachable(project_root: Path) -> GateResult:
     """Gate: PG instance responds to psql connection check."""
     try:
