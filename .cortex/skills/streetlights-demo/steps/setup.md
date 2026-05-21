@@ -42,7 +42,32 @@ If user skips: note it was skipped, move to next step.
    - List available connections: `snow connection list`
    - Ask user to pick one
 
-5. **Write `.streetlights-demo/manifest.toml`**
+5. **Warehouse resolution**
+   - Check if user's connection has a default warehouse:
+     ```sql
+     SELECT CURRENT_WAREHOUSE();
+     ```
+   - If a default warehouse exists: ask user:
+     - "Use your current warehouse `<name>` or create a dedicated `${PREFIX}_STREETLIGHTS_WH`?"
+     - Options: ["Use existing `<name>`", "Create new `${PREFIX}_STREETLIGHTS_WH`"]
+   - If no default warehouse: inform user we'll create `${PREFIX}_STREETLIGHTS_WH`
+   - Note: Creating a warehouse requires `CREATE WAREHOUSE` privilege (typically `SYSADMIN`+)
+
+6. **Role and privilege check**
+   - Check current role: `SELECT CURRENT_ROLE()`
+   - Check if role can create PG instances:
+     ```sql
+     SHOW GRANTS TO ROLE <current_role>;
+     ```
+     Look for `CREATE POSTGRES INSTANCE ON ACCOUNT`
+   - If insufficient:
+     - ⚠️ STOP: inform user that Step 2 (PG instance creation) requires
+       `CREATE POSTGRES INSTANCE ON ACCOUNT` privilege (typically `ACCOUNTADMIN`)
+     - Ask: "Which role should we use for PG instance creation?"
+     - Options: ["ACCOUNTADMIN", "Use current role (may fail)"]
+   - Store the chosen role in manifest as `pg_create_role`
+
+7. **Write `.streetlights-demo/manifest.toml`**
    - Create directory if needed
    - Write config with all resolved values:
      ```toml
@@ -52,13 +77,14 @@ If user skips: note it was skipped, move to next step.
      [project]
      demo_resource_prefix = "<prefix>"
 
-     [snowflake]
-     connection = "<connection>"
+      [snowflake]
+      connection = "<connection>"
+      role       = "<pg_create_role>"
 
       [demo]
       database     = "<PREFIX>_STREETLIGHTS"
       cld_database = "<PREFIX>_STREETLIGHTS_CLD"
-      warehouse    = "<PREFIX>_STREETLIGHTS_WH"
+      warehouse    = "<existing_or_new_wh_name>"
       pg_instance  = "<prefix>_streetlights_pg"
       pg_service   = "<prefix>_streetlights_pg"
       city         = "<city>"
@@ -66,7 +92,7 @@ If user skips: note it was skipped, move to next step.
       center_lng   = <lng>
      ```
 
-6. **Verify setup**
+8. **Verify setup**
    - Run `gate.py check_manifest_exists`
    - Run `gate.py check_snowflake_connection` — validates the chosen connection works
    - If connection check fails: STOP, ask user to re-select or fix their `snow` config

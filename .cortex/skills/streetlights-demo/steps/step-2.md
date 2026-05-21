@@ -50,6 +50,8 @@ If user skips: note it was skipped, move to next step.
 Route to `$snowflake-postgres` to create instance:
 - Instance name: from manifest `pg_instance`
 - **Must use managed storage** (required for CLD)
+- **Use role**: from manifest `role` (typically ACCOUNTADMIN — set during setup)
+  - Pass `--use-role <role>` to `pg_connect.py --create`
 - Create database: `streetlights`
 
 ### Network Access Check
