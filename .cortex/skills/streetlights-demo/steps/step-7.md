@@ -3,6 +3,21 @@ name: streetlights-demo-step-7
 description: Create Intelligence Agent with Semantic View and Cortex Search
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-7 --prior-step step-6 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-7 --desc "Create Intelligence Agent" --action start
+```
+
 # Step 7: Create Intelligence Agent
 
 ## What we'll do
@@ -66,3 +81,18 @@ If user skips: note it was skipped, move to next step.
 - ✅ Orchestration routing rules configured (Analyst vs Search)
 - ✅ Map link generation enabled for lat/lng results
 - ✅ Gate check: `check_agent_accessible` passed
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-7 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 8: Train ML Forecast?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 8` for later resumption.

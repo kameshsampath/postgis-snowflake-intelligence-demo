@@ -3,6 +3,21 @@ name: streetlights-demo-step-3
 description: Create Iceberg tables and load synthetic data
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-3 --prior-step step-2 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-3 --desc "Create Schema + Load Data" --action start
+```
+
 # Step 3: Create Schema + Load Data
 
 ## What we'll do
@@ -86,3 +101,18 @@ psql -h {pg_host} -U {pg_user} -d streetlights \
 - ✅ Iceberg tables created in `streetlights` schema
 - ✅ All 7 CSV files loaded successfully
 - ✅ Row counts verified
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-3 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 4: Catalog Integration + CLD?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 4` for later resumption.

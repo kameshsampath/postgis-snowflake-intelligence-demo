@@ -3,6 +3,21 @@ name: streetlights-demo-step-8
 description: Train ML Forecast model on energy consumption data
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-8 --prior-step step-7 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-8 --desc "Train ML Forecast" --action start
+```
+
 # Step 8: Train ML Forecast
 
 ## What we'll do
@@ -63,3 +78,18 @@ If user skips: note it was skipped, move to next step.
 - ✅ Forecast model trained on energy consumption data
 - ✅ Model produces 30-day predictions
 - ✅ Gate check: `check_forecast_model_ready` passed
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-8 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 9: Deploy SiS App?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 9` for later resumption.

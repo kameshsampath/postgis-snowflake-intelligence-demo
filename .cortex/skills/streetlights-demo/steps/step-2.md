@@ -3,6 +3,21 @@ name: streetlights-demo-step-2
 description: Create or reuse Snowflake Postgres instance with managed storage
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-2 --prior-step step-1 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-2 --desc "Snowflake Postgres Instance" --action start
+```
+
 # Step 2: Snowflake Postgres Instance
 
 ## What we'll do
@@ -14,6 +29,8 @@ Create a Snowflake Postgres instance with managed storage (required for CLD). Th
 - Create the `streetlights` database on the instance
 
 ## ⚠️ Proceed?
+
+> **⚠️ Billable**: This creates a Snowflake Postgres instance. Credits consumed while running.
 
 Use `ask_user_question` to confirm:
 - Header: "Step 2"
@@ -29,6 +46,8 @@ If user skips: note it was skipped, move to next step.
 1. **Validate Snowflake connection**:
    - Run `gate.py check_snowflake_connection`
    - If fails: STOP — connection in manifest is invalid, run `$streetlights-demo setup` to reconfigure
+
+> **Connection**: Read from manifest `[snowflake].connection`. Do NOT re-ask the user.
 
 2. **Check account parameters**:
    ```sql
@@ -48,6 +67,9 @@ If user skips: note it was skipped, move to next step.
 ### Create Instance
 
 Route to `$snowflake-postgres` to create instance:
+
+> **Routing**: Invoke `$snowflake-postgres` via the `skill` tool (bundled system skill). Do NOT run SQL directly for PG instance operations.
+
 - Instance name: from manifest `pg_instance`
 - **Must use managed storage** (required for CLD)
 - **Use role**: from manifest `role` (typically ACCOUNTADMIN — set during setup)
@@ -79,3 +101,18 @@ After instance is created (or reused), verify network connectivity:
 - ✅ Snowflake Postgres instance created (or reused) with managed storage
 - ✅ Database `streetlights` created on instance
 - ✅ Gate checks: `check_pg_reachable` and `check_pg_managed_storage` passed
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-2 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 3: Create Schema + Load Data?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 3` for later resumption.

@@ -3,6 +3,21 @@ name: streetlights-demo-step-9
 description: Deploy multi-page Streamlit in Snowflake application
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-9 --prior-step step-8 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-9 --desc "Deploy SiS App" --action start
+```
+
 # Step 9: Deploy SiS App
 
 ## What we'll do
@@ -67,3 +82,18 @@ If user skips: note it was skipped, move to next step.
 - ✅ Streamlit app deployed to Snowflake
 - ✅ All 6 pages accessible
 - ✅ App URL available for sharing
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-9 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 10: Validate & Demo?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 10` for later resumption.

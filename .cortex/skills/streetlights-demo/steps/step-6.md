@@ -3,6 +3,21 @@ name: streetlights-demo-step-6
 description: Create Cortex Search service on maintenance records
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-6 --prior-step step-5 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-6 --desc "Create Cortex Search Service" --action start
+```
+
 # Step 6: Create Cortex Search Service
 
 ## What we'll do
@@ -63,3 +78,18 @@ If user skips: note it was skipped, move to next step.
 - ✅ Service status: ACTIVE
 - ✅ Semantic search verified with test query
 - ✅ Gate check: `check_cortex_search_ready` passed
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-6 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 7: Create Intelligence Agent?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 7` for later resumption.

@@ -3,6 +3,21 @@ name: streetlights-demo-step-4
 description: Create Catalog Integration and CLD database
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-4 --prior-step step-3 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-4 --desc "Catalog Integration + CLD" --action start
+```
+
 # Step 4: Catalog Integration + CLD
 
 ## What we'll do
@@ -14,6 +29,8 @@ Create the Snowflake catalog integration pointing to the Postgres instance, then
 - Wait for table propagation (~30 seconds)
 
 ## ⚠️ Proceed?
+
+> **⚠️ Billable**: This creates a Catalog Integration and enables continuous sync. Credits consumed while running.
 
 Use `ask_user_question` to confirm:
 - Header: "Step 4"
@@ -28,9 +45,13 @@ If user skips: note it was skipped, move to next step.
 
 - Run `gate.py check_pg_managed_storage` — CLD ONLY works with managed storage
 
+> **Connection**: Read from manifest `[snowflake].connection`. Do NOT re-ask the user.
+
 ### Steps
 
 Route to `$snowflake-postgres` pg_lake to:
+
+> **Routing**: Invoke `$snowflake-postgres` via the `skill` tool (bundled system skill). Do NOT run SQL directly for CLD operations.
 
 1. Create catalog integration for the PG instance:
    ```sql
@@ -65,3 +86,18 @@ After CLD creation, tables take ~30 seconds to appear.
 - ✅ CLD database created and linked
 - ✅ All 7 tables propagated and visible
 - ✅ Gate check: `check_cld_healthy` passed
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-4 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 5: Create Semantic View?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 5` for later resumption.

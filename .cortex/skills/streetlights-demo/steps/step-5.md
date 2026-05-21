@@ -3,6 +3,21 @@ name: streetlights-demo-step-5
 description: Create Semantic View over CLD tables
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-5 --prior-step step-4 --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-5 --desc "Create Semantic View" --action start
+```
+
 # Step 5: Create Semantic View
 
 ## What we'll do
@@ -55,3 +70,18 @@ If user skips: note it was skipped, move to next step.
 - ✅ Semantic View created on CLD tables
 - ✅ Quoted lowercase identifiers preserved for CLD compatibility
 - ✅ Gate check: `check_semantic_view_exists` passed
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-5 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 6: Create Cortex Search Service?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 6` for later resumption.

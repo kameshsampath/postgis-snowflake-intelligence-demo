@@ -3,6 +3,21 @@ name: streetlights-demo-step-1
 description: Generate location-aware synthetic streetlight data
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step step-1 --prior-step setup --action check
+```
+
+If BLOCK: stop and inform the user which prior step needs completing first.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step step-1 --desc "Generate Synthetic Data" --action start
+```
+
 # Step 1: Generate Synthetic Data
 
 ## What we'll do
@@ -54,3 +69,18 @@ If user skips: note it was skipped, move to next step.
 - ✅ Generated 7 CSV files in `data/`
 - ✅ Data centered on configured city coordinates
 - ✅ All files have expected row counts
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step step-1 --action complete
+```
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 2: Snowflake Postgres Instance?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 2` for later resumption.

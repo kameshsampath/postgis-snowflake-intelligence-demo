@@ -3,6 +3,21 @@ name: streetlights-demo-setup
 description: Initialize the streetlights demo manifest and configuration
 ---
 
+## Gate
+
+```bash
+python3 scripts/gate.py --step setup --action check
+```
+
+If BLOCK: stop and inform the user what needs fixing.
+If PASS: continue below.
+
+## Mark IN_PROGRESS
+
+```bash
+python3 scripts/gate.py --step setup --desc "Initialize Streetlights Demo" --action start
+```
+
 # Setup: Initialize Streetlights Demo
 
 ## What we'll do
@@ -85,12 +100,14 @@ If user skips: note it was skipped, move to next step.
       database     = "<PREFIX>_STREETLIGHTS"
       cld_database = "<PREFIX>_STREETLIGHTS_CLD"
       warehouse    = "<existing_or_new_wh_name>"
-      pg_instance  = "<prefix>_streetlights_pg"
-      pg_service   = "<prefix>_streetlights_pg"
+      pg_instance  = "<prefix>_streetlights"
+      pg_service   = "<prefix>_streetlights"
       city         = "<city>"
       center_lat   = <lat>
       center_lng   = <lng>
      ```
+
+> **Note**: Existing instances keep their current names; only new setups use the shorter naming convention.
 
 8. **Verify setup**
    - Run `gate.py check_manifest_exists`
@@ -103,6 +120,12 @@ If user skips: note it was skipped, move to next step.
 - ✅ Manifest created at `.streetlights-demo/manifest.toml`
 - ✅ Resource prefix, connection, and city configured
 - ✅ Gate check: `check_manifest_exists` passed
+
+## Mark COMPLETE
+
+```bash
+python3 scripts/gate.py --step setup --action complete
+```
 
 ## Connecting to PostgreSQL
 
@@ -133,3 +156,12 @@ psql "service=$PGSERVICE connect_timeout=10"
 
 > **Note**: You do NOT need `PGHOST`, `PGUSER`, or `PGPASSWORD` env vars.
 > The `PGSERVICE` var tells psql to look up everything from `~/.pg_service.conf` + `~/.pgpass`.
+
+## Next
+
+Use the `ask_user_question` tool:
+- Header: "Next"
+- Question: "Continue to Step 1: Generate Synthetic Data?"
+- Options: ["Yes, continue", "Stop here"]
+
+If "Stop here": show `$streetlights-demo step 1` for later resumption.
