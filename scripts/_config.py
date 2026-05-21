@@ -25,6 +25,7 @@ class DemoConfig:
     cld_database: str
     warehouse: str
     pg_instance: str
+    pg_service: str
     city: str | None
     center_lat: float | None
     center_lng: float | None
@@ -83,6 +84,7 @@ def load_manifest(
         cld_database=demo.get("cld_database", ""),
         warehouse=demo.get("warehouse", ""),
         pg_instance=demo.get("pg_instance", ""),
+        pg_service=demo.get("pg_service", demo.get("pg_instance", "")),
         city=demo.get("city") or None,
         center_lat=demo.get("center_lat"),
         center_lng=demo.get("center_lng"),

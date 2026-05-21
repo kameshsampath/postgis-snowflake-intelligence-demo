@@ -55,14 +55,15 @@ If user skips: note it was skipped, move to next step.
      [snowflake]
      connection = "<connection>"
 
-     [demo]
-     database     = "<PREFIX>_STREETLIGHTS"
-     cld_database = "<PREFIX>_STREETLIGHTS_CLD"
-     warehouse    = "<PREFIX>_STREETLIGHTS_WH"
-     pg_instance  = "<prefix>_streetlights_pg"
-     city         = "<city>"
-     center_lat   = <lat>
-     center_lng   = <lng>
+      [demo]
+      database     = "<PREFIX>_STREETLIGHTS"
+      cld_database = "<PREFIX>_STREETLIGHTS_CLD"
+      warehouse    = "<PREFIX>_STREETLIGHTS_WH"
+      pg_instance  = "<prefix>_streetlights_pg"
+      pg_service   = "<prefix>_streetlights_pg"
+      city         = "<city>"
+      center_lat   = <lat>
+      center_lng   = <lng>
      ```
 
 6. **Verify setup**
