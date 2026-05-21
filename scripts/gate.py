@@ -6,8 +6,10 @@ indicating success/failure with a descriptive message.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import tomllib
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +27,44 @@ def _load_manifest(project_root: Path) -> dict:
     manifest_file = project_root / ".streetlights-demo" / "manifest.toml"
     with open(manifest_file, "rb") as f:
         return tomllib.load(f)
+
+
+def _get_current_ip() -> str:
+    """Detect current public IP address."""
+    try:
+        with urllib.request.urlopen("https://api.ipify.org?format=json", timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            return data["ip"]
+    except Exception:
+        # Fallback
+        try:
+            with urllib.request.urlopen("https://ifconfig.me/ip", timeout=5) as resp:
+                return resp.read().decode().strip()
+        except Exception:
+            return ""
+
+
+def _get_pg_allowed_ips(instance: str) -> list[str]:
+    """Get allowed IPs from PG instance network policy."""
+    result = subprocess.run(
+        ["snow", "postgres", "describe", "-i", instance, "--format", "json"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return []
+    try:
+        data = json.loads(result.stdout)
+        # Extract allowed IPs from instance description
+        # The structure varies — look for network policy / allowed_ips fields
+        if isinstance(data, list) and data:
+            data = data[0]
+        allowed = data.get("allowed_ip_addresses", data.get("allowedIpAddresses", []))
+        if isinstance(allowed, str):
+            return [ip.strip() for ip in allowed.split(",") if ip.strip()]
+        return list(allowed) if allowed else []
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return []
 
 
 def _pg_ping(instance: str) -> bool:
@@ -121,4 +161,90 @@ def check_account_params(project_root: Path) -> GateResult:
     return GateResult(
         success=False,
         message="Required account param ENABLE_SNOWFLAKE_POSTGRES is not enabled",
+    )
+
+
+def check_snowflake_connection(project_root: Path) -> GateResult:
+    """Gate: Snowflake CLI connection from manifest works."""
+    try:
+        manifest = _load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    connection = manifest.get("snowflake", {}).get("connection", "default")
+    result = subprocess.run(
+        ["snow", "sql", "-q", "SELECT CURRENT_ACCOUNT()", "-c", connection],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return GateResult(
+            success=True,
+            message=f"Snowflake connection '{connection}' is valid",
+        )
+    return GateResult(
+        success=False,
+        message=f"Snowflake connection '{connection}' failed: {result.stderr.strip()[:200]}",
+    )
+
+
+def check_pg_network_access(project_root: Path) -> GateResult:
+    """Gate: current IP is in PG instance's network policy.
+
+    Detects IP mismatch when user moves networks (WiFi, VPN, etc.).
+    Returns the current IP and allowed IPs for the skill to offer a fix.
+    """
+    try:
+        manifest = _load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    instance = manifest["demo"]["pg_instance"]
+
+    # Get current public IP
+    current_ip = _get_current_ip()
+    if not current_ip:
+        return GateResult(
+            success=False,
+            message="Could not detect current public IP. Check internet connectivity.",
+        )
+
+    # Get allowed IPs from PG instance
+    allowed_ips = _get_pg_allowed_ips(instance)
+    if not allowed_ips:
+        # Can't determine policy — fall back to connectivity check
+        if _pg_ping(instance):
+            return GateResult(
+                success=True,
+                message=f"PG reachable (current IP: {current_ip}, policy IPs unknown)",
+            )
+        return GateResult(
+            success=False,
+            message=(
+                f"PG unreachable. Current IP: {current_ip}. "
+                f"Could not read network policy — IP may not be allowed."
+            ),
+        )
+
+    # Check if current IP is in the allowed list (exact match or CIDR prefix)
+    ip_allowed = any(
+        current_ip == allowed.rstrip("/32") or current_ip.startswith(allowed.split("/")[0])
+        for allowed in allowed_ips
+    )
+
+    if ip_allowed:
+        return GateResult(
+            success=True,
+            message=f"Current IP {current_ip} is in PG network policy",
+        )
+
+    return GateResult(
+        success=False,
+        message=(
+            f"IP MISMATCH: Your current IP ({current_ip}) is NOT in the "
+            f"PG instance network policy.\n"
+            f"Allowed IPs: {', '.join(allowed_ips)}\n"
+            f"You likely switched networks. "
+            f"Run `$snowflake-postgres` to update the network policy."
+        ),
     )

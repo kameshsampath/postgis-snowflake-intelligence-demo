@@ -67,6 +67,8 @@ If user skips: note it was skipped, move to next step.
 
 6. **Verify setup**
    - Run `gate.py check_manifest_exists`
+   - Run `gate.py check_snowflake_connection` — validates the chosen connection works
+   - If connection check fails: STOP, ask user to re-select or fix their `snow` config
    - Show summary table of all configured values
 
 ## What we did

@@ -29,6 +29,14 @@ If user skips: note it was skipped, move to next step.
 - PG instance exists and is reachable (Step 2 complete)
 - CSV data files exist in `data/` (Step 1 complete)
 
+### Network Pre-check
+
+Before connecting via psql, verify network access:
+- Run `gate.py check_pg_network_access`
+- If **IP MISMATCH**: show current IP vs allowed IPs, ask to update network policy
+  (user may have switched networks since Step 2)
+- If user approves: route to `$snowflake-postgres` to update the policy, then retry
+
 ### Sequence (order matters!)
 
 1. Enable extensions (`init/01_enable_extensions.sql`)

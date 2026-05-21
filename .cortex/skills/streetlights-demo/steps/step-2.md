@@ -26,14 +26,18 @@ If user skips: note it was skipped, move to next step.
 
 ### Pre-flight Checks
 
-1. **Check account parameters**:
+1. **Validate Snowflake connection**:
+   - Run `gate.py check_snowflake_connection`
+   - If fails: STOP — connection in manifest is invalid, run `$streetlights-demo setup` to reconfigure
+
+2. **Check account parameters**:
    ```sql
    SHOW PARAMETERS LIKE 'ENABLE_SNOWFLAKE_POSTGRES' IN ACCOUNT;
    SHOW PARAMETERS LIKE 'ENABLE_POSTGRES_HIDDEN_EXTERNAL_VOLUME' IN ACCOUNT;
    ```
    If not enabled: STOP — inform user these params must be enabled by account admin.
 
-2. **Check if instance already exists**:
+3. **Check if instance already exists**:
    ```sql
    SHOW POSTGRES INSTANCES LIKE '{pg_instance}';
    ```
@@ -48,10 +52,24 @@ Route to `$snowflake-postgres` to create instance:
 - **Must use managed storage** (required for CLD)
 - Create database: `streetlights`
 
+### Network Access Check
+
+After instance is created (or reused), verify network connectivity:
+
+- Run `gate.py check_pg_network_access`
+- If **IP MISMATCH** detected:
+  - Show current IP vs allowed IPs
+  - Use `ask_user_question`: "Your IP ({current_ip}) isn't in the network policy. Update it?"
+    - Options: ["Yes, update network policy", "No, I'll fix it manually"]
+  - If yes: Route to `$snowflake-postgres` to update the network policy with the new IP
+- This check runs on **every step that needs PG access** (steps 3, 4) — not just step 2.
+  Users commonly switch WiFi/VPN between steps.
+
 ### Verification
 
 - Run `gate.py check_pg_reachable`
 - Run `gate.py check_pg_managed_storage`
+- Run `gate.py check_pg_network_access`
 - Show connection details to user
 
 ## What we did
