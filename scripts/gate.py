@@ -63,22 +63,54 @@ def _get_pg_allowed_ips(instance: str) -> list[str]:
 def _pg_ping(manifest: dict) -> bool:
     """Check if PG instance is reachable via psql SELECT 1.
 
-    Uses connection details from the manifest to test psql connectivity.
-    Falls back to checking instance existence via SHOW if psql unavailable.
+    Uses PGSERVICE (from .envrc/direnv) or falls back to explicit host/user.
+    The $snowflake-postgres skill manages ~/.pg_service.conf + ~/.pgpass.
     """
+    import os
+
     instance = manifest["demo"]["pg_instance"]
-    # First try: psql connection test
+
+    # Preferred: use PGSERVICE (set by .envrc from manifest)
+    pg_service = os.environ.get("PGSERVICE", instance)
+    try:
+        result = subprocess.run(
+            ["psql", f"service={pg_service} connect_timeout=10", "-c", "SELECT 1"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if result.returncode == 0:
+            return True
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    # Fallback: explicit host/user from manifest
     pg_host = manifest.get("demo", {}).get("pg_host", "")
     pg_user = manifest.get("demo", {}).get("pg_user", "")
     if pg_host and pg_user:
-        result = subprocess.run(
-            ["psql", "-h", pg_host, "-U", pg_user, "-d", "streetlights", "-c", "SELECT 1"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        return result.returncode == 0
-    # Fallback: verify instance exists via snow sql
+        try:
+            result = subprocess.run(
+                [
+                    "psql",
+                    "-h",
+                    pg_host,
+                    "-U",
+                    pg_user,
+                    "-d",
+                    "streetlights",
+                    "-c",
+                    "SELECT 1",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                env={**os.environ, "PGCONNECT_TIMEOUT": "10"},
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+
+    # Last resort: verify instance exists via Snowflake SQL
     result = subprocess.run(
         ["snow", "sql", "-q", f"SHOW POSTGRES INSTANCES LIKE '{instance}'"],
         capture_output=True,
