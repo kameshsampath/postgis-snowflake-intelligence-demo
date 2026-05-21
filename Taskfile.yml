@@ -1,38 +1,7 @@
-# Copyright 2025 Kamesh Sampath
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Taskfile for Street Lights PostGIS Demo
-# https://taskfile.dev
-#
-# Purpose: These PostgreSQL/PostGIS queries demonstrate the technical complexity
-# of spatial SQL. While powerful, they require expertise in:
-#   - PostGIS spatial functions (ST_Within, ST_Distance, ST_DWithin)
-#   - Geography vs Geometry types and SRID projections
-#   - Complex JOINs, LATERAL subqueries, and window functions
-#   - KNN operators (<->) for nearest neighbor searches
-#
-# This sets up the contrast with Snowflake Intelligence, where users can
-# ask the same questions in plain English without writing SQL.
-
-version: "3"
-
-dotenv: [".env"]
+version: '3'
 
 vars:
-  QUERIES_DIR: queries/postgis
-  INIT_DIR: init
-  DATA_DIR: data
+  PROJECT_DIR: '{{.ROOT_DIR}}'
 
 tasks:
   default:
@@ -40,226 +9,115 @@ tasks:
     cmds:
       - task --list
 
-  # ============================================================================
-  # PostgreSQL/PostGIS Queries
-  # These queries require SQL expertise - compare with Snowflake Intelligence!
-  # ============================================================================
-
-  pg-query:all:
-    desc: Run all PostGIS queries (shows SQL complexity vs natural language)
-    cmds:
-      - psql -f {{.QUERIES_DIR}}/demo_queries.sql
-    preconditions:
-      - sh: command -v psql
-        msg: "psql is required. Install with: brew install libpq"
-      - sh: test -f {{.QUERIES_DIR}}/demo_queries.sql
-        msg: "Demo queries file not found at {{.QUERIES_DIR}}/demo_queries.sql"
-
-  pg-query:overview:
-    desc: "Data overview - requires knowing table names and COUNT(*)"
-    cmds:
-      - |
-        psql -c "
-        SET search_path TO streetlights, public;
-        SELECT 
-          (SELECT COUNT(*) FROM neighborhoods) AS neighborhoods,
-          (SELECT COUNT(*) FROM street_lights) AS street_lights,
-          (SELECT COUNT(*) FROM suppliers) AS suppliers,
-          (SELECT COUNT(*) FROM maintenance_requests) AS maintenance_requests;
-        "
-
-  pg-query:status:
-    desc: "Light status - requires GROUP BY, window functions"
-    cmds:
-      - |
-        psql -c "
-        SET search_path TO streetlights, public;
-        SELECT 
-            status,
-            COUNT(*) AS count,
-            ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 1) AS percentage
-        FROM street_lights
-        GROUP BY status
-        ORDER BY count DESC;
-        "
-
-  pg-query:faulty-by-area:
-    desc: "Faulty by neighborhood - requires ST_Within spatial function"
-    cmds:
-      - |
-        psql -c "
-        SET search_path TO streetlights, public;
-        SELECT 
-            n.name AS neighborhood,
-            COUNT(l.light_id) AS faulty_lights,
-            n.population
-        FROM neighborhoods n
-        LEFT JOIN street_lights l ON ST_Within(l.location, n.boundary) AND l.status = 'faulty'
-        WHERE l.light_id IS NOT NULL
-        GROUP BY n.neighborhood_id, n.name, n.population
-        ORDER BY faulty_lights DESC
-        LIMIT 10;
-        "
-
-  pg-query:nearest-supplier:
-    desc: "Nearest supplier - requires KNN operator, LATERAL, geography cast"
-    cmds:
-      - |
-        psql -c "
-        SET search_path TO streetlights, public;
-        SELECT 
-            l.light_id,
-            n.name AS neighborhood,
-            s.name AS nearest_supplier,
-            ROUND((ST_Distance(l.location::geography, s.location::geography) / 1000.0)::numeric, 2) AS distance_km,
-            s.avg_response_hours
-        FROM street_lights l
-        JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
-        CROSS JOIN LATERAL (
-            SELECT name, location, avg_response_hours
-            FROM suppliers s2
-            ORDER BY l.location <-> s2.location
-            LIMIT 1
-        ) s
-        WHERE l.status = 'faulty'
-        ORDER BY distance_km DESC
-        LIMIT 10;
-        "
-
-  pg-query:high-risk:
-    desc: "High-risk lights - requires understanding enriched views"
-    cmds:
-      - |
-        psql -c "
-        SET search_path TO streetlights, public;
-        SELECT 
-            light_id,
-            neighborhood_name,
-            status,
-            failure_risk_score,
-            predicted_failure_date,
-            maintenance_urgency
-        FROM street_lights_enriched
-        WHERE failure_risk_score IS NOT NULL
-        ORDER BY failure_risk_score DESC
-        LIMIT 10;
-        "
-
-  pg-query:supplier-coverage:
-    desc: "Supplier coverage - requires ST_DWithin with meter conversion"
-    cmds:
-      - |
-        psql -c "
-        SET search_path TO streetlights, public;
-        SELECT 
-            s.name AS supplier,
-            s.specialization,
-            s.service_radius_km,
-            COUNT(DISTINCT l.light_id) AS lights_in_range,
-            COUNT(DISTINCT l.light_id) FILTER (WHERE l.status = 'faulty') AS faulty_in_range
-        FROM suppliers s
-        LEFT JOIN street_lights l ON ST_DWithin(
-            s.location::geography, 
-            l.location::geography, 
-            s.service_radius_km * 1000
-        )
-        GROUP BY s.supplier_id, s.name, s.specialization, s.service_radius_km
-        ORDER BY faulty_in_range DESC
-        LIMIT 10;
-        "
-
-  pg-query:text-search:
-    desc: "Text search - requires ILIKE, no semantic understanding (vs Cortex Search)"
-    cmds:
-      - |
-        psql -c "
-        SET search_path TO streetlights, public;
-        -- Compare with Cortex Search: 'Find safety hazards and dangerous situations'
-        -- PostgreSQL has no semantic understanding - must list every keyword!
-        SELECT 
-            m.request_id,
-            m.light_id,
-            n.name AS neighborhood,
-            m.issue_type,
-            LEFT(m.description, 50) || '...' AS description_preview
-        FROM maintenance_requests m
-        JOIN street_lights l ON m.light_id = l.light_id
-        LEFT JOIN neighborhoods n ON l.neighborhood_id = n.neighborhood_id
-        WHERE 
-            m.description ILIKE '%danger%'
-            OR m.description ILIKE '%hazard%'
-            OR m.description ILIKE '%urgent%'
-            OR m.description ILIKE '%exposed wire%'
-            OR m.description ILIKE '%fire%'
-            OR m.description ILIKE '%spark%'
-        ORDER BY m.reported_at DESC
-        LIMIT 10;
-        "
-
-  # ============================================================================
-  # Database Management
-  # ============================================================================
-
-  db:init:
-    desc: Initialize the database schema
-    cmds:
-      - psql -f {{.INIT_DIR}}/00_init_all.sql
-    preconditions:
-      - sh: command -v psql
-        msg: "psql is required"
-
-  db:load:
-    desc: Load all data into the database
-    cmds:
-      - psql -f {{.DATA_DIR}}/load_data.sql
-    preconditions:
-      - sh: command -v psql
-        msg: "psql is required"
-
-  db:reset:
-    desc: Reset the database (drop and recreate)
-    cmds:
-      - psql -f {{.INIT_DIR}}/reset_database.sql
-    preconditions:
-      - sh: command -v psql
-        msg: "psql is required"
-
-  db:verify:
-    desc: Verify database connection and PostGIS
-    cmds:
-      - |
-        psql -c "SELECT PostGIS_Version() AS postgis_version, version() AS pg_version;"
-
-  # ============================================================================
-  # Data Generation
-  # ============================================================================
-
-  data:generate:
-    desc: Generate full dataset (5000 lights)
-    cmds:
-      - uv run generate-all-data
-
-  data:generate-sample:
-    desc: Generate sample dataset (10 lights)
-    cmds:
-      - uv run generate-sample
-
-  # ============================================================================
-  # Dashboard
-  # ============================================================================
-
-  dashboard:
-    desc: Run the Streamlit dashboard
-    cmds:
-      - uv run dashboard
-
-  # ============================================================================
-  # Setup
-  # ============================================================================
+  # ==========================================================================
+  # Setup & Configuration
+  # ==========================================================================
 
   setup:
-    desc: Full setup - init database, load data
+    desc: Initialize demo configuration (use '$streetlights-demo setup' in Cortex Code)
     cmds:
-      - task: db:init
-      - task: db:load
-      - echo "Setup complete! Run 'task pg-query:all' to see the queries."
+      - echo "Run '$streetlights-demo setup' in Cortex Code for guided setup"
+      - echo "Or manually create .streetlights-demo/manifest.toml"
+
+  # ==========================================================================
+  # Data Generation
+  # ==========================================================================
+
+  generate:
+    desc: Generate synthetic streetlight data
+    cmds:
+      - uv run generate {{.CLI_ARGS}}
+    preconditions:
+      - sh: command -v uv
+        msg: "uv is required. Install: curl -LsSf https://astral.sh/uv/install.sh | sh"
+
+  # ==========================================================================
+  # Code Quality
+  # ==========================================================================
+
+  lint:
+    desc: Run ruff linter
+    cmds:
+      - uv run ruff check .
+
+  format:
+    desc: Format code with ruff
+    cmds:
+      - uv run ruff format .
+
+  test:
+    desc: Run tests
+    cmds:
+      - uv run pytest tests/ -v
+
+  # ==========================================================================
+  # PostgreSQL Operations
+  # ==========================================================================
+
+  pg:connect:
+    desc: Connect to PG instance via psql
+    cmds:
+      - snow postgres connect -i {{.PG_INSTANCE}}
+    vars:
+      PG_INSTANCE:
+        sh: "grep pg_instance .streetlights-demo/manifest.toml 2>/dev/null | cut -d'\"' -f2 || echo 'INSTANCE_NOT_SET'"
+
+  pg:schema:
+    desc: Apply schema to PG instance
+    cmds:
+      - psql -f init/01_enable_extensions.sql
+      - psql -f init/07_create_iceberg_tables.sql
+
+  pg:load:
+    desc: Load CSV data into PG (requires psql connection env vars)
+    cmds:
+      - |
+        for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
+          echo "Loading $table..."
+          psql -c "\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
+        done
+
+  # ==========================================================================
+  # Snowflake Operations
+  # ==========================================================================
+
+  sf:setup:
+    desc: Run Snowflake setup SQL (database, schemas, warehouse)
+    cmds:
+      - snow sql -f snowflake/01_setup.sql
+
+  sf:semantic-view:
+    desc: Create Semantic View
+    cmds:
+      - snow sql -f snowflake/02_semantic_view.sql
+
+  sf:search:
+    desc: Create Cortex Search service
+    cmds:
+      - snow sql -f snowflake/03_cortex_search.sql
+
+  sf:agent:
+    desc: Create Intelligence Agent
+    cmds:
+      - snow sql -f snowflake/04_intelligence_agent.sql
+
+  sf:forecast:
+    desc: Train ML Forecast model
+    cmds:
+      - snow sql -f snowflake/05_ml_forecast.sql
+
+  # ==========================================================================
+  # Demo Workflow
+  # ==========================================================================
+
+  demo:
+    desc: Run full demo (use '$streetlights-demo' in Cortex Code for guided flow)
+    cmds:
+      - echo "Run '$streetlights-demo step 1' through 'step 10' in Cortex Code"
+      - echo "Or use individual sf:* and pg:* tasks for manual execution"
+
+  cleanup:
+    desc: Remove all demo resources (use '$streetlights-demo cleanup' in Cortex Code)
+    cmds:
+      - echo "Run '$streetlights-demo cleanup' in Cortex Code for guided teardown"
+      - echo "This will drop all Snowflake objects and the PG instance"
