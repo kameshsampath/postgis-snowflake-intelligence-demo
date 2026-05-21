@@ -1,6 +1,12 @@
 # Environment files
 .env
 
+# Project config (user-specific)
+.streetlights-demo/
+
+# Generated synthetic data
+data/*.csv
+
 # Python
 __pycache__/
 *.py[cod]
@@ -12,15 +18,6 @@ venv/
 ENV/
 .venv
 
-# Data files (generated)
-data/*.geojson
-
-# Docker volumes
-postgres_data/
-nifi_state/
-nifi_conf/
-nifi_logs/
-
 # IDE
 .vscode/
 .idea/
@@ -30,11 +27,6 @@ nifi_logs/
 
 # Logs
 *.log
-
-# Streamlit
-.streamlit/
-!.streamlit/config.toml
-!.streamlit/secrets.toml.example
 
 # Jupyter
 .ipynb_checkpoints/

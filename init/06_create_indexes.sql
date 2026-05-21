@@ -12,23 +12,23 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- Create spatial indexes and other performance indexes
--- GIST indexes enable fast spatial queries (ST_Within, ST_DWithin, ST_Distance)
+-- Create indexes for performance
+-- B-tree indexes on lat/lng and common filter/join columns
 
 -- Set search path to streetlights schema
 SET search_path TO streetlights, public;
 
--- Spatial index on street_lights location
-CREATE INDEX IF NOT EXISTS idx_lights_location ON streetlights.street_lights USING GIST(location);
-COMMENT ON INDEX streetlights.idx_lights_location IS 'Spatial index for fast proximity and containment queries';
+-- B-tree indexes on street_lights lat/lng for coordinate queries
+CREATE INDEX IF NOT EXISTS idx_lights_latitude ON streetlights.street_lights(latitude);
+CREATE INDEX IF NOT EXISTS idx_lights_longitude ON streetlights.street_lights(longitude);
+COMMENT ON INDEX streetlights.idx_lights_latitude IS 'Fast filtering by latitude range';
+COMMENT ON INDEX streetlights.idx_lights_longitude IS 'Fast filtering by longitude range';
 
--- Spatial index on neighborhoods boundary
-CREATE INDEX IF NOT EXISTS idx_neighborhoods_boundary ON streetlights.neighborhoods USING GIST(boundary);
-COMMENT ON INDEX streetlights.idx_neighborhoods_boundary IS 'Spatial index for fast point-in-polygon queries';
-
--- Spatial index on suppliers location
-CREATE INDEX IF NOT EXISTS idx_suppliers_location ON streetlights.suppliers USING GIST(location);
-COMMENT ON INDEX streetlights.idx_suppliers_location IS 'Spatial index for nearest supplier queries';
+-- B-tree indexes on suppliers lat/lng
+CREATE INDEX IF NOT EXISTS idx_suppliers_latitude ON streetlights.suppliers(latitude);
+CREATE INDEX IF NOT EXISTS idx_suppliers_longitude ON streetlights.suppliers(longitude);
+COMMENT ON INDEX streetlights.idx_suppliers_latitude IS 'Fast filtering by supplier latitude';
+COMMENT ON INDEX streetlights.idx_suppliers_longitude IS 'Fast filtering by supplier longitude';
 
 -- Regular B-tree indexes for foreign keys and common filters
 CREATE INDEX IF NOT EXISTS idx_lights_status ON streetlights.street_lights(status);
@@ -49,7 +49,7 @@ COMMENT ON INDEX streetlights.idx_weather_light IS 'Fast JOIN for enrichment';
 CREATE INDEX IF NOT EXISTS idx_weather_season ON streetlights.weather_enrichment(season);
 COMMENT ON INDEX streetlights.idx_weather_season IS 'Fast filtering by season';
 
-CREATE INDEX IF NOT EXISTS idx_power_grid_light ON streetlights.power_grid_enrichment(light_id);
+CREATE INDEX IF NOT EXISTS idx_power_grid_light ON streetlights.power_grid_zones(light_id);
 COMMENT ON INDEX streetlights.idx_power_grid_light IS 'Fast JOIN for enrichment';
 
 -- Analyze tables for query optimizer
@@ -58,8 +58,8 @@ ANALYZE streetlights.street_lights;
 ANALYZE streetlights.maintenance_requests;
 ANALYZE streetlights.suppliers;
 ANALYZE streetlights.weather_enrichment;
-ANALYZE streetlights.demographics_enrichment;
-ANALYZE streetlights.power_grid_enrichment;
+ANALYZE streetlights.demographics;
+ANALYZE streetlights.power_grid_zones;
 
 -- Log completion with index statistics
 DO $$
@@ -71,11 +71,9 @@ BEGIN
     WHERE schemaname = 'streetlights';
     
     RAISE NOTICE 'Indexes created successfully!';
-    RAISE NOTICE 'Spatial indexes (GIST):';
-    RAISE NOTICE '  - idx_lights_location';
-    RAISE NOTICE '  - idx_neighborhoods_boundary';
-    RAISE NOTICE '  - idx_suppliers_location';
-    RAISE NOTICE 'Regular indexes (B-tree):';
+    RAISE NOTICE 'B-tree indexes:';
+    RAISE NOTICE '  - idx_lights_latitude, idx_lights_longitude';
+    RAISE NOTICE '  - idx_suppliers_latitude, idx_suppliers_longitude';
     RAISE NOTICE '  - idx_lights_status';
     RAISE NOTICE '  - idx_lights_neighborhood';
     RAISE NOTICE '  - idx_maintenance_light';
@@ -86,5 +84,3 @@ BEGIN
     RAISE NOTICE 'Total indexes in streetlights schema: %', idx_count;
     RAISE NOTICE 'Tables analyzed for query optimization';
 END $$;
-
-

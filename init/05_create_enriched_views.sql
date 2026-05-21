@@ -13,7 +13,7 @@
 -- limitations under the License.
 
 -- Create enriched views that JOIN base tables with enrichment data
--- These views provide combined data for analytics and CDC capture
+-- These views provide combined data for analytics
 
 -- Set search path to streetlights schema
 SET search_path TO streetlights, public;
@@ -24,9 +24,8 @@ CREATE OR REPLACE VIEW streetlights.street_lights_enriched AS
 SELECT 
     -- Base light data
     l.light_id,
-    l.location,
-    ST_X(l.location) as longitude,
-    ST_Y(l.location) as latitude,
+    l.latitude,
+    l.longitude,
     l.status,
     l.wattage,
     l.installation_date,
@@ -77,21 +76,22 @@ LEFT JOIN streetlights.neighborhoods n ON l.neighborhood_id = n.neighborhood_id
 -- Join weather enrichment for current season
 LEFT JOIN streetlights.weather_enrichment w ON l.light_id = w.light_id 
     AND w.season = CASE 
-        WHEN EXTRACT(MONTH FROM CURRENT_DATE) BETWEEN 6 AND 9 THEN 'monsoon'
-        WHEN EXTRACT(MONTH FROM CURRENT_DATE) BETWEEN 3 AND 5 THEN 'summer'
+        WHEN EXTRACT(MONTH FROM CURRENT_DATE) BETWEEN 3 AND 5 THEN 'spring'
+        WHEN EXTRACT(MONTH FROM CURRENT_DATE) BETWEEN 6 AND 8 THEN 'summer'
+        WHEN EXTRACT(MONTH FROM CURRENT_DATE) BETWEEN 9 AND 11 THEN 'fall'
         ELSE 'winter'
     END
 
 -- Join demographics enrichment
-LEFT JOIN streetlights.demographics_enrichment d ON n.neighborhood_id = d.neighborhood_id
+LEFT JOIN streetlights.demographics d ON n.neighborhood_id = d.neighborhood_id
 
 -- Join power grid enrichment
-LEFT JOIN streetlights.power_grid_enrichment p ON l.light_id = p.light_id;
+LEFT JOIN streetlights.power_grid_zones p ON l.light_id = p.light_id;
 
 COMMENT ON VIEW streetlights.street_lights_enriched IS 'Enriched view combining lights with all contextual data (current season)';
 
 -- View: maintenance_requests_enriched
--- Combines maintenance requests with spatial and enrichment context
+-- Combines maintenance requests with location and enrichment context
 CREATE OR REPLACE VIEW streetlights.maintenance_requests_enriched AS
 SELECT 
     -- Maintenance request data
@@ -104,9 +104,8 @@ SELECT
     m.created_at,
     
     -- Light location data
-    l.location,
-    ST_X(l.location) as longitude,
-    ST_Y(l.location) as latitude,
+    l.latitude,
+    l.longitude,
     l.wattage,
     l.neighborhood_id,
     
@@ -143,50 +142,18 @@ LEFT JOIN streetlights.neighborhoods n ON l.neighborhood_id = n.neighborhood_id
 -- Join weather enrichment for season at time of report
 LEFT JOIN streetlights.weather_enrichment w ON l.light_id = w.light_id 
     AND w.season = CASE 
-        WHEN EXTRACT(MONTH FROM m.reported_at) BETWEEN 6 AND 9 THEN 'monsoon'
-        WHEN EXTRACT(MONTH FROM m.reported_at) BETWEEN 3 AND 5 THEN 'summer'
+        WHEN EXTRACT(MONTH FROM m.reported_at) BETWEEN 3 AND 5 THEN 'spring'
+        WHEN EXTRACT(MONTH FROM m.reported_at) BETWEEN 6 AND 8 THEN 'summer'
+        WHEN EXTRACT(MONTH FROM m.reported_at) BETWEEN 9 AND 11 THEN 'fall'
         ELSE 'winter'
     END;
 
-COMMENT ON VIEW streetlights.maintenance_requests_enriched IS 'Maintenance requests with spatial and enrichment context';
-
--- Create function to get nearest supplier for a light
-CREATE OR REPLACE FUNCTION streetlights.get_nearest_supplier(p_light_id TEXT)
-RETURNS TABLE (
-    supplier_id TEXT,
-    supplier_name TEXT,
-    distance_km NUMERIC,
-    contact_phone TEXT,
-    avg_response_hours INTEGER,
-    specialization TEXT
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        s.supplier_id,
-        s.name as supplier_name,
-        ROUND((ST_Distance(s.location::geography, l.location::geography) / 1000.0)::numeric, 2) as distance_km,
-        s.contact_phone,
-        s.avg_response_hours,
-        s.specialization
-    FROM streetlights.suppliers s
-    CROSS JOIN streetlights.street_lights l
-    WHERE l.light_id = p_light_id
-    ORDER BY s.location <-> l.location
-    LIMIT 1;
-END;
-$$ LANGUAGE plpgsql;
-
-COMMENT ON FUNCTION streetlights.get_nearest_supplier(TEXT) IS 'Find nearest supplier to a specific light using KNN operator';
+COMMENT ON VIEW streetlights.maintenance_requests_enriched IS 'Maintenance requests with location and enrichment context';
 
 -- Log completion
 DO $$
 BEGIN
     RAISE NOTICE 'Enriched views created successfully!';
-    RAISE NOTICE '  - street_lights_enriched (main CDC capture view)';
+    RAISE NOTICE '  - street_lights_enriched (main analytics view)';
     RAISE NOTICE '  - maintenance_requests_enriched';
-    RAISE NOTICE 'Helper functions created:';
-    RAISE NOTICE '  - get_nearest_supplier(light_id) - Find nearest supplier to a light';
 END $$;
-
-

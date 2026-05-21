@@ -13,7 +13,7 @@
 -- limitations under the License.
 
 -- Create base tables for street lights maintenance system
--- These tables contain operational data
+-- Uses lat/lng FLOAT columns instead of PostGIS GEOMETRY for Iceberg compatibility
 
 -- Set search path to streetlights schema
 SET search_path TO streetlights, public;
@@ -23,19 +23,20 @@ SET search_path TO streetlights, public;
 CREATE TABLE IF NOT EXISTS streetlights.neighborhoods (
     neighborhood_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    boundary GEOMETRY(Polygon, 4326) NOT NULL,
+    boundary_coords JSONB NOT NULL,
     population INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 COMMENT ON TABLE streetlights.neighborhoods IS 'City neighborhoods with geographic boundaries';
-COMMENT ON COLUMN streetlights.neighborhoods.boundary IS 'Polygon boundary in WGS84 (SRID 4326)';
+COMMENT ON COLUMN streetlights.neighborhoods.boundary_coords IS 'Polygon boundary as GeoJSON coordinates array';
 
 -- Table: street_lights
 -- Operational data for all street lights
 CREATE TABLE IF NOT EXISTS streetlights.street_lights (
     light_id TEXT PRIMARY KEY,
-    location GEOMETRY(Point, 4326) NOT NULL,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('operational', 'faulty', 'maintenance_required')),
     wattage INTEGER,
     installation_date DATE,
@@ -45,8 +46,9 @@ CREATE TABLE IF NOT EXISTS streetlights.street_lights (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE streetlights.street_lights IS 'Street lights with spatial locations and operational status';
-COMMENT ON COLUMN streetlights.street_lights.location IS 'GPS coordinates in WGS84 (SRID 4326)';
+COMMENT ON TABLE streetlights.street_lights IS 'Street lights with lat/lng coordinates and operational status';
+COMMENT ON COLUMN streetlights.street_lights.latitude IS 'Latitude in WGS84 (SRID 4326)';
+COMMENT ON COLUMN streetlights.street_lights.longitude IS 'Longitude in WGS84 (SRID 4326)';
 COMMENT ON COLUMN streetlights.street_lights.status IS 'Current operational status: operational, faulty, or maintenance_required';
 
 -- Table: maintenance_requests
@@ -70,7 +72,8 @@ COMMENT ON COLUMN streetlights.maintenance_requests.description IS 'Free-text de
 CREATE TABLE IF NOT EXISTS streetlights.suppliers (
     supplier_id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    location GEOMETRY(Point, 4326) NOT NULL,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
     contact_phone TEXT,
     service_radius_km INTEGER,
     avg_response_hours INTEGER,
@@ -79,7 +82,8 @@ CREATE TABLE IF NOT EXISTS streetlights.suppliers (
 );
 
 COMMENT ON TABLE streetlights.suppliers IS 'Light equipment suppliers with service coverage areas';
-COMMENT ON COLUMN streetlights.suppliers.location IS 'Supplier office location in WGS84 (SRID 4326)';
+COMMENT ON COLUMN streetlights.suppliers.latitude IS 'Supplier office latitude in WGS84 (SRID 4326)';
+COMMENT ON COLUMN streetlights.suppliers.longitude IS 'Supplier office longitude in WGS84 (SRID 4326)';
 COMMENT ON COLUMN streetlights.suppliers.service_radius_km IS 'Maximum service coverage radius in kilometers';
 
 -- Trigger to update updated_at timestamp on street_lights
@@ -102,10 +106,8 @@ EXECUTE FUNCTION streetlights.update_updated_at_column();
 DO $$
 BEGIN
     RAISE NOTICE 'Base tables created successfully!';
-    RAISE NOTICE '  - neighborhoods';
-    RAISE NOTICE '  - street_lights';
+    RAISE NOTICE '  - neighborhoods (boundary as JSONB)';
+    RAISE NOTICE '  - street_lights (lat/lng DOUBLE PRECISION)';
     RAISE NOTICE '  - maintenance_requests';
-    RAISE NOTICE '  - suppliers';
+    RAISE NOTICE '  - suppliers (lat/lng DOUBLE PRECISION)';
 END $$;
-
-

@@ -1,0 +1,6 @@
+name: streetlights-sis
+channels:
+  - snowflake
+dependencies:
+  - streamlit=1.35.0
+  - snowflake-snowpark-python
