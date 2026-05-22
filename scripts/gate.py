@@ -688,7 +688,22 @@ def _serialize_toml(data: dict, prefix: str = "") -> str:
 
 
 def _write_manifest(project_root: Path, data: dict) -> None:
-    """Atomically write manifest.toml."""
+    """Atomically write manifest.toml.
+
+    Ensures demo.steps are written in dependency chain order.
+    """
+    # Sort steps by chain order before writing
+    steps = data.get("demo", {}).get("steps", {})
+    if steps:
+        chain_order = list(STEP_CHAIN.keys())
+        ordered_steps = dict(
+            sorted(
+                steps.items(),
+                key=lambda item: chain_order.index(item[0]) if item[0] in chain_order else 999,
+            )
+        )
+        data["demo"]["steps"] = ordered_steps
+
     manifest_file = project_root / ".streetlights-demo" / "manifest.toml"
     content = _serialize_toml(data)
     if not content.endswith("\n"):
