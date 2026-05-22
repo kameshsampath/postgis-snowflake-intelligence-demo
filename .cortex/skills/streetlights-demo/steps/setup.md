@@ -27,6 +27,9 @@ Configure the demo by collecting your Snowflake connection, resource prefix, and
 - Detect or ask for Snowflake connection
 - Set a resource prefix (all objects will be `${PREFIX}_STREETLIGHTS_*`)
 - Auto-detect or ask for city + coordinates for data generation
+- Capture your current working role AND confirm an elevated admin role
+
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## ⚠️ Proceed?
 
@@ -68,19 +71,24 @@ If user skips: note it was skipped, move to next step.
    - If no default warehouse: inform user we'll create `${PREFIX}_STREETLIGHTS_WH`
    - Note: Creating a warehouse requires `CREATE WAREHOUSE` privilege (typically `SYSADMIN`+)
 
-6. **Role and privilege check**
-   - Check current role: `SELECT CURRENT_ROLE()`
-   - Check if role can create PG instances:
+6. **Role capture (role + admin_role)**
+   - Capture user's current working role:
      ```sql
-     SHOW GRANTS TO ROLE <current_role>;
+     SELECT CURRENT_ROLE() AS role;
      ```
-     Look for `CREATE POSTGRES INSTANCE ON ACCOUNT`
-   - If insufficient:
-     - ⚠️ STOP: inform user that Step 2 (PG instance creation) requires
-       `CREATE POSTGRES INSTANCE ON ACCOUNT` privilege (typically `ACCOUNTADMIN`)
-     - Ask: "Which role should we use for PG instance creation?"
-     - Options: ["ACCOUNTADMIN", "Use current role (may fail)"]
-   - Store the chosen role in manifest as `pg_create_role`
+   - Store this as `role` in manifest `[snowflake]` — this is the user's everyday role (grants target)
+
+   ---
+
+   **STOP** — Use `ask_user_question` to confirm admin role:
+   - Header: "Admin Role"
+   - Question: "Which role should we use for creating PG instances, catalog integrations, and CLD? (requires CREATE POSTGRES INSTANCE ON ACCOUNT)"
+   - Options: ["ACCOUNTADMIN", "SYSADMIN"]
+
+   ---
+
+   - Store the chosen role in manifest as `admin_role` in `[snowflake]`
+   - If user's working role is the same as the chosen admin role, that's fine — both fields will have the same value
 
 7. **Write `.streetlights-demo/manifest.toml`**
    - Create directory if needed
@@ -91,7 +99,8 @@ If user skips: note it was skipped, move to next step.
 
       [snowflake]
       connection = "<connection>"
-      role       = "<pg_create_role>"
+      role       = "<current_role>"
+      admin_role = "<admin_role>"
 
       [streetlights-demo]
       prefix       = "<prefix>"
@@ -117,7 +126,10 @@ If user skips: note it was skipped, move to next step.
 
 - ✅ Manifest created at `.streetlights-demo/manifest.toml`
 - ✅ Resource prefix, connection, and city configured
+- ✅ Working role (`role`) and elevated role (`admin_role`) captured
 - ✅ Gate check: `check_manifest_exists` passed
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

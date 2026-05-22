@@ -28,6 +28,8 @@ Run the full end-to-end sanity gate to verify all components are operational, th
 - Display top 5 demo questions with routing explanation
 - Show bonus combined queries for advanced testing
 
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
+
 ## ⚠️ Proceed?
 
 Use `ask_user_question` to confirm:
@@ -68,6 +70,8 @@ CALL {database}.{schema}.BULB_FAILURE_FORECASTER!FORECAST(
 
 - ✅ All gates passed (manifest, PG, CLD, Semantic View, Search, Agent, Forecast, SiS)
 - ✅ End-to-end sanity check passed
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Try these with Snowflake Intelligence
 

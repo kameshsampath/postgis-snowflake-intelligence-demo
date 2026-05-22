@@ -408,24 +408,116 @@ class TestGateChainVerification:
         ]:
             (data_dir / name).write_text("col1,col2\nval1,val2\n")
 
-        # step-2 is also NOT in manifest (missing) — but _pg_ping needs real PG
-        # so we skip to a test that proves the chain walked past step-1
-        # by checking step-1 gets backfilled when checking step-2's chain
-
         # Run: step-2 --prior-step step-1
         # Chain is [setup, step-1] — setup is fresh (skip), step-1 is missing (backfill from CSVs)
-        # Then step-2 itself will BLOCK (no real PG), but the chain check passed
+        # After chain passes, "check" returns PASS (step-2 is ready) without running
+        # step-2's own verifier (_pg_ping).
         exit_code, output = self._run_gate_cli(
             ["--step", "step-2", "--prior-step", "step-1", "--action", "check"],
             cwd=manifest_dir,
         )
 
-        # step-2 blocks on its own check (no PG), but step-1 was backfilled
-        # (exit_code could be 0 if PG happens to be reachable, or 1 if not)
+        # "check" now only validates the chain and returns readiness — always exit 0
+        # when chain passes, regardless of step-2's own verifier state.
+        assert exit_code == 0
+        assert "PASS" in output
+
         # The key assertion: step-1 was backfilled by the chain walk
         manifest = load_manifest(manifest_dir)
         assert manifest.demo.steps["step-1"].status == "COMPLETE"
         assert manifest.demo.steps["step-1"].desc == "Generating synthetic data"
+
+
+class TestGateVerifyAction:
+    """gate.py --action verify runs the current step's own verifier."""
+
+    def _run_gate_cli(self, args: list[str], cwd: Path) -> tuple[int, str]:
+        """Run gate.py as a subprocess and return (exit_code, stdout)."""
+        import subprocess
+
+        result = subprocess.run(
+            ["python3", "-m", "scripts.gate", *args],
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+        )
+        return result.returncode, result.stdout.strip()
+
+    def test_verify_passes_when_step_output_exists(self, manifest_dir: Path) -> None:
+        """Verify passes and backfills when the step's verifier succeeds."""
+        from scripts._manifest import load as load_manifest
+        from scripts._manifest import update_step
+
+        # setup is not COMPLETE yet — but its verifier (check_manifest) passes
+        # because manifest_dir has a valid manifest
+        update_step(manifest_dir, "setup", "IN_PROGRESS", desc="Initialize")
+
+        exit_code, output = self._run_gate_cli(
+            ["--step", "setup", "--action", "verify"],
+            cwd=manifest_dir,
+        )
+
+        assert exit_code == 0
+        assert "PASS" in output
+        assert "backfill" in output.lower()
+
+        # Should be backfilled to COMPLETE
+        manifest = load_manifest(manifest_dir)
+        assert manifest.demo.steps["setup"].status == "COMPLETE"
+
+    def test_verify_fails_when_step_output_missing(self, manifest_dir: Path) -> None:
+        """Verify blocks when the step's verifier fails."""
+        from scripts._manifest import update_step
+
+        # step-1 is not COMPLETE, and CSV files don't exist → _check_csv_data fails
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+
+        exit_code, output = self._run_gate_cli(
+            ["--step", "step-1", "--action", "verify"],
+            cwd=manifest_dir,
+        )
+
+        assert exit_code == 1
+        assert "BLOCK" in output
+
+    def test_verify_uses_cache_when_fresh(self, manifest_dir: Path) -> None:
+        """Verify returns cached result when step is COMPLETE and fresh."""
+        from scripts._manifest import update_step
+
+        # Mark step as freshly COMPLETE
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+
+        exit_code, output = self._run_gate_cli(
+            ["--step", "setup", "--action", "verify"],
+            cwd=manifest_dir,
+        )
+
+        assert exit_code == 0
+        assert "PASS" in output
+        assert "cached" in output.lower()
+
+    def test_check_returns_ready_without_running_verifier(self, manifest_dir: Path) -> None:
+        """Check returns 'ready' for incomplete steps without running the verifier.
+
+        This is the critical behavioral difference: check does NOT run the current
+        step's verifier. It only checks the chain.
+        """
+        from scripts._manifest import update_step
+
+        # Chain: setup is fresh, step-1 is fresh
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+        update_step(manifest_dir, "step-1", "COMPLETE", desc="Generate Data")
+
+        # step-2 is NOT in manifest — with old behavior, check would run _pg_ping
+        # and BLOCK. With new behavior, it just says "ready".
+        exit_code, output = self._run_gate_cli(
+            ["--step", "step-2", "--prior-step", "step-1", "--action", "check"],
+            cwd=manifest_dir,
+        )
+
+        assert exit_code == 0
+        assert "PASS" in output
+        assert "ready" in output.lower()
 
 
 class TestManifestIO:

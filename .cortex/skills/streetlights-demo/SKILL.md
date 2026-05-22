@@ -16,6 +16,11 @@ invocations:
 - **Stop on billable actions** — always warn and confirm before creating PG instances or CLD
 - **Bundled skills** — Skills marked [bundled] are system-level. Invoke via the `skill` tool — do NOT search the project `.cortex/skills/` directory.
 - **CRITICAL: PostgreSQL connections MUST use pg_service** — use `psql "service=$PGSERVICE"`. NEVER use `-h`, `-U`, or pass credentials directly. `PGSERVICE` is set via `.envrc`/direnv from the manifest.
+- **THREE MANDATORY presentation points per step** — You MUST output these sections verbatim to the user as formatted markdown. Never skip, summarize, or paraphrase:
+  1. "Why this matters" — the teaching moment (concepts + IDD connection)
+  2. "What we'll do" — the intro preview of actions
+  3. "What we did" — the outro summary of completed work
+  Each is a natural pause point. Present it, let the user read it, then continue.
 
 ## Routing
 

@@ -87,11 +87,11 @@ def _pg_ping(manifest: Manifest) -> bool:
     """
     instance = manifest.demo.pg_instance
 
-    # Preferred: use PGSERVICE (set by .envrc from manifest)
-    pg_service = os.environ.get("PGSERVICE", instance)
+    # Preferred: use pg_service from manifest (NOT env var)
+    pg_service = manifest.demo.pg_service or instance
     try:
         result = subprocess.run(
-            ["psql", f"service={pg_service} connect_timeout=10", "-c", "SELECT 1"],
+            ["psql", f"service={pg_service}", "-c", "SELECT 1"],
             capture_output=True,
             text=True,
             timeout=15,
@@ -747,7 +747,7 @@ def main() -> None:
     parser.add_argument(
         "--action",
         required=True,
-        choices=["check", "start", "complete", "reset", "dry-run"],
+        choices=["check", "verify", "start", "complete", "reset", "dry-run"],
         help="Action to perform",
     )
     parser.add_argument(
@@ -873,62 +873,121 @@ def main() -> None:
                     print(f"BLOCK: chain step {ancestor} not complete")
                     raise SystemExit(1)
 
-    # Self-healing check logic
-    try:
-        manifest = load_manifest(project_root)
-        step_state = manifest.demo.steps.get(args.step)
-    except FileNotFoundError:
-        step_state = None
+    # --- Action: check (readiness) ---
+    # Chain passed (or no chain needed). Now determine if the current step is ready.
+    # "check" does NOT run the current step's own verifier — that's what "verify" does.
+    if args.action == "check":
+        try:
+            manifest = load_manifest(project_root)
+            step_state = manifest.demo.steps.get(args.step)
+        except FileNotFoundError:
+            step_state = None
 
-    if step_state and step_state.status == "COMPLETE":
-        # Check if cached result is still fresh
-        completed_at = step_state.completed_at
-        if completed_at:
-            try:
-                completed_time = datetime.fromisoformat(completed_at)
-                elapsed = (datetime.now(UTC) - completed_time).total_seconds()
-                if elapsed < cache_ttl:
-                    print(f"PASS: {args.step} verified (cached)")
+        if step_state and step_state.status == "COMPLETE":
+            # Already complete — check freshness
+            completed_at = step_state.completed_at
+            if completed_at:
+                try:
+                    completed_time = datetime.fromisoformat(completed_at)
+                    elapsed = (datetime.now(UTC) - completed_time).total_seconds()
+                    if elapsed < cache_ttl:
+                        print(f"PASS: {args.step} already complete (cached)")
+                        raise SystemExit(0)
+                except (ValueError, TypeError):
+                    pass
+
+            # Stale — re-verify if we have a check function
+            check_fn = STEP_CHECKS.get(args.step)
+            if check_fn:
+                result = check_fn(project_root)
+                if result.success:
+                    update_step(
+                        project_root,
+                        args.step,
+                        "COMPLETE",
+                        desc=STEP_DESCRIPTIONS.get(args.step, ""),
+                    )
+                    print(f"PASS: {args.step} already complete (re-verified)")
                     raise SystemExit(0)
-            except (ValueError, TypeError):
-                pass
-
-        # Stale — re-verify
-        check_fn = STEP_CHECKS.get(args.step)
-        if check_fn:
-            result = check_fn(project_root)
-            if result.success:
-                # Refresh the timestamp
-                update_step(
-                    project_root, args.step, "COMPLETE", desc=STEP_DESCRIPTIONS.get(args.step, "")
-                )
-                print(f"PASS: {args.step} re-verified")
-                raise SystemExit(0)
+                else:
+                    print(
+                        f"BLOCK: {args.step} was COMPLETE but re-verification"
+                        f" failed - {result.message}"
+                    )
+                    raise SystemExit(1)
             else:
-                print(
-                    f"BLOCK: {args.step} was COMPLETE but re-verification"
-                    f" failed - {result.message}"
-                )
-                raise SystemExit(1)
-        else:
-            print(f"PASS: {args.step} verified (cached, no re-check available)")
-            raise SystemExit(0)
+                print(f"PASS: {args.step} already complete (cached, no re-check available)")
+                raise SystemExit(0)
 
-    # Section MISSING or status != COMPLETE — run step-specific verify
-    check_fn = STEP_CHECKS.get(args.step)
-    if not check_fn:
-        print(f"BLOCK: unknown step '{args.step}'")
-        raise SystemExit(1)
-
-    result = check_fn(project_root)
-    if result.success:
-        # Backfill as COMPLETE
-        update_step(project_root, args.step, "COMPLETE", desc=STEP_DESCRIPTIONS.get(args.step, ""))
-        print(f"PASS: {args.step} backfilled")
+        # Step NOT complete — it's ready to run (chain already validated above)
+        print(f"PASS: {args.step} ready")
         raise SystemExit(0)
-    else:
-        print(f"BLOCK: {args.step} not complete - {result.message}")
-        raise SystemExit(1)
+
+    # --- Action: verify (post-execution verification) ---
+    # Runs the current step's own verifier to confirm execution succeeded.
+    if args.action == "verify":
+        try:
+            manifest = load_manifest(project_root)
+            step_state = manifest.demo.steps.get(args.step)
+        except FileNotFoundError:
+            step_state = None
+
+        if step_state and step_state.status == "COMPLETE":
+            # Already complete — check freshness
+            completed_at = step_state.completed_at
+            if completed_at:
+                try:
+                    completed_time = datetime.fromisoformat(completed_at)
+                    elapsed = (datetime.now(UTC) - completed_time).total_seconds()
+                    if elapsed < cache_ttl:
+                        print(f"PASS: {args.step} verified (cached)")
+                        raise SystemExit(0)
+                except (ValueError, TypeError):
+                    pass
+
+            # Stale — re-verify
+            check_fn = STEP_CHECKS.get(args.step)
+            if check_fn:
+                result = check_fn(project_root)
+                if result.success:
+                    update_step(
+                        project_root,
+                        args.step,
+                        "COMPLETE",
+                        desc=STEP_DESCRIPTIONS.get(args.step, ""),
+                    )
+                    print(f"PASS: {args.step} re-verified")
+                    raise SystemExit(0)
+                else:
+                    print(
+                        f"BLOCK: {args.step} was COMPLETE but re-verification"
+                        f" failed - {result.message}"
+                    )
+                    raise SystemExit(1)
+            else:
+                print(f"PASS: {args.step} verified (cached, no re-check available)")
+                raise SystemExit(0)
+
+        # Section MISSING or status != COMPLETE — run step-specific verify
+        check_fn = STEP_CHECKS.get(args.step)
+        if not check_fn:
+            print(f"BLOCK: unknown step '{args.step}'")
+            raise SystemExit(1)
+
+        result = check_fn(project_root)
+        if result.success:
+            # Backfill as COMPLETE
+            update_step(
+                project_root,
+                args.step,
+                "COMPLETE",
+                desc=STEP_DESCRIPTIONS.get(args.step, ""),
+            )
+            print(f"PASS: {args.step} backfilled")
+            raise SystemExit(0)
+        else:
+            print(f"BLOCK: {args.step} not complete - {result.message}")
+            raise SystemExit(1)
 
 
 if __name__ == "__main__":

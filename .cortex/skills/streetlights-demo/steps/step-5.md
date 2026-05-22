@@ -20,6 +20,25 @@ uv run gate --step step-5 --desc "Creating Semantic View" --action start
 
 # Step 5: Create Semantic View
 
+## Why this matters
+
+**Semantic Views as AI's "query plan"** — A Semantic View is structured metadata that tells Cortex Analyst *how* to translate natural language into SQL. It defines dimensions (columns to group by), measures (what to aggregate), and filters (valid WHERE clauses). Without it, the AI would need to guess table relationships and column meanings.
+
+**NL→SQL accuracy** — The semantic layer eliminates ambiguity. When a user asks "how many faulty lights?", the Semantic View tells Analyst exactly which table, which column (`status`), and which value (`'faulty'`) to use — no hallucination possible.
+
+**IDD connection** — The Semantic View is [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c) applied to analytics: you declare the *meaning* of your data once, and every future natural language query benefits from that intent. It's a reusable contract between data and AI.
+
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
+---
+
+**STOP** — Use `ask_user_question` to confirm:
+- Header: "Step 5"
+- Question: "Ready to proceed with Semantic View creation? (enables NL→SQL via Cortex Analyst)"
+- Options: ["Yes, proceed", "Skip this step"]
+
+---
+
 ## What we'll do
 
 Create a Semantic View over the CLD tables that defines dimensions, measures, and filters for natural language querying via Cortex Analyst.
@@ -27,6 +46,8 @@ Create a Semantic View over the CLD tables that defines dimensions, measures, an
 - Deploy the semantic view DDL referencing CLD tables
 - Validate the view was created and is queryable
 - This enables structured SQL generation from natural language
+
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
 
@@ -78,6 +99,8 @@ If user skips: note it was skipped, move to next step.
 - ✅ Semantic View created on CLD tables
 - ✅ Quoted lowercase identifiers preserved for CLD compatibility
 - ✅ Gate check: `check_semantic_view_exists` passed
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

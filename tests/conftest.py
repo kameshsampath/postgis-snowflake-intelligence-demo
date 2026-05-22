@@ -12,6 +12,8 @@ project_name   = "streetlights-demo"
 
 [snowflake]
 connection = "devrel-ent"
+role       = "SYSADMIN"
+admin_role = "ACCOUNTADMIN"
 
 [streetlights-demo]
 prefix       = "testuser"
@@ -19,6 +21,7 @@ database     = "TESTUSER_STREETLIGHTS"
 cld_database = "TESTUSER_STREETLIGHTS_CLD"
 warehouse    = "TESTUSER_STREETLIGHTS_WH"
 pg_instance  = "testuser_streetlights_pg"
+pg_service   = "testuser_streetlights_pg"
 city         = "Portland"
 center_lat   = 45.5152
 center_lng   = -122.6784

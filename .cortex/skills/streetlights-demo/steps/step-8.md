@@ -20,6 +20,25 @@ uv run gate --step step-8 --desc "Training ML Forecast model" --action start
 
 # Step 8: Train ML Forecast
 
+## Why this matters
+
+**Predictive analytics on live Iceberg data** — The FORECAST model trains directly on CLD tables that reflect the latest Iceberg state from Postgres. When new energy consumption data lands in PG, it flows through the CLD automatically — the model always trains on fresh data without manual refresh.
+
+**Proactive maintenance** — Instead of waiting for bulbs to fail, the forecast predicts future failure patterns from energy consumption anomalies. A light consuming significantly more or less energy than predicted is a leading indicator of failure — enabling maintenance scheduling *before* the outage.
+
+**IDD connection** — The ML model declaration is [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14) at the analytics layer: a single DDL statement encodes the entire training pipeline (data selection, time-series configuration, model parameters). Snowflake handles the ML engineering underneath.
+
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
+---
+
+**STOP** — Use `ask_user_question` to confirm:
+- Header: "Step 8"
+- Question: "Ready to proceed with ML Forecast training? (trains on energy data, takes 2-5 minutes)"
+- Options: ["Yes, proceed", "Skip this step"]
+
+---
+
 ## What we'll do
 
 Train a FORECAST model on energy consumption time-series data to predict future bulb failures. This enables proactive maintenance scheduling.
@@ -27,6 +46,8 @@ Train a FORECAST model on energy consumption time-series data to predict future 
 - Deploy ML Forecast DDL on energy consumption data
 - Wait for model training (~2-5 minutes)
 - Verify the model produces predictions
+
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
 
@@ -86,6 +107,8 @@ If user skips: note it was skipped, move to next step.
 - ✅ Forecast model trained on energy consumption data
 - ✅ Model produces 30-day predictions
 - ✅ Gate check: `check_forecast_model_ready` passed
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

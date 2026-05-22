@@ -28,6 +28,8 @@ Generate 7 CSV files of synthetic streetlight data (lights, maintenance records,
 - Produce ~500 street lights plus related tables
 - Output to `data/` directory
 
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
+
 ## ⚠️ Proceed?
 
 Use `ask_user_question` to confirm:
@@ -69,6 +71,8 @@ If user skips: note it was skipped, move to next step.
 - ✅ Generated 7 CSV files in `data/`
 - ✅ Data centered on configured city coordinates
 - ✅ All files have expected row counts
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

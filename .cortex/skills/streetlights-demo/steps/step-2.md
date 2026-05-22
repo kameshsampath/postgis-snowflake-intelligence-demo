@@ -28,6 +28,8 @@ Create a Snowflake Postgres instance with managed storage (required for CLD). Th
 - Create (or reuse) a Postgres instance with managed storage
 - Create the `streetlights` database on the instance
 
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
+
 ## Dry-Run
 
 Show the execution plan to the user:
@@ -80,8 +82,8 @@ Route to `$snowflake-postgres` to create instance:
 
 - Instance name: from manifest `pg_instance`
 - **Must use managed storage** (required for CLD)
-- **Use role**: from manifest `role` (typically ACCOUNTADMIN — set during setup)
-  - Pass `--use-role <role>` to `pg_connect.py --create`
+- **Use role**: from manifest `admin_role` (typically ACCOUNTADMIN — set during setup)
+  - Pass `--use-role <admin_role>` to `pg_connect.py --create`
 - Create database: `streetlights`
 
 ### Network Access Check
@@ -107,6 +109,8 @@ After instance is created (or reused), verify network connectivity:
 - ✅ Snowflake Postgres instance created (or reused) with managed storage
 - ✅ Database `streetlights` created on instance
 - ✅ Gate check passed (PG reachable + managed storage confirmed)
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

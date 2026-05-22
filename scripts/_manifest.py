@@ -76,12 +76,14 @@ class SnowflakeSection:
 
     connection: str = ""
     role: str = ""
+    admin_role: str = ""
 
     @classmethod
     def from_dict(cls, data: dict) -> SnowflakeSection:
         return cls(
             connection=data.get("connection", ""),
             role=data.get("role", ""),
+            admin_role=data.get("admin_role", ""),
         )
 
     def to_dict(self) -> dict:
@@ -90,6 +92,8 @@ class SnowflakeSection:
             d["connection"] = self.connection
         if self.role:
             d["role"] = self.role
+        if self.admin_role:
+            d["admin_role"] = self.admin_role
         return d
 
 

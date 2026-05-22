@@ -20,6 +20,25 @@ uv run gate --step step-7 --desc "Creating Intelligence Agent" --action start
 
 # Step 7: Create Intelligence Agent
 
+## Why this matters
+
+**Tool-use architecture** — The Intelligence Agent doesn't answer questions directly. It *routes* them to the right tool: Cortex Analyst for structured SQL queries, Cortex Search for text retrieval, or `data_to_chart` for visualization. This is a tool-use pattern — the agent is an orchestrator that composes multi-tool answers from a single natural language question.
+
+**Composing multi-source answers** — A question like "Tell me about maintenance issues in the busiest neighborhood" requires *both* SQL (to find the busiest neighborhood) and text search (to find maintenance records). The agent decomposes the question, routes sub-parts to the right tools, and synthesizes a unified answer.
+
+**IDD connection** — The agent's `FROM SPECIFICATION` block is the purest form of [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c) — you declare routing rules, sample questions, and tool configurations as intent. The platform handles LLM orchestration, tool invocation, and response synthesis.
+
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
+---
+
+**STOP** — Use `ask_user_question` to confirm:
+- Header: "Step 7"
+- Question: "Ready to proceed with Intelligence Agent creation? (combines Analyst + Search + Charts)"
+- Options: ["Yes, proceed", "Skip this step"]
+
+---
+
 ## What we'll do
 
 Create the Cortex Intelligence Agent that combines Semantic View (structured analytics) with Cortex Search (text retrieval) and chart generation into a single natural language interface.
@@ -27,6 +46,8 @@ Create the Cortex Intelligence Agent that combines Semantic View (structured ana
 - Deploy Agent DDL with full FROM SPECIFICATION (orchestration rules, tools, sample questions)
 - Verify the agent routes queries correctly
 - Test both structured and unstructured queries
+
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
 
@@ -89,6 +110,8 @@ If user skips: note it was skipped, move to next step.
 - ✅ Orchestration routing rules configured (Analyst vs Search)
 - ✅ Map link generation enabled for lat/lng results
 - ✅ Gate check: `check_agent_accessible` passed
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

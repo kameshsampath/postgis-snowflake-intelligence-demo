@@ -28,6 +28,8 @@ uv run gate --step step-4 --desc "Creating Catalog Integration + CLD" --action s
 
 **IDD connection** — The CLD is the [Ghost in the Machine](https://blogs.kameshs.dev/the-ghost-in-the-machine-why-ai-needs-the-spirit-of-uml-0d8864e583e2) — a live, self-updating data contract that bridges two systems without human intervention. Combined with [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c), the entire setup (catalog integration + CLD + access grants) is declared as intent in this skill file and executed by CoCo.
 
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
 ---
 
 **STOP** — Use `ask_user_question` to confirm:
@@ -44,6 +46,8 @@ Create the Snowflake catalog integration pointing to the Postgres instance, then
 - Create catalog integration with `CATALOG_SOURCE = SNOWFLAKE_POSTGRES`
 - Create CLD database linked to the catalog
 - Wait for table propagation (~30 seconds)
+
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
 
@@ -75,34 +79,29 @@ If user skips: note it was skipped, move to next step.
 ### Access Control (CRITICAL)
 
 The catalog integration and CLD require elevated privileges. The strategy is:
-1. Determine the user's default role
-2. Create resources as `ACCOUNTADMIN`
-3. Grant access on created resources back to the user's default role
+1. Read `role` (user's working role) and `admin_role` from manifest `[snowflake]`
+2. Create resources as `{admin_role}`
+3. Grant access on created resources back to `{role}`
 
 ```sql
--- Capture user's default role first
-SELECT CURRENT_ROLE() AS user_role;
-```
-
-Then switch to ACCOUNTADMIN for creation:
-```sql
-USE ROLE ACCOUNTADMIN;
+-- Use the admin role from manifest for creation
+USE ROLE {admin_role};
 ```
 
 After creating the catalog integration and CLD (see Steps below), grant access back:
 ```sql
 -- Grant integration access
-GRANT USAGE ON INTEGRATION {prefix}_streetlights_catalog_int TO ROLE {user_default_role};
+GRANT USAGE ON INTEGRATION {prefix}_streetlights_catalog_int TO ROLE {role};
 
 -- Grant CLD database access
-GRANT USAGE ON DATABASE {cld_database} TO ROLE {user_default_role};
-GRANT USAGE ON SCHEMA {cld_database}.streetlights TO ROLE {user_default_role};
-GRANT SELECT ON ALL TABLES IN SCHEMA {cld_database}.streetlights TO ROLE {user_default_role};
+GRANT USAGE ON DATABASE {cld_database} TO ROLE {role};
+GRANT USAGE ON SCHEMA {cld_database}.streetlights TO ROLE {role};
+GRANT SELECT ON ALL TABLES IN SCHEMA {cld_database}.streetlights TO ROLE {role};
 ```
 
 Finally switch back:
 ```sql
-USE ROLE {user_default_role};
+USE ROLE {role};
 ```
 
 ### Steps
@@ -111,7 +110,7 @@ Route to `$snowflake-postgres` pg_lake to:
 
 > **Routing**: Invoke `$snowflake-postgres` via the `skill` tool (bundled system skill). Do NOT run SQL directly for CLD operations.
 
-1. Create catalog integration for the PG instance (as ACCOUNTADMIN):
+1. Create catalog integration for the PG instance (as `{admin_role}`):
 
    > ⚠️ **`POSTGRES_INSTANCE` must be UPPERCASE** — Snowflake normalizes unquoted identifiers to uppercase. If your PG instance name is `my_pg`, pass `'MY_PG'` here, otherwise the catalog won't resolve.
 
@@ -136,7 +135,7 @@ Route to `$snowflake-postgres` pg_lake to:
    ```
    Confirm: `ENABLED = true`, `CATALOG_NAMESPACE = streetlights`, `REST_CONFIG` contains `POSTGRES_INSTANCE`.
 
-3. Create CLD database (as ACCOUNTADMIN):
+3. Create CLD database (as `{admin_role}`):
 
    > ⚠️ **`LINKED_CATALOG = (...)`** — This uses nested block syntax with parentheses, not `= TRUE` or a simple value. The inner `CATALOG =` references the integration name (unquoted identifier).
 
@@ -152,14 +151,14 @@ Route to `$snowflake-postgres` pg_lake to:
 
 4. Grant access to user's default role:
 
-   > ⚠️ **Access control** — Resources created as ACCOUNTADMIN are invisible to other roles until explicitly granted. Always grant back to the user's working role immediately.
+   > ⚠️ **Access control** — Resources created as `{admin_role}` are invisible to other roles until explicitly granted. Always grant back to the user's working role immediately.
 
    ```sql
-   GRANT USAGE ON INTEGRATION {prefix}_streetlights_catalog_int TO ROLE {user_default_role};
-   GRANT USAGE ON DATABASE {cld_database} TO ROLE {user_default_role};
-   GRANT USAGE ON SCHEMA {cld_database}.streetlights TO ROLE {user_default_role};
-   GRANT SELECT ON ALL TABLES IN SCHEMA {cld_database}.streetlights TO ROLE {user_default_role};
-   USE ROLE {user_default_role};
+   GRANT USAGE ON INTEGRATION {prefix}_streetlights_catalog_int TO ROLE {role};
+   GRANT USAGE ON DATABASE {cld_database} TO ROLE {role};
+   GRANT USAGE ON SCHEMA {cld_database}.streetlights TO ROLE {role};
+   GRANT SELECT ON ALL TABLES IN SCHEMA {cld_database}.streetlights TO ROLE {role};
+   USE ROLE {role};
    ```
 
 ### CLD Propagation
@@ -183,7 +182,7 @@ Run these checks in order:
 
 2. **CLD status**:
    ```sql
-   SELECT SYSTEM$CATALOG_LINKED_DATABASE_STATUS('{cld_database}');
+   SELECT SYSTEM$CATALOG_LINK_STATUS('{cld_database}');
    ```
    Confirm: status is `ACTIVE` or `READY`.
 
@@ -200,7 +199,7 @@ Run these checks in order:
    Confirm: row count matches what was loaded in Step 3 (~500 rows).
 
 5. **Gate health check**:
-   - Run `gate.py check_cld_healthy`
+   - Run `uv run gate --step step-4 --action verify`
    - Show table list from CLD to user
    - Confirm all 7 tables are visible and queryable
 
@@ -210,6 +209,8 @@ Run these checks in order:
 - ✅ CLD database created and linked
 - ✅ All 7 tables propagated and visible
 - ✅ Gate check: `check_cld_healthy` passed
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

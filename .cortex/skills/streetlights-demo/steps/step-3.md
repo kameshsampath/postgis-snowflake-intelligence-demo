@@ -28,6 +28,8 @@ uv run gate --step step-3 --desc "Creating schema and loading data" --action sta
 
 **IDD connection** — This skill file is the *intent*; CoCo (the AI agent) *executes* it. The `generate --city` command compresses 7 table definitions + synthetic data into a single invocation — an [Intent Compression Ratio](https://blogs.kameshs.dev/intent-compression-ratio-measuring-the-power-of-intent-ceb6faf2e2f9) of ~7:1. The skill file itself is [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14).
 
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
 ---
 
 **STOP** — Use `ask_user_question` to confirm:
@@ -44,6 +46,8 @@ Create the `streetlights` schema with Iceberg tables on the Postgres instance an
 - Enable PostGIS and pg_lake extensions
 - Create Iceberg tables in the `streetlights` schema
 - Load all CSV data via `\copy`
+
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
 
@@ -132,6 +136,8 @@ psql "service=$PGSERVICE" \
 - ✅ Iceberg tables created in `streetlights` schema
 - ✅ All 7 CSV files loaded successfully
 - ✅ Row counts verified
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 

@@ -20,6 +20,25 @@ uv run gate --step step-9 --desc "Deploying SiS app" --action start
 
 # Step 9: Deploy SiS App
 
+## Why this matters
+
+**Last-mile delivery, zero external deployment** — Streamlit in Snowflake (SiS) runs entirely *inside* your Snowflake account. No external servers, no Docker containers, no cloud provider accounts needed. The app accesses data with Snowflake's built-in security — no credentials to manage, no network rules to punch through.
+
+**Composing everything built so far** — The SiS app is the user-facing surface that combines *all* prior steps into one interface: maps (from Iceberg data), search (from Cortex Search), analytics (from Semantic View), forecasts (from ML model), and the agent chat (from Intelligence Agent). Each page exercises a different piece of the infrastructure stack.
+
+**IDD connection** — The SiS deployment is the final layer of [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14): the app source directory *is* the intent, and the `$developing-with-streamlit-in-snowflake` skill handles deployment mechanics (staging, permissions, CREATE STREAMLIT).
+
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
+---
+
+**STOP** — Use `ask_user_question` to confirm:
+- Header: "Step 9"
+- Question: "Ready to proceed with Streamlit app deployment? (multi-page dashboard in Snowflake)"
+- Options: ["Yes, proceed", "Skip this step"]
+
+---
+
 ## What we'll do
 
 Deploy the multi-page Streamlit in Snowflake (SiS) application that provides a visual dashboard for the streetlight data, including maps, charts, search, and an agent chat interface.
@@ -27,6 +46,8 @@ Deploy the multi-page Streamlit in Snowflake (SiS) application that provides a v
 - Deploy app source from `app/` directory
 - Configure warehouse and database references
 - Verify the app loads and all pages work
+
+> ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
 
@@ -90,6 +111,8 @@ If user skips: note it was skipped, move to next step.
 - ✅ Streamlit app deployed to Snowflake
 - ✅ All 6 pages accessible
 - ✅ App URL available for sharing
+
+> ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ## Mark COMPLETE
 
