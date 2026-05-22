@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-7 --desc "Create Intelligence Agent" --action start
+python3 scripts/gate.py --step step-7 --desc "Creating Intelligence Agent" --action start
 ```
 
 # Step 7: Create Intelligence Agent

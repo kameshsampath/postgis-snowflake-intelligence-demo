@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-9 --desc "Deploy SiS App" --action start
+python3 scripts/gate.py --step step-9 --desc "Deploying SiS app" --action start
 ```
 
 # Step 9: Deploy SiS App

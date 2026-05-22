@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-6 --desc "Create Cortex Search Service" --action start
+python3 scripts/gate.py --step step-6 --desc "Creating Cortex Search service" --action start
 ```
 
 # Step 6: Create Cortex Search Service

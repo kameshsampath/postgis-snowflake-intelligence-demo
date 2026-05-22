@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-1 --desc "Generate Synthetic Data" --action start
+python3 scripts/gate.py --step step-1 --desc "Generating synthetic data" --action start
 ```
 
 # Step 1: Generate Synthetic Data

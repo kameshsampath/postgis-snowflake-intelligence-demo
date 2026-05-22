@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step setup --desc "Initialize Streetlights Demo" --action start
+python3 scripts/gate.py --step setup --desc "Initializing streetlights demo" --action start
 ```
 
 # Setup: Initialize Streetlights Demo

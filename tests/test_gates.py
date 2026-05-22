@@ -359,7 +359,7 @@ class TestGateChainVerification:
         # step-1 should now be COMPLETE in manifest
         manifest = _load_manifest(manifest_dir)
         assert manifest["demo"]["steps"]["step-1"]["status"] == "COMPLETE"
-        assert manifest["demo"]["steps"]["step-1"]["desc"] == "Generate Synthetic Data"
+        assert manifest["demo"]["steps"]["step-1"]["desc"] == "Generating synthetic data"
 
     def test_chain_blocks_when_missing_ancestor_fails(self, manifest_dir: Path) -> None:
         """Chain blocks when a missing ancestor cannot be backfilled."""
@@ -419,4 +419,4 @@ class TestGateChainVerification:
         # The key assertion: step-1 was backfilled by the chain walk
         manifest = _load_manifest(manifest_dir)
         assert manifest["demo"]["steps"]["step-1"]["status"] == "COMPLETE"
-        assert manifest["demo"]["steps"]["step-1"]["desc"] == "Generate Synthetic Data"
+        assert manifest["demo"]["steps"]["step-1"]["desc"] == "Generating synthetic data"

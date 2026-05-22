@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-8 --desc "Train ML Forecast" --action start
+python3 scripts/gate.py --step step-8 --desc "Training ML Forecast model" --action start
 ```
 
 # Step 8: Train ML Forecast

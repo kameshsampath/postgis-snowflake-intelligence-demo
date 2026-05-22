@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-10 --desc "Validate & Demo" --action start
+python3 scripts/gate.py --step step-10 --desc "Validating end-to-end demo" --action start
 ```
 
 # Step 10: Validate & Demo

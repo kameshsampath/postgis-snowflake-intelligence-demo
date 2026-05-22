@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-3 --desc "Create Schema + Load Data" --action start
+python3 scripts/gate.py --step step-3 --desc "Creating schema and loading data" --action start
 ```
 
 # Step 3: Create Schema + Load Data

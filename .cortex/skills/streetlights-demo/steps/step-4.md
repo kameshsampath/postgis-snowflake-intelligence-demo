@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-4 --desc "Catalog Integration + CLD" --action start
+python3 scripts/gate.py --step step-4 --desc "Creating Catalog Integration + CLD" --action start
 ```
 
 # Step 4: Catalog Integration + CLD

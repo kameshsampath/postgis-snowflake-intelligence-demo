@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-2 --desc "Snowflake Postgres Instance" --action start
+python3 scripts/gate.py --step step-2 --desc "Creating Snowflake Postgres instance" --action start
 ```
 
 # Step 2: Snowflake Postgres Instance

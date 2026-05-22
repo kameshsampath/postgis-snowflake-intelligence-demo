@@ -598,17 +598,17 @@ STEP_CHECKS: dict[str, callable] = {
 }
 
 STEP_DESCRIPTIONS: dict[str, str] = {
-    "setup": "Initialize Streetlights Demo",
-    "step-1": "Generate Synthetic Data",
-    "step-2": "Snowflake Postgres Instance",
-    "step-3": "Create Schema + Load Data",
-    "step-4": "Catalog Integration + CLD",
-    "step-5": "Create Semantic View",
-    "step-6": "Create Cortex Search Service",
-    "step-7": "Create Intelligence Agent",
-    "step-8": "Train ML Forecast",
-    "step-9": "Deploy SiS App",
-    "step-10": "Validate & Demo",
+    "setup": "Initializing streetlights demo",
+    "step-1": "Generating synthetic data",
+    "step-2": "Creating Snowflake Postgres instance",
+    "step-3": "Creating schema and loading data",
+    "step-4": "Creating Catalog Integration + CLD",
+    "step-5": "Creating Semantic View",
+    "step-6": "Creating Cortex Search service",
+    "step-7": "Creating Intelligence Agent",
+    "step-8": "Training ML Forecast model",
+    "step-9": "Deploying SiS app",
+    "step-10": "Validating end-to-end demo",
 }
 
 # Ordered chain: each step's predecessor (for full chain walk)

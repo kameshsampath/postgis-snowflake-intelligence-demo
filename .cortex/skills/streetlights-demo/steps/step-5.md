@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-5 --desc "Create Semantic View" --action start
+python3 scripts/gate.py --step step-5 --desc "Creating Semantic View" --action start
 ```
 
 # Step 5: Create Semantic View
