@@ -57,7 +57,7 @@ tasks:
   pg:connect:
     desc: Connect to PG instance via psql
     cmds:
-      - snow postgres connect -i {{.PG_INSTANCE}}
+      - psql "service={{.PG_INSTANCE}}"
     vars:
       PG_INSTANCE:
         sh: "grep pg_instance .streetlights-demo/manifest.toml 2>/dev/null | cut -d'\"' -f2 || echo 'INSTANCE_NOT_SET'"
@@ -65,17 +65,23 @@ tasks:
   pg:schema:
     desc: Apply schema to PG instance
     cmds:
-      - psql -f init/01_enable_extensions.sql
-      - psql -f init/07_create_iceberg_tables.sql
+      - psql "service={{.PG_INSTANCE}}" -f init/01_enable_extensions.sql
+      - psql "service={{.PG_INSTANCE}}" -f init/02_create_iceberg_tables.sql
+    vars:
+      PG_INSTANCE:
+        sh: "grep pg_instance .streetlights-demo/manifest.toml 2>/dev/null | cut -d'\"' -f2 || echo 'INSTANCE_NOT_SET'"
 
   pg:load:
-    desc: Load CSV data into PG (requires psql connection env vars)
+    desc: Load CSV data into PG
     cmds:
       - |
         for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
           echo "Loading $table..."
-          psql -c "\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
+          psql "service={{.PG_INSTANCE}}" -c "\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
         done
+    vars:
+      PG_INSTANCE:
+        sh: "grep pg_instance .streetlights-demo/manifest.toml 2>/dev/null | cut -d'\"' -f2 || echo 'INSTANCE_NOT_SET'"
 
   # ==========================================================================
   # Snowflake Operations

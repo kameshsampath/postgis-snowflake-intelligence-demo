@@ -6,7 +6,7 @@ description: Create Intelligence Agent with Semantic View and Cortex Search
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-7 --prior-step step-6 --action check
+uv run gate --step step-7 --prior-step step-6 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-7 --desc "Creating Intelligence Agent" --action start
+uv run gate --step step-7 --desc "Creating Intelligence Agent" --action start
 ```
 
 # Step 7: Create Intelligence Agent
@@ -27,6 +27,14 @@ Create the Cortex Intelligence Agent that combines Semantic View (structured ana
 - Deploy Agent DDL with full FROM SPECIFICATION (orchestration rules, tools, sample questions)
 - Verify the agent routes queries correctly
 - Test both structured and unstructured queries
+
+## Dry-Run
+
+Show the execution plan to the user:
+```bash
+uv run gate --step step-7 --action dry-run
+```
+Present the output, then ask user to proceed.
 
 ## ⚠️ Proceed?
 
@@ -85,7 +93,7 @@ If user skips: note it was skipped, move to next step.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-7 --action complete
+uv run gate --step step-7 --action complete
 ```
 
 ## Next

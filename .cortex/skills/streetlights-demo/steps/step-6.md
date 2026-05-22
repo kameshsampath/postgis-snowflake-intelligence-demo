@@ -6,7 +6,7 @@ description: Create Cortex Search service on maintenance records
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-6 --prior-step step-5 --action check
+uv run gate --step step-6 --prior-step step-5 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-6 --desc "Creating Cortex Search service" --action start
+uv run gate --step step-6 --desc "Creating Cortex Search service" --action start
 ```
 
 # Step 6: Create Cortex Search Service
@@ -27,6 +27,14 @@ Create a Cortex Search service that indexes maintenance record descriptions for 
 - Deploy Cortex Search DDL on the maintenance_records table
 - Wait for indexing to complete (service becomes ACTIVE)
 - Test semantic search capability
+
+## Dry-Run
+
+Show the execution plan to the user:
+```bash
+uv run gate --step step-6 --action dry-run
+```
+Present the output, then ask user to proceed.
 
 ## ⚠️ Proceed?
 
@@ -82,7 +90,7 @@ If user skips: note it was skipped, move to next step.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-6 --action complete
+uv run gate --step step-6 --action complete
 ```
 
 ## Next

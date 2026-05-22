@@ -10,13 +10,11 @@ SAMPLE_MANIFEST = """\
 schema_version = "1"
 project_name   = "streetlights-demo"
 
-[project]
-demo_resource_prefix = "testuser"
-
 [snowflake]
 connection = "devrel-ent"
 
-[demo]
+[streetlights-demo]
+prefix       = "testuser"
 database     = "TESTUSER_STREETLIGHTS"
 cld_database = "TESTUSER_STREETLIGHTS_CLD"
 warehouse    = "TESTUSER_STREETLIGHTS_WH"

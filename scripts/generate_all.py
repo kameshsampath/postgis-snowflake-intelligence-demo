@@ -21,6 +21,7 @@ from scripts._location import (
     generate_neighborhoods,
     geocode_city,
 )
+from scripts.generate_ddl import generate_iceberg_ddl
 
 DATA_DIR = Path("data")
 
@@ -346,6 +347,11 @@ def main(
 
     click.echo()
     click.echo(f"Done! {7} CSV files written to {DATA_DIR}/")
+
+    # Generate Iceberg DDL from TABLE_SCHEMAS
+    ddl_path = Path("init") / "02_create_iceberg_tables.sql"
+    generate_iceberg_ddl(output_path=ddl_path)
+    click.echo(f"  ✓ {ddl_path} (DDL generated)")
 
 
 if __name__ == "__main__":

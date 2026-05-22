@@ -6,7 +6,7 @@ description: Run end-to-end validation and demonstrate the complete pipeline
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-10 --prior-step step-9 --action check
+uv run gate --step step-10 --prior-step step-9 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-10 --desc "Validating end-to-end demo" --action start
+uv run gate --step step-10 --desc "Validating end-to-end demo" --action start
 ```
 
 # Step 10: Validate & Demo
@@ -97,7 +97,7 @@ All powered by a single `$streetlights-demo` skill workflow.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-10 --action complete
+uv run gate --step step-10 --action complete
 ```
 
 ## Next

@@ -23,7 +23,8 @@ COMMENT ON SCHEMA streetlights IS 'Schema for street lights management applicati
 SET search_path TO streetlights, public;
 
 -- Enable pg_lake extension (Iceberg table support for Snowflake CLD)
-CREATE EXTENSION IF NOT EXISTS pg_lake;
+-- CASCADE installs required dependencies (pg_lake_table, pg_lake_engine, etc.)
+CREATE EXTENSION IF NOT EXISTS pg_lake CASCADE;
 
 -- Log completion
 DO $$

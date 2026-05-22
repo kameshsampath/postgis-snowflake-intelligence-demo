@@ -6,7 +6,7 @@ description: Deploy multi-page Streamlit in Snowflake application
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-9 --prior-step step-8 --action check
+uv run gate --step step-9 --prior-step step-8 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-9 --desc "Deploying SiS app" --action start
+uv run gate --step step-9 --desc "Deploying SiS app" --action start
 ```
 
 # Step 9: Deploy SiS App
@@ -27,6 +27,14 @@ Deploy the multi-page Streamlit in Snowflake (SiS) application that provides a v
 - Deploy app source from `app/` directory
 - Configure warehouse and database references
 - Verify the app loads and all pages work
+
+## Dry-Run
+
+Show the execution plan to the user:
+```bash
+uv run gate --step step-9 --action dry-run
+```
+Present the output, then ask user to proceed.
 
 ## ⚠️ Proceed?
 
@@ -86,7 +94,7 @@ If user skips: note it was skipped, move to next step.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-9 --action complete
+uv run gate --step step-9 --action complete
 ```
 
 ## Next

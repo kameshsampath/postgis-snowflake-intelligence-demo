@@ -6,7 +6,7 @@ description: Train ML Forecast model on energy consumption data
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-8 --prior-step step-7 --action check
+uv run gate --step step-8 --prior-step step-7 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-8 --desc "Training ML Forecast model" --action start
+uv run gate --step step-8 --desc "Training ML Forecast model" --action start
 ```
 
 # Step 8: Train ML Forecast
@@ -27,6 +27,14 @@ Train a FORECAST model on energy consumption time-series data to predict future 
 - Deploy ML Forecast DDL on energy consumption data
 - Wait for model training (~2-5 minutes)
 - Verify the model produces predictions
+
+## Dry-Run
+
+Show the execution plan to the user:
+```bash
+uv run gate --step step-8 --action dry-run
+```
+Present the output, then ask user to proceed.
 
 ## ⚠️ Proceed?
 
@@ -82,7 +90,7 @@ If user skips: note it was skipped, move to next step.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-8 --action complete
+uv run gate --step step-8 --action complete
 ```
 
 ## Next

@@ -6,7 +6,7 @@ description: Generate location-aware synthetic streetlight data
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-1 --prior-step setup --action check
+uv run gate --step step-1 --prior-step setup --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-1 --desc "Generating synthetic data" --action start
+uv run gate --step step-1 --desc "Generating synthetic data" --action start
 ```
 
 # Step 1: Generate Synthetic Data
@@ -73,7 +73,7 @@ If user skips: note it was skipped, move to next step.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-1 --action complete
+uv run gate --step step-1 --action complete
 ```
 
 ## Next

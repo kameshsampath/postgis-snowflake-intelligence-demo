@@ -6,7 +6,7 @@ description: Create or reuse Snowflake Postgres instance with managed storage
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-2 --prior-step step-1 --action check
+uv run gate --step step-2 --prior-step step-1 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-2 --desc "Creating Snowflake Postgres instance" --action start
+uv run gate --step step-2 --desc "Creating Snowflake Postgres instance" --action start
 ```
 
 # Step 2: Snowflake Postgres Instance
@@ -27,6 +27,14 @@ Create a Snowflake Postgres instance with managed storage (required for CLD). Th
 - Verify account parameters are enabled
 - Create (or reuse) a Postgres instance with managed storage
 - Create the `streetlights` database on the instance
+
+## Dry-Run
+
+Show the execution plan to the user:
+```bash
+uv run gate --step step-2 --action dry-run
+```
+Present the output, then ask user to proceed.
 
 ## ⚠️ Proceed?
 
@@ -44,8 +52,8 @@ If user skips: note it was skipped, move to next step.
 ### Pre-flight Checks
 
 1. **Validate Snowflake connection**:
-   - Run `gate.py check_snowflake_connection`
-   - If fails: STOP — connection in manifest is invalid, run `$streetlights-demo setup` to reconfigure
+   - Run `uv run gate --step step-2 --prior-step step-1 --action check`
+   - If BLOCK: STOP — connection in manifest is invalid, run `$streetlights-demo setup` to reconfigure
 
 > **Connection**: Read from manifest `[snowflake].connection`. Do NOT re-ask the user.
 
@@ -80,7 +88,7 @@ Route to `$snowflake-postgres` to create instance:
 
 After instance is created (or reused), verify network connectivity:
 
-- Run `gate.py check_pg_network_access`
+- The gate check (`uv run gate --step step-2 --prior-step step-1 --action check`) verifies PG reachability internally.
 - If **IP MISMATCH** detected:
   - Show current IP vs allowed IPs
   - Use `ask_user_question`: "Your IP ({current_ip}) isn't in the network policy. Update it?"
@@ -91,21 +99,19 @@ After instance is created (or reused), verify network connectivity:
 
 ### Verification
 
-- Run `gate.py check_pg_reachable`
-- Run `gate.py check_pg_managed_storage`
-- Run `gate.py check_pg_network_access`
+- Run `uv run gate --step step-2 --action check` — this internally verifies PG reachability and managed storage
 - Show connection details to user
 
 ## What we did
 
 - ✅ Snowflake Postgres instance created (or reused) with managed storage
 - ✅ Database `streetlights` created on instance
-- ✅ Gate checks: `check_pg_reachable` and `check_pg_managed_storage` passed
+- ✅ Gate check passed (PG reachable + managed storage confirmed)
 
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-2 --action complete
+uv run gate --step step-2 --action complete
 ```
 
 ## Next

@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 generate = "scripts.generate_all:main"
+gate = "scripts.gate:main"
 
 [build-system]
 requires = ["hatchling"]

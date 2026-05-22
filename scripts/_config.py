@@ -71,14 +71,18 @@ def load_manifest(
         )
         raise ValueError(msg)
 
-    project = data.get("project", {})
+    demo_id = data.get("project_name", "streetlights-demo")
     snowflake = data.get("snowflake", {})
-    demo = data.get("demo", {})
+
+    # New format: config under [streetlights-demo]
+    demo = data.get(demo_id, {})
+
+    demo_resource_prefix = demo.get("prefix", "")
 
     return DemoConfig(
         schema_version=schema_version,
         project_name=data.get("project_name", ""),
-        demo_resource_prefix=project.get("demo_resource_prefix", ""),
+        demo_resource_prefix=demo_resource_prefix,
         snowflake_connection=snowflake.get("connection", ""),
         database=demo.get("database", ""),
         cld_database=demo.get("cld_database", ""),

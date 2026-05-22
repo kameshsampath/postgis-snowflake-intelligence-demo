@@ -6,7 +6,7 @@ description: Create Iceberg tables and load synthetic data
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-3 --prior-step step-2 --action check
+uv run gate --step step-3 --prior-step step-2 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-3 --desc "Creating schema and loading data" --action start
+uv run gate --step step-3 --desc "Creating schema and loading data" --action start
 ```
 
 # Step 3: Create Schema + Load Data
@@ -27,6 +27,14 @@ Create the `streetlights` schema with Iceberg tables on the Postgres instance an
 - Enable PostGIS and pg_lake extensions
 - Create Iceberg tables in the `streetlights` schema
 - Load all CSV data via `\copy`
+
+## Dry-Run
+
+Show the execution plan to the user:
+```bash
+uv run gate --step step-3 --action dry-run
+```
+Present the output, then ask user to proceed.
 
 ## ⚠️ Proceed?
 
@@ -47,7 +55,7 @@ If user skips: note it was skipped, move to next step.
 ### Network Pre-check
 
 Before connecting via psql, verify network access:
-- Run `gate.py check_pg_network_access`
+- Run `uv run gate --step step-3 --prior-step step-2 --action check` (internally verifies PG reachability)
 - If **IP MISMATCH**: show current IP vs allowed IPs, ask to update network policy
   (user may have switched networks since Step 2)
 - If user approves: route to `$snowflake-postgres` to update the policy, then retry
@@ -56,27 +64,27 @@ Before connecting via psql, verify network access:
 
 1. Enable extensions (`init/01_enable_extensions.sql`)
 2. Create schema (`CREATE SCHEMA IF NOT EXISTS streetlights`)
-3. Create Iceberg tables (`init/07_create_iceberg_tables.sql`)
+3. Create Iceberg tables (`init/02_create_iceberg_tables.sql`)
 4. Load data from CSVs: `\copy` for each of the 7 tables
 
 ```bash
-psql -h {pg_host} -U {pg_user} -d streetlights -f init/01_enable_extensions.sql
-psql -h {pg_host} -U {pg_user} -d streetlights -f init/07_create_iceberg_tables.sql
+psql "service=$PGSERVICE" -f init/01_enable_extensions.sql
+psql "service=$PGSERVICE" -f init/02_create_iceberg_tables.sql
 
 # Load each CSV:
-psql -h {pg_host} -U {pg_user} -d streetlights \
+psql "service=$PGSERVICE" \
   -c "\copy streetlights.street_lights FROM 'data/street_lights.csv' CSV HEADER"
-psql -h {pg_host} -U {pg_user} -d streetlights \
+psql "service=$PGSERVICE" \
   -c "\copy streetlights.maintenance_records FROM 'data/maintenance_records.csv' CSV HEADER"
-psql -h {pg_host} -U {pg_user} -d streetlights \
+psql "service=$PGSERVICE" \
   -c "\copy streetlights.energy_consumption FROM 'data/energy_consumption.csv' CSV HEADER"
-psql -h {pg_host} -U {pg_user} -d streetlights \
+psql "service=$PGSERVICE" \
   -c "\copy streetlights.light_sensors FROM 'data/light_sensors.csv' CSV HEADER"
-psql -h {pg_host} -U {pg_user} -d streetlights \
+psql "service=$PGSERVICE" \
   -c "\copy streetlights.weather_enrichment FROM 'data/weather_enrichment.csv' CSV HEADER"
-psql -h {pg_host} -U {pg_user} -d streetlights \
+psql "service=$PGSERVICE" \
   -c "\copy streetlights.demographics FROM 'data/demographics.csv' CSV HEADER"
-psql -h {pg_host} -U {pg_user} -d streetlights \
+psql "service=$PGSERVICE" \
   -c "\copy streetlights.power_grid_zones FROM 'data/power_grid_zones.csv' CSV HEADER"
 ```
 
@@ -105,7 +113,7 @@ psql -h {pg_host} -U {pg_user} -d streetlights \
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-3 --action complete
+uv run gate --step step-3 --action complete
 ```
 
 ## Next

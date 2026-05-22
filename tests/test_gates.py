@@ -246,11 +246,11 @@ class TestGateChainVerification:
     def test_chain_skips_fresh_ancestors(self, manifest_dir: Path) -> None:
         """Fresh ancestors (< 1hr) are skipped without re-verification."""
 
-        from scripts.gate import _update_step_status
+        from scripts._manifest import update_step
 
         # Mark setup and step-1 as COMPLETE with fresh timestamps
-        _update_step_status(manifest_dir, "setup", "COMPLETE", desc="Initialize")
-        _update_step_status(manifest_dir, "step-1", "COMPLETE", desc="Generate Data")
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+        update_step(manifest_dir, "step-1", "COMPLETE", desc="Generate Data")
 
         # step-2 check: mock _pg_ping to return True (PG reachable)
         with patch("scripts.gate._pg_ping", return_value=True):
@@ -267,17 +267,19 @@ class TestGateChainVerification:
         """Stale ancestors (> 1hr) get re-verified via their check function."""
         from datetime import UTC, datetime, timedelta
 
-        from scripts.gate import _load_manifest, _update_step_status, _write_manifest
+        from scripts._manifest import load as load_manifest
+        from scripts._manifest import save as save_manifest
+        from scripts._manifest import update_step
 
         # Mark setup as COMPLETE but 2 hours ago (stale)
-        _update_step_status(manifest_dir, "setup", "COMPLETE", desc="Initialize")
-        manifest = _load_manifest(manifest_dir)
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+        manifest = load_manifest(manifest_dir)
         old_time = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
-        manifest["demo"]["steps"]["setup"]["completed_at"] = old_time
-        _write_manifest(manifest_dir, manifest)
+        manifest.demo.steps["setup"].completed_at = old_time
+        save_manifest(manifest_dir, manifest)
 
         # Mark step-1 as COMPLETE (fresh)
-        _update_step_status(manifest_dir, "step-1", "COMPLETE", desc="Generate Data")
+        update_step(manifest_dir, "step-1", "COMPLETE", desc="Generate Data")
 
         # When step-2 checks its chain, setup is stale so check_manifest runs
         # check_manifest will pass (manifest exists) and re-stamp setup
@@ -291,9 +293,9 @@ class TestGateChainVerification:
         assert "PASS" in output
 
         # Verify setup was re-stamped with fresh timestamp
-        manifest = _load_manifest(manifest_dir)
-        setup_state = manifest["demo"]["steps"]["setup"]
-        completed_time = datetime.fromisoformat(setup_state["completed_at"])
+        manifest = load_manifest(manifest_dir)
+        setup_state = manifest.demo.steps["setup"]
+        completed_time = datetime.fromisoformat(setup_state.completed_at)
         elapsed = (datetime.now(UTC) - completed_time).total_seconds()
         assert elapsed < 60  # Should have been re-stamped just now
 
@@ -303,14 +305,16 @@ class TestGateChainVerification:
         """Chain blocks if a stale ancestor fails re-verification."""
         from datetime import UTC, datetime, timedelta
 
-        from scripts.gate import _load_manifest, _update_step_status, _write_manifest
+        from scripts._manifest import load as load_manifest
+        from scripts._manifest import save as save_manifest
+        from scripts._manifest import update_step
 
         # Mark setup as COMPLETE but stale, and make check_manifest fail
-        _update_step_status(manifest_dir, "setup", "COMPLETE", desc="Initialize")
-        manifest = _load_manifest(manifest_dir)
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+        manifest = load_manifest(manifest_dir)
         old_time = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
-        manifest["demo"]["steps"]["setup"]["completed_at"] = old_time
-        _write_manifest(manifest_dir, manifest)
+        manifest.demo.steps["setup"].completed_at = old_time
+        save_manifest(manifest_dir, manifest)
 
         # Delete the manifest to make check_manifest fail on re-verification
         manifest_file = manifest_dir / ".streetlights-demo" / "manifest.toml"
@@ -326,11 +330,12 @@ class TestGateChainVerification:
 
     def test_chain_backfills_missing_ancestor(self, manifest_dir: Path) -> None:
         """Missing ancestors get backfilled if their verifier passes."""
-        from scripts.gate import _load_manifest, _update_step_status
+        from scripts._manifest import load as load_manifest
+        from scripts._manifest import update_step
 
         # step-1 is NOT marked in manifest at all (missing)
         # But setup is fresh
-        _update_step_status(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
 
         # Create CSV files so step-1 check passes
         data_dir = manifest_dir / "data"
@@ -357,16 +362,16 @@ class TestGateChainVerification:
         assert "PASS" in output
 
         # step-1 should now be COMPLETE in manifest
-        manifest = _load_manifest(manifest_dir)
-        assert manifest["demo"]["steps"]["step-1"]["status"] == "COMPLETE"
-        assert manifest["demo"]["steps"]["step-1"]["desc"] == "Generating synthetic data"
+        manifest = load_manifest(manifest_dir)
+        assert manifest.demo.steps["step-1"].status == "COMPLETE"
+        assert manifest.demo.steps["step-1"].desc == "Generating synthetic data"
 
     def test_chain_blocks_when_missing_ancestor_fails(self, manifest_dir: Path) -> None:
         """Chain blocks when a missing ancestor cannot be backfilled."""
-        from scripts.gate import _update_step_status
+        from scripts._manifest import update_step
 
         # setup is fresh but step-1 is missing and CSV files do NOT exist
-        _update_step_status(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
 
         exit_code, output = self._run_gate_cli(
             ["--step", "step-2", "--prior-step", "step-1", "--action", "check"],
@@ -383,10 +388,11 @@ class TestGateChainVerification:
         Uses subprocess with real file state (CSV files) to prove the chain walks
         past the immediate prior all the way back to setup.
         """
-        from scripts.gate import _load_manifest, _update_step_status
+        from scripts._manifest import load as load_manifest
+        from scripts._manifest import update_step
 
         # Mark setup as fresh
-        _update_step_status(manifest_dir, "setup", "COMPLETE", desc="Initialize")
+        update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
 
         # step-1 is NOT in manifest (missing) — create CSV files so it can backfill
         data_dir = manifest_dir / "data"
@@ -417,6 +423,30 @@ class TestGateChainVerification:
         # step-2 blocks on its own check (no PG), but step-1 was backfilled
         # (exit_code could be 0 if PG happens to be reachable, or 1 if not)
         # The key assertion: step-1 was backfilled by the chain walk
-        manifest = _load_manifest(manifest_dir)
-        assert manifest["demo"]["steps"]["step-1"]["status"] == "COMPLETE"
-        assert manifest["demo"]["steps"]["step-1"]["desc"] == "Generating synthetic data"
+        manifest = load_manifest(manifest_dir)
+        assert manifest.demo.steps["step-1"].status == "COMPLETE"
+        assert manifest.demo.steps["step-1"].desc == "Generating synthetic data"
+
+
+class TestManifestIO:
+    """Test manifest read/write preserves non-owned sections."""
+
+    def test_non_owned_sections_preserved(self, manifest_dir: Path) -> None:
+        """Non-owned sections survive a load/save cycle."""
+        from scripts._manifest import load as load_manifest
+        from scripts._manifest import save as save_manifest
+
+        # Add a non-owned section
+        manifest_file = manifest_dir / ".streetlights-demo" / "manifest.toml"
+        content = manifest_file.read_text()
+        content += '\n[other_tool]\nfoo = "bar"\n'
+        manifest_file.write_text(content)
+
+        # Load and save back
+        manifest = load_manifest(manifest_dir)
+        save_manifest(manifest_dir, manifest)
+
+        # Reload and verify preserved
+        manifest2 = load_manifest(manifest_dir)
+        assert "other_tool" in manifest2._extra
+        assert manifest2._extra["other_tool"]["foo"] == "bar"

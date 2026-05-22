@@ -6,7 +6,7 @@ description: Create Semantic View over CLD tables
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step step-5 --prior-step step-4 --action check
+uv run gate --step step-5 --prior-step step-4 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step step-5 --desc "Creating Semantic View" --action start
+uv run gate --step step-5 --desc "Creating Semantic View" --action start
 ```
 
 # Step 5: Create Semantic View
@@ -27,6 +27,14 @@ Create a Semantic View over the CLD tables that defines dimensions, measures, an
 - Deploy the semantic view DDL referencing CLD tables
 - Validate the view was created and is queryable
 - This enables structured SQL generation from natural language
+
+## Dry-Run
+
+Show the execution plan to the user:
+```bash
+uv run gate --step step-5 --action dry-run
+```
+Present the output, then ask user to proceed.
 
 ## ⚠️ Proceed?
 
@@ -74,7 +82,7 @@ If user skips: note it was skipped, move to next step.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step step-5 --action complete
+uv run gate --step step-5 --action complete
 ```
 
 ## Next

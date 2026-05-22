@@ -6,7 +6,7 @@ description: Initialize the streetlights demo manifest and configuration
 ## Gate
 
 ```bash
-python3 scripts/gate.py --step setup --action check
+uv run gate --step setup --action check
 ```
 
 If BLOCK: stop and inform the user what needs fixing.
@@ -15,7 +15,7 @@ If PASS: continue below.
 ## Mark IN_PROGRESS
 
 ```bash
-python3 scripts/gate.py --step setup --desc "Initializing streetlights demo" --action start
+uv run gate --step setup --desc "Initializing streetlights demo" --action start
 ```
 
 # Setup: Initialize Streetlights Demo
@@ -85,18 +85,16 @@ If user skips: note it was skipped, move to next step.
 7. **Write `.streetlights-demo/manifest.toml`**
    - Create directory if needed
    - Write config with all resolved values:
-     ```toml
-     schema_version = "1"
-     project_name   = "streetlights-demo"
-
-     [project]
-     demo_resource_prefix = "<prefix>"
+      ```toml
+      schema_version = "1"
+      project_name   = "streetlights-demo"
 
       [snowflake]
       connection = "<connection>"
       role       = "<pg_create_role>"
 
-      [demo]
+      [streetlights-demo]
+      prefix       = "<prefix>"
       database     = "<PREFIX>_STREETLIGHTS"
       cld_database = "<PREFIX>_STREETLIGHTS_CLD"
       warehouse    = "<existing_or_new_wh_name>"
@@ -105,7 +103,7 @@ If user skips: note it was skipped, move to next step.
       city         = "<city>"
       center_lat   = <lat>
       center_lng   = <lng>
-     ```
+      ```
 
 > **Note**: Existing instances keep their current names; only new setups use the shorter naming convention.
 
@@ -124,7 +122,7 @@ If user skips: note it was skipped, move to next step.
 ## Mark COMPLETE
 
 ```bash
-python3 scripts/gate.py --step setup --action complete
+uv run gate --step setup --action complete
 ```
 
 ## Connecting to PostgreSQL

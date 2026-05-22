@@ -204,7 +204,7 @@ task sf:forecast
 ├── data/                               # Generated CSVs (gitignored)
 ├── init/                               # PostgreSQL DDL scripts
 │   ├── 01_enable_extensions.sql        # pg_lake + PostGIS extensions
-│   └── 07_create_iceberg_tables.sql    # All 7 Iceberg tables
+│   └── 02_create_iceberg_tables.sql    # All 7 Iceberg tables (generated)
 ├── scripts/                            # CLI tools and gates
 │   ├── gate.py                         # Per-step verification checks
 │   └── sanity_gate.py                  # End-to-end smoke test

@@ -15,6 +15,7 @@ invocations:
 - **Never hallucinate** — if uncertain about any value, path, or state, use `ask_user_question` to confirm with the user
 - **Stop on billable actions** — always warn and confirm before creating PG instances or CLD
 - **Bundled skills** — Skills marked [bundled] are system-level. Invoke via the `skill` tool — do NOT search the project `.cortex/skills/` directory.
+- **CRITICAL: PostgreSQL connections MUST use pg_service** — use `psql "service=$PGSERVICE"`. NEVER use `-h`, `-U`, or pass credentials directly. `PGSERVICE` is set via `.envrc`/direnv from the manifest.
 
 ## Routing
 

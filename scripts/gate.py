@@ -4,11 +4,11 @@ Provides pre-step validation functions that return GateResult objects
 indicating success/failure with a descriptive message.
 
 CLI Usage:
-    python3 scripts/gate.py --step setup --action check
-    python3 scripts/gate.py --step step-1 --prior-step setup --action check
-    python3 scripts/gate.py --step step-2 --action start --desc "Snowflake Postgres Instance"
-    python3 scripts/gate.py --step step-2 --action complete
-    python3 scripts/gate.py --step step-2 --action reset
+    uv run gate --step setup --action check
+    uv run gate --step step-1 --prior-step setup --action check
+    uv run gate --step step-2 --action start --desc "Snowflake Postgres Instance"
+    uv run gate --step step-2 --action complete
+    uv run gate --step step-2 --action reset
 """
 
 from __future__ import annotations
@@ -17,12 +17,22 @@ import argparse
 import json
 import os
 import subprocess
-import tempfile
-import tomllib
 import urllib.request
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+
+from scripts._manifest import (
+    STEP_CHAIN,
+    Manifest,
+    find_project_root,
+    remove_step,
+    update_step,
+)
+from scripts._manifest import (
+    load as load_manifest,
+)
+from scripts.generate_ddl import generate_iceberg_ddl, get_dry_run_step3
 
 
 @dataclass(frozen=True)
@@ -36,13 +46,6 @@ class GateResult:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _load_manifest(project_root: Path) -> dict:
-    """Load manifest.toml from project_root/.streetlights-demo/."""
-    manifest_file = project_root / ".streetlights-demo" / "manifest.toml"
-    with open(manifest_file, "rb") as f:
-        return tomllib.load(f)
 
 
 def _get_current_ip() -> str:
@@ -76,13 +79,13 @@ def _get_pg_allowed_ips(instance: str) -> list[str]:
     return ips
 
 
-def _pg_ping(manifest: dict) -> bool:
+def _pg_ping(manifest: Manifest) -> bool:
     """Check if PG instance is reachable via psql SELECT 1.
 
     Uses PGSERVICE (from .envrc/direnv) or falls back to explicit host/user.
     The $snowflake-postgres skill manages ~/.pg_service.conf + ~/.pgpass.
     """
-    instance = manifest["demo"]["pg_instance"]
+    instance = manifest.demo.pg_instance
 
     # Preferred: use PGSERVICE (set by .envrc from manifest)
     pg_service = os.environ.get("PGSERVICE", instance)
@@ -99,8 +102,8 @@ def _pg_ping(manifest: dict) -> bool:
         pass
 
     # Fallback: explicit host/user from manifest
-    pg_host = manifest.get("demo", {}).get("pg_host", "")
-    pg_user = manifest.get("demo", {}).get("pg_user", "")
+    pg_host = manifest.demo.pg_host
+    pg_user = manifest.demo.pg_user
     if pg_host and pg_user:
         try:
             result = subprocess.run(
@@ -177,7 +180,7 @@ def check_manifest(project_root: Path) -> GateResult:
             message="Manifest not found at .streetlights-demo/manifest.toml",
         )
     try:
-        _load_manifest(project_root)
+        load_manifest(project_root)
         return GateResult(success=True, message="Manifest loaded successfully")
     except Exception as e:
         return GateResult(success=False, message=f"Manifest parse error: {e}")
@@ -190,7 +193,7 @@ def check_env_sync(project_root: Path) -> GateResult:
     warn the user to re-run setup or regenerate.
     """
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
@@ -213,12 +216,11 @@ def check_env_sync(project_root: Path) -> GateResult:
 
     # Check key values against manifest
     drift: list[str] = []
-    demo = manifest.get("demo", {})
     expected = {
-        "PGSERVICE": demo.get("pg_service", demo.get("pg_instance", "")),
-        "SNOWFLAKE_CONNECTION": manifest.get("snowflake", {}).get("connection", ""),
-        "DEMO_PREFIX": manifest.get("project", {}).get("demo_resource_prefix", ""),
-        "DEMO_WAREHOUSE": demo.get("warehouse", ""),
+        "PGSERVICE": manifest.demo.pg_service or manifest.demo.pg_instance,
+        "SNOWFLAKE_CONNECTION": manifest.snowflake.connection,
+        "DEMO_PREFIX": manifest.demo.prefix,
+        "DEMO_WAREHOUSE": manifest.demo.warehouse,
     }
 
     for key, manifest_val in expected.items():
@@ -242,11 +244,11 @@ def check_env_sync(project_root: Path) -> GateResult:
 def check_pg_reachable(project_root: Path) -> GateResult:
     """Gate: PG instance responds to psql connection check."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    instance = manifest["demo"]["pg_instance"]
+    instance = manifest.demo.pg_instance
     if _pg_ping(manifest):
         return GateResult(success=True, message=f"PG instance '{instance}' is reachable")
     return GateResult(success=False, message=f"PG instance '{instance}' is not reachable")
@@ -255,11 +257,11 @@ def check_pg_reachable(project_root: Path) -> GateResult:
 def check_cld_healthy(project_root: Path) -> GateResult:
     """Gate: CLD DB exists + table count > 0."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    cld_db = manifest["demo"]["cld_database"]
+    cld_db = manifest.demo.cld_database
     try:
         count = _cld_table_count(cld_db)
     except Exception as e:
@@ -284,11 +286,11 @@ def check_account_params(project_root: Path) -> GateResult:
 def check_snowflake_connection(project_root: Path) -> GateResult:
     """Gate: Snowflake CLI connection from manifest works."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    connection = manifest.get("snowflake", {}).get("connection", "default")
+    connection = manifest.snowflake.connection or "default"
     result = subprocess.run(
         ["snow", "sql", "-q", "SELECT CURRENT_ACCOUNT()", "-c", connection],
         capture_output=True,
@@ -312,11 +314,11 @@ def check_pg_network_access(project_root: Path) -> GateResult:
     Returns the current IP and allowed IPs for the skill to offer a fix.
     """
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    instance = manifest["demo"]["pg_instance"]
+    instance = manifest.demo.pg_instance
 
     # Get current public IP
     current_ip = _get_current_ip()
@@ -395,17 +397,22 @@ def _check_csv_files(project_root: Path) -> GateResult:
 
 def _check_pg_tables(project_root: Path) -> GateResult:
     """Verify PG tables have rows via psql."""
+    # Pre-flight: generate DDL if missing (user may not have run generate yet)
+    ddl_path = project_root / "init" / "02_create_iceberg_tables.sql"
+    if not ddl_path.exists():
+        generate_iceberg_ddl(output_path=ddl_path)
+
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    instance = manifest["demo"]["pg_instance"]
+    instance = manifest.demo.pg_instance
     pg_service = os.environ.get("PGSERVICE", instance)
 
     query = (
         "SELECT COUNT(*) FROM information_schema.tables "
-        "WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
+        "WHERE table_schema = 'streetlights' AND table_type = 'FOREIGN'"
     )
     try:
         result = subprocess.run(
@@ -429,12 +436,12 @@ def _check_pg_tables(project_root: Path) -> GateResult:
 def _check_semantic_view(project_root: Path) -> GateResult:
     """Verify semantic view exists via snow sql."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    connection = manifest.get("snowflake", {}).get("connection", "default")
-    cld_db = manifest["demo"]["cld_database"]
+    connection = manifest.snowflake.connection or "default"
+    cld_db = manifest.demo.cld_database
     result = subprocess.run(
         ["snow", "sql", "-q", f"SHOW SEMANTIC VIEWS IN DATABASE {cld_db}", "-c", connection],
         capture_output=True,
@@ -452,12 +459,12 @@ def _check_semantic_view(project_root: Path) -> GateResult:
 def _check_cortex_search(project_root: Path) -> GateResult:
     """Verify Cortex Search Service exists."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    connection = manifest.get("snowflake", {}).get("connection", "default")
-    cld_db = manifest["demo"]["cld_database"]
+    connection = manifest.snowflake.connection or "default"
+    cld_db = manifest.demo.cld_database
     result = subprocess.run(
         [
             "snow",
@@ -482,12 +489,12 @@ def _check_cortex_search(project_root: Path) -> GateResult:
 def _check_agent(project_root: Path) -> GateResult:
     """Verify Intelligence Agent exists."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    connection = manifest.get("snowflake", {}).get("connection", "default")
-    cld_db = manifest["demo"]["cld_database"]
+    connection = manifest.snowflake.connection or "default"
+    cld_db = manifest.demo.cld_database
     result = subprocess.run(
         ["snow", "sql", "-q", f"SHOW AGENTS IN DATABASE {cld_db}", "-c", connection],
         capture_output=True,
@@ -503,12 +510,12 @@ def _check_agent(project_root: Path) -> GateResult:
 def _check_forecast(project_root: Path) -> GateResult:
     """Verify ML Forecast model exists."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    connection = manifest.get("snowflake", {}).get("connection", "default")
-    cld_db = manifest["demo"]["cld_database"]
+    connection = manifest.snowflake.connection or "default"
+    cld_db = manifest.demo.cld_database
     result = subprocess.run(
         [
             "snow",
@@ -533,12 +540,12 @@ def _check_forecast(project_root: Path) -> GateResult:
 def _check_streamlit(project_root: Path) -> GateResult:
     """Verify Streamlit app exists."""
     try:
-        manifest = _load_manifest(project_root)
+        manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    connection = manifest.get("snowflake", {}).get("connection", "default")
-    cld_db = manifest["demo"]["cld_database"]
+    connection = manifest.snowflake.connection or "default"
+    cld_db = manifest.demo.cld_database
     result = subprocess.run(
         ["snow", "sql", "-q", f"SHOW STREAMLITS IN DATABASE {cld_db}", "-c", connection],
         capture_output=True,
@@ -611,181 +618,115 @@ STEP_DESCRIPTIONS: dict[str, str] = {
     "step-10": "Validating end-to-end demo",
 }
 
-# Ordered chain: each step's predecessor (for full chain walk)
-STEP_CHAIN: dict[str, str | None] = {
-    "setup": None,
-    "step-1": "setup",
-    "step-2": "step-1",
-    "step-3": "step-2",
-    "step-4": "step-3",
-    "step-5": "step-4",
-    "step-6": "step-5",
-    "step-7": "step-6",
-    "step-8": "step-7",
-    "step-9": "step-8",
-    "step-10": "step-9",
-}
-
 
 # ---------------------------------------------------------------------------
-# TOML writer (simple serializer for manifest structure)
+# Dry-run: show execution plan per step
 # ---------------------------------------------------------------------------
 
 
-def _serialize_toml_value(value) -> str:
-    """Serialize a single value to TOML format."""
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    elif isinstance(value, int):
-        return str(value)
-    elif isinstance(value, float):
-        return str(value)
-    elif isinstance(value, str):
-        # Escape backslashes and quotes
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
-    elif isinstance(value, list):
-        items = ", ".join(_serialize_toml_value(v) for v in value)
-        return f"[{items}]"
-    else:
-        return f'"{value}"'
-
-
-def _serialize_toml(data: dict, prefix: str = "") -> str:
-    """Serialize a dict to TOML format string."""
-    lines: list[str] = []
-    # First, write all non-dict values at this level
-    for key, value in data.items():
-        if not isinstance(value, dict):
-            lines.append(f"{key} = {_serialize_toml_value(value)}")
-
-    # Then write nested tables
-    for key, value in data.items():
-        if isinstance(value, dict):
-            table_name = f"{prefix}.{key}" if prefix else key
-            lines.append("")
-            lines.append(f"[{table_name}]")
-            # Recursively serialize, but only non-dict values here
-            for k, v in value.items():
-                if not isinstance(v, dict):
-                    lines.append(f"{k} = {_serialize_toml_value(v)}")
-            # Nested sub-tables
-            for k, v in value.items():
-                if isinstance(v, dict):
-                    sub_table = f"{table_name}.{k}"
-                    lines.append("")
-                    lines.append(f"[{sub_table}]")
-                    sub_lines = _serialize_toml(v, sub_table)
-                    # Only add non-header lines (the recursive call handles deeper nesting)
-                    for sl in sub_lines.splitlines():
-                        if sl and not sl.startswith("["):
-                            lines.append(sl)
-                        elif sl.startswith("["):
-                            lines.append("")
-                            lines.append(sl)
-
-    return "\n".join(lines)
-
-
-def _write_manifest(project_root: Path, data: dict) -> None:
-    """Atomically write manifest.toml.
-
-    Ensures demo.steps are written in dependency chain order.
-    """
-    # Sort steps by chain order before writing
-    steps = data.get("demo", {}).get("steps", {})
-    if steps:
-        chain_order = list(STEP_CHAIN.keys())
-        ordered_steps = dict(
-            sorted(
-                steps.items(),
-                key=lambda item: chain_order.index(item[0]) if item[0] in chain_order else 999,
-            )
-        )
-        data["demo"]["steps"] = ordered_steps
-
-    manifest_file = project_root / ".streetlights-demo" / "manifest.toml"
-    content = _serialize_toml(data)
-    if not content.endswith("\n"):
-        content += "\n"
-
-    # Atomic write: write to temp file then rename
-    manifest_file.parent.mkdir(parents=True, exist_ok=True)
-    fd = tempfile.NamedTemporaryFile(
-        mode="w",
-        dir=manifest_file.parent,
-        prefix=".manifest_",
-        suffix=".tmp",
-        delete=False,
-    )
+def _dry_run(project_root: Path, step: str) -> None:
+    """Print the execution plan for a given step without running anything."""
     try:
-        fd.write(content)
-        fd.close()
-        os.replace(fd.name, manifest_file)
-    except Exception:
-        os.unlink(fd.name)
-        raise
+        manifest = load_manifest(project_root)
+    except FileNotFoundError:
+        print("ERROR: manifest not found — run setup first")
+        raise SystemExit(1)
 
+    prefix = manifest.demo.prefix
+    cld_database = manifest.demo.cld_database
+    warehouse = manifest.demo.warehouse
+    pg_instance = manifest.demo.pg_instance
 
-def _update_step_status(project_root: Path, step: str, status: str, desc: str = "") -> None:
-    """Update or create a step status section in the manifest."""
-    manifest = _load_manifest(project_root)
+    if step == "step-2":
+        print("Step 2: Snowflake Postgres Instance")
+        print("=" * 40)
+        print()
+        print(f"  PG Instance:     {pg_instance}")
+        print(f"  Managed Storage: {prefix}_pg_store (auto-created)")
+        print("  Database:        postgres (default)")
+        print(f"  Warehouse:       {warehouse}")
+        print()
+        print("Actions:")
+        print("  1. Create Snowflake Postgres instance")
+        print("  2. Configure network policy (add current IP)")
+        print("  3. Wait for instance to be READY")
 
-    # Ensure nested structure exists
-    if "demo" not in manifest:
-        manifest["demo"] = {}
-    if "steps" not in manifest["demo"]:
-        manifest["demo"]["steps"] = {}
+    elif step == "step-3":
+        print(get_dry_run_step3())
 
-    now = datetime.now(UTC).isoformat()
+    elif step == "step-4":
+        print("Step 4: Catalog Integration + CLD")
+        print("=" * 40)
+        print()
+        print(f"  Catalog Integration: {prefix}_cat_int")
+        print(f"  CLD Database:        {cld_database}")
+        print(f"  Source PG Instance:  {pg_instance}")
+        print()
+        print("Actions:")
+        print("  1. Create catalog integration")
+        print(f"  2. CREATE DATABASE {cld_database} ... LINKED_CATALOG = TRUE")
+        print("  3. Wait ~30s for CLD propagation")
+        print("  4. Verify table count > 0")
 
-    step_data = manifest["demo"]["steps"].get(step, {})
-    step_data["status"] = status
+    elif step == "step-5":
+        print("Step 5: Semantic View")
+        print("=" * 40)
+        print()
+        print(f"  Database: {cld_database}")
+        print("  DDL source: snowflake/semantic_view.sql (generated)")
+        print()
+        print("Actions:")
+        print("  1. Generate semantic view DDL from table schemas")
+        print("  2. Execute DDL in Snowflake")
 
-    if status == "IN_PROGRESS":
-        step_data["started_at"] = now
-        if desc:
-            step_data["desc"] = desc
-    elif status == "COMPLETE":
-        step_data["completed_at"] = now
-        if desc:
-            step_data["desc"] = desc
+    elif step == "step-6":
+        print("Step 6: Cortex Search Service")
+        print("=" * 40)
+        print()
+        print(f"  Database: {cld_database}")
+        print(f"  Warehouse: {warehouse}")
+        print()
+        print("Actions:")
+        print("  1. Create Cortex Search service on maintenance data")
+        print("  2. Verify service is active")
 
-    manifest["demo"]["steps"][step] = step_data
-    _write_manifest(project_root, manifest)
+    elif step == "step-7":
+        print("Step 7: Intelligence Agent")
+        print("=" * 40)
+        print()
+        print(f"  Database: {cld_database}")
+        print()
+        print("Actions:")
+        print("  1. Create Intelligence Agent with semantic view + search")
+        print("  2. Verify agent responds to test query")
 
+    elif step == "step-8":
+        print("Step 8: ML Forecast Model")
+        print("=" * 40)
+        print()
+        print(f"  Database: {cld_database}")
+        print(f"  Warehouse: {warehouse}")
+        print()
+        print("Actions:")
+        print("  1. Train SNOWFLAKE.ML.FORECAST on energy_consumption")
+        print("  2. Verify model exists and produces predictions")
 
-def _remove_step(project_root: Path, step: str) -> None:
-    """Remove a step section entirely from the manifest."""
-    manifest = _load_manifest(project_root)
+    elif step == "step-9":
+        print("Step 9: Streamlit App")
+        print("=" * 40)
+        print()
+        print(f"  Database: {cld_database}")
+        print(f"  Warehouse: {warehouse}")
+        print()
+        print("Actions:")
+        print("  1. Deploy Streamlit-in-Snowflake app")
+        print("  2. Verify app is accessible")
 
-    steps = manifest.get("demo", {}).get("steps", {})
-    if step in steps:
-        del steps[step]
-        if "demo" in manifest and "steps" in manifest["demo"]:
-            manifest["demo"]["steps"] = steps
-        _write_manifest(project_root, manifest)
+    else:
+        print(f"No dry-run available for '{step}'")
+        raise SystemExit(1)
 
-
-# ---------------------------------------------------------------------------
-# Project root discovery
-# ---------------------------------------------------------------------------
-
-
-def _find_project_root() -> Path:
-    """Find project root by walking up from CWD looking for .streetlights-demo/manifest.toml."""
-    current = Path.cwd()
-    while True:
-        if (current / ".streetlights-demo" / "manifest.toml").exists():
-            return current
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-    # Fallback: use CWD
-    raise FileNotFoundError(
-        "Could not find .streetlights-demo/manifest.toml in any parent directory"
-    )
+    raise SystemExit(0)
 
 
 # ---------------------------------------------------------------------------
@@ -793,7 +734,8 @@ def _find_project_root() -> Path:
 # ---------------------------------------------------------------------------
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """CLI entry point for the gate checker."""
     parser = argparse.ArgumentParser(
         description="Streetlights demo gate checker and step state manager"
     )
@@ -805,7 +747,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--action",
         required=True,
-        choices=["check", "start", "complete", "reset"],
+        choices=["check", "start", "complete", "reset", "dry-run"],
         help="Action to perform",
     )
     parser.add_argument(
@@ -820,26 +762,30 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        project_root = _find_project_root()
+        project_root = find_project_root()
     except FileNotFoundError as e:
         print(f"BLOCK: {e}")
         raise SystemExit(1)
 
     # --- Action: reset ---
     if args.action == "reset":
-        _remove_step(project_root, args.step)
+        remove_step(project_root, args.step)
         print(f"OK: {args.step} reset")
         raise SystemExit(0)
 
+    # --- Action: dry-run ---
+    if args.action == "dry-run":
+        _dry_run(project_root, args.step)
+
     # --- Action: start ---
     if args.action == "start":
-        _update_step_status(project_root, args.step, "IN_PROGRESS", desc=args.desc or "")
+        update_step(project_root, args.step, "IN_PROGRESS", desc=args.desc or "")
         print(f"OK: {args.step} marked IN_PROGRESS")
         raise SystemExit(0)
 
     # --- Action: complete ---
     if args.action == "complete":
-        _update_step_status(project_root, args.step, "COMPLETE")
+        update_step(project_root, args.step, "COMPLETE")
         print(f"OK: {args.step} marked COMPLETE")
         raise SystemExit(0)
 
@@ -858,19 +804,19 @@ if __name__ == "__main__":
         chain.reverse()  # Now oldest-first: [setup, step-1, ..., prior_step]
 
         try:
-            manifest = _load_manifest(project_root)
-            steps = manifest.get("demo", {}).get("steps", {})
+            manifest = load_manifest(project_root)
+            steps = manifest.demo.steps
         except FileNotFoundError:
             print(f"BLOCK: manifest not found — cannot verify chain for {args.prior_step}")
             raise SystemExit(1)
 
         for ancestor in chain:
-            ancestor_state = steps.get(ancestor, {})
+            ancestor_state = steps.get(ancestor)
             ancestor_check_fn = STEP_CHECKS.get(ancestor)
 
-            if ancestor_state.get("status") == "COMPLETE":
+            if ancestor_state and ancestor_state.status == "COMPLETE":
                 # Check freshness
-                completed_at = ancestor_state.get("completed_at", "")
+                completed_at = ancestor_state.completed_at
                 is_fresh = False
                 if completed_at:
                     try:
@@ -887,15 +833,15 @@ if __name__ == "__main__":
                 if ancestor_check_fn:
                     result = ancestor_check_fn(project_root)
                     if result.success:
-                        _update_step_status(
+                        update_step(
                             project_root,
                             ancestor,
                             "COMPLETE",
                             desc=STEP_DESCRIPTIONS.get(ancestor, ""),
                         )
                         # Reload manifest for next iteration
-                        manifest = _load_manifest(project_root)
-                        steps = manifest.get("demo", {}).get("steps", {})
+                        manifest = load_manifest(project_root)
+                        steps = manifest.demo.steps
                         continue
                     else:
                         print(
@@ -910,15 +856,15 @@ if __name__ == "__main__":
                 if ancestor_check_fn:
                     result = ancestor_check_fn(project_root)
                     if result.success:
-                        _update_step_status(
+                        update_step(
                             project_root,
                             ancestor,
                             "COMPLETE",
                             desc=STEP_DESCRIPTIONS.get(ancestor, ""),
                         )
                         # Reload manifest for next iteration
-                        manifest = _load_manifest(project_root)
-                        steps = manifest.get("demo", {}).get("steps", {})
+                        manifest = load_manifest(project_root)
+                        steps = manifest.demo.steps
                         continue
                     else:
                         print(f"BLOCK: chain step {ancestor} not complete" f" - {result.message}")
@@ -929,15 +875,14 @@ if __name__ == "__main__":
 
     # Self-healing check logic
     try:
-        manifest = _load_manifest(project_root)
-        steps = manifest.get("demo", {}).get("steps", {})
-        step_state = steps.get(args.step, {})
+        manifest = load_manifest(project_root)
+        step_state = manifest.demo.steps.get(args.step)
     except FileNotFoundError:
-        step_state = {}
+        step_state = None
 
-    if step_state.get("status") == "COMPLETE":
+    if step_state and step_state.status == "COMPLETE":
         # Check if cached result is still fresh
-        completed_at = step_state.get("completed_at", "")
+        completed_at = step_state.completed_at
         if completed_at:
             try:
                 completed_time = datetime.fromisoformat(completed_at)
@@ -954,7 +899,7 @@ if __name__ == "__main__":
             result = check_fn(project_root)
             if result.success:
                 # Refresh the timestamp
-                _update_step_status(
+                update_step(
                     project_root, args.step, "COMPLETE", desc=STEP_DESCRIPTIONS.get(args.step, "")
                 )
                 print(f"PASS: {args.step} re-verified")
@@ -978,11 +923,13 @@ if __name__ == "__main__":
     result = check_fn(project_root)
     if result.success:
         # Backfill as COMPLETE
-        _update_step_status(
-            project_root, args.step, "COMPLETE", desc=STEP_DESCRIPTIONS.get(args.step, "")
-        )
+        update_step(project_root, args.step, "COMPLETE", desc=STEP_DESCRIPTIONS.get(args.step, ""))
         print(f"PASS: {args.step} backfilled")
         raise SystemExit(0)
     else:
         print(f"BLOCK: {args.step} not complete - {result.message}")
         raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

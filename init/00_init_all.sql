@@ -34,7 +34,7 @@
 -- Step 2: Create Iceberg tables (all 7 tables)
 \echo ''
 \echo 'Step 2: Creating Iceberg tables...'
-\i init/07_create_iceberg_tables.sql
+\i init/02_create_iceberg_tables.sql
 
 -- Final completion message
 \echo ''
