@@ -611,6 +611,21 @@ STEP_DESCRIPTIONS: dict[str, str] = {
     "step-10": "Validate & Demo",
 }
 
+# Ordered chain: each step's predecessor (for full chain walk)
+STEP_CHAIN: dict[str, str | None] = {
+    "setup": None,
+    "step-1": "setup",
+    "step-2": "step-1",
+    "step-3": "step-2",
+    "step-4": "step-3",
+    "step-5": "step-4",
+    "step-6": "step-5",
+    "step-7": "step-6",
+    "step-8": "step-7",
+    "step-9": "step-8",
+    "step-10": "step-9",
+}
+
 
 # ---------------------------------------------------------------------------
 # TOML writer (simple serializer for manifest structure)
@@ -814,18 +829,88 @@ if __name__ == "__main__":
         raise SystemExit(0)
 
     # --- Action: check ---
-    # Check prior step if specified
+    cache_ttl = 3600  # 1 hour
+
+    # Full chain verification: walk backwards from --prior-step to build the
+    # ancestor chain, then verify each ancestor (skip if fresh, re-verify if stale).
     if args.prior_step:
+        # Build chain: [setup, step-1, ..., prior_step]
+        chain: list[str] = []
+        current = args.prior_step
+        while current is not None:
+            chain.append(current)
+            current = STEP_CHAIN.get(current)
+        chain.reverse()  # Now oldest-first: [setup, step-1, ..., prior_step]
+
         try:
             manifest = _load_manifest(project_root)
             steps = manifest.get("demo", {}).get("steps", {})
-            prior = steps.get(args.prior_step, {})
-            if prior.get("status") != "COMPLETE":
-                print(f"BLOCK: prior step {args.prior_step} not complete")
-                raise SystemExit(1)
         except FileNotFoundError:
-            print(f"BLOCK: manifest not found — cannot verify prior step {args.prior_step}")
+            print(f"BLOCK: manifest not found — cannot verify chain for {args.prior_step}")
             raise SystemExit(1)
+
+        for ancestor in chain:
+            ancestor_state = steps.get(ancestor, {})
+            ancestor_check_fn = STEP_CHECKS.get(ancestor)
+
+            if ancestor_state.get("status") == "COMPLETE":
+                # Check freshness
+                completed_at = ancestor_state.get("completed_at", "")
+                is_fresh = False
+                if completed_at:
+                    try:
+                        completed_time = datetime.fromisoformat(completed_at)
+                        elapsed = (datetime.now(UTC) - completed_time).total_seconds()
+                        is_fresh = elapsed < cache_ttl
+                    except (ValueError, TypeError):
+                        pass
+
+                if is_fresh:
+                    continue  # Fresh — trust it
+
+                # Stale — re-verify
+                if ancestor_check_fn:
+                    result = ancestor_check_fn(project_root)
+                    if result.success:
+                        _update_step_status(
+                            project_root,
+                            ancestor,
+                            "COMPLETE",
+                            desc=STEP_DESCRIPTIONS.get(ancestor, ""),
+                        )
+                        # Reload manifest for next iteration
+                        manifest = _load_manifest(project_root)
+                        steps = manifest.get("demo", {}).get("steps", {})
+                        continue
+                    else:
+                        print(
+                            f"BLOCK: chain step {ancestor} was COMPLETE"
+                            f" but re-verification failed - {result.message}"
+                        )
+                        raise SystemExit(1)
+                else:
+                    continue  # No check fn, trust cached status
+            else:
+                # Not COMPLETE — try to backfill
+                if ancestor_check_fn:
+                    result = ancestor_check_fn(project_root)
+                    if result.success:
+                        _update_step_status(
+                            project_root,
+                            ancestor,
+                            "COMPLETE",
+                            desc=STEP_DESCRIPTIONS.get(ancestor, ""),
+                        )
+                        # Reload manifest for next iteration
+                        manifest = _load_manifest(project_root)
+                        steps = manifest.get("demo", {}).get("steps", {})
+                        continue
+                    else:
+                        print(f"BLOCK: chain step {ancestor} not complete" f" - {result.message}")
+                        raise SystemExit(1)
+                else:
+                    print(f"BLOCK: chain step {ancestor} not complete")
+                    raise SystemExit(1)
 
     # Self-healing check logic
     try:
@@ -834,8 +919,6 @@ if __name__ == "__main__":
         step_state = steps.get(args.step, {})
     except FileNotFoundError:
         step_state = {}
-
-    cache_ttl = 3600  # 1 hour
 
     if step_state.get("status") == "COMPLETE":
         # Check if cached result is still fresh
