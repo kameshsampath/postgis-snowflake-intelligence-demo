@@ -20,6 +20,23 @@ uv run gate --step step-3 --desc "Creating schema and loading data" --action sta
 
 # Step 3: Create Schema + Load Data
 
+## Why this matters
+
+**`USING iceberg`** — When we create tables with `USING iceberg`, Postgres stores data in Apache Iceberg format (Parquet data files + Iceberg metadata). The data lives on managed object storage — not local PG disk.
+
+**Zero-copy read from Snowflake** — Because the data is already in Iceberg format on shared storage, Snowflake can read it directly. No ETL pipeline, no data movement, no sync jobs. Just shared Iceberg metadata pointing at the same Parquet files.
+
+**IDD connection** — This skill file is the *intent*; CoCo (the AI agent) *executes* it. The `generate --city` command compresses 7 table definitions + synthetic data into a single invocation — an [Intent Compression Ratio](https://blogs.kameshs.dev/intent-compression-ratio-measuring-the-power-of-intent-ceb6faf2e2f9) of ~7:1. The skill file itself is [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14).
+
+---
+
+**STOP** — Use `ask_user_question` to confirm:
+- Header: "Step 3"
+- Question: "Ready to proceed with table creation? (Iceberg tables on PG managed storage)"
+- Options: ["Yes, proceed", "Skip this step"]
+
+---
+
 ## What we'll do
 
 Create the `streetlights` schema with Iceberg tables on the Postgres instance and load all 7 CSV files. This gives pg_lake the data it will sync to Snowflake via CLD.
@@ -36,7 +53,7 @@ uv run gate --step step-3 --action dry-run
 ```
 Present the output, then ask user to proceed.
 
-## ⚠️ Proceed?
+## Proceed?
 
 Use `ask_user_question` to confirm:
 - Header: "Step 3"
@@ -61,6 +78,12 @@ Before connecting via psql, verify network access:
 - If user approves: route to `$snowflake-postgres` to update the policy, then retry
 
 ### Sequence (order matters!)
+
+> ⚠️ **CASCADE required** — `pg_lake` depends on 5+ other extensions (PostGIS, pgcrypto, etc.). The extension SQL uses `CREATE EXTENSION ... CASCADE` to auto-install dependencies.
+
+> ⚠️ **No PRIMARY KEY** — Iceberg tables are *foreign tables* under the hood. PostgreSQL foreign tables do not support constraints (`PRIMARY KEY`, `UNIQUE`, `NOT NULL`). The DDL uses bare column definitions only.
+
+> ⚠️ **`table_type = 'FOREIGN'`** — When verifying tables, query `information_schema.tables` with `WHERE table_type = 'FOREIGN'` (not `'BASE TABLE'`).
 
 1. Enable extensions (`init/01_enable_extensions.sql`)
 2. Create schema (`CREATE SCHEMA IF NOT EXISTS streetlights`)
