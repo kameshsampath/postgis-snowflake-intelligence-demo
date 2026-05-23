@@ -19,267 +19,315 @@
 --   - Snowflake Intelligence (natural language queries)
 --   - Cortex Agent (structured SQL generation)
 --
--- IMPORTANT: CLD surfaces tables with quoted lowercase identifiers.
--- All table/column references use "schema"."table"."column" notation.
+-- Actual CLD table schema (7 tables):
+--   street_lights:      id, pole_id, latitude, longitude, neighborhood,
+--                       install_date, wattage, light_type, status
+--   maintenance_records: id, light_id, date, type, description, cost, technician
+--   energy_consumption: id, light_id, date, hour, kwh, voltage, power_factor
+--   light_sensors:      id, light_id, timestamp, lux, motion_detected, temperature
+--   demographics:       neighborhood, population, median_income, commercial_pct
+--   power_grid_zones:   zone_id, zone_name, capacity_kw, current_load_kw, latitude, longitude
+--   weather_enrichment: date, season, temperature, humidity, wind_speed, precipitation
+--
+-- IMPORTANT: CLD preserves PostgreSQL casing — all identifiers are quoted lowercase.
 --
 -- Variables to replace:
---   ${PREFIX} = your demo_resource_prefix in UPPERCASE (e.g., KAMESHS)
+--   <% PREFIX %> = demo_resource_prefix in UPPERCASE (e.g., KAMESHS)
 -- =====================================================
 
-USE WAREHOUSE ${PREFIX}_STREETLIGHTS_WH;
+USE WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH;
 
-CREATE OR REPLACE SEMANTIC VIEW ${PREFIX}_STREETLIGHTS_CLD."streetlights".streetlights_semantic_view
-  COMMENT = 'Semantic view for streetlight infrastructure intelligence queries'
-AS
+-- Semantic view lives in the regular DB (CLD is read-only; tables are still referenced from CLD)
+CREATE OR REPLACE SEMANTIC VIEW <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_semantic_view
 
-  -- ===================================================
-  -- Table: street_lights (core fact table)
-  -- ===================================================
-  TABLE ${PREFIX}_STREETLIGHTS_CLD."streetlights"."street_lights"
-    PRIMARY KEY ("light_id")
-    SYNONYMS ('lamps', 'light poles', 'lighting fixtures', 'lights', 'luminaires', 'street lamps')
-    COMMENT 'Core operational data for all street lights including location, status, and power consumption.'
+  TABLES (
 
-    COLUMN "light_id"
-      SYNONYMS ('asset_id', 'fixture_id', 'lamp_id', 'pole_id')
-      COMMENT 'Unique identifier for each street light in format SL-XXXX.'
-      SAMPLE VALUES ('SL-0001', 'SL-0500', 'SL-2500')
+    street_lights AS <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."street_lights"
+      PRIMARY KEY (id)
+      WITH SYNONYMS ('lamps', 'light fixtures', 'light poles', 'lights', 'luminaires', 'street lamps')
+      COMMENT = 'Core operational data for all street lights: location, status, wattage, and type.',
 
-    COLUMN "latitude"
-      SYNONYMS ('lat', 'y_coordinate')
-      COMMENT 'Latitude in WGS84 (SRID 4326).'
+    maintenance_records AS <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."maintenance_records"
+      PRIMARY KEY (id)
+      WITH SYNONYMS ('maintenance_history', 'repairs', 'service_records', 'work_orders')
+      COMMENT = 'Historical maintenance performed on street lights including cost and technician.',
 
-    COLUMN "longitude"
-      SYNONYMS ('lng', 'lon', 'x_coordinate')
-      COMMENT 'Longitude in WGS84 (SRID 4326).'
+    energy_consumption AS <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."energy_consumption"
+      PRIMARY KEY (id)
+      WITH SYNONYMS ('energy_data', 'energy_usage', 'kwh_readings', 'power_usage')
+      COMMENT = 'Hourly energy consumption readings per street light.',
 
-    COMPUTED COLUMN location
-      COMMENT 'Geographic point reconstructed from lat/lng for spatial queries.'
-      AS ST_MAKEPOINT("longitude", "latitude")
+    light_sensors AS <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."light_sensors"
+      PRIMARY KEY (id)
+      WITH SYNONYMS ('iot_sensors', 'sensor_data', 'sensor_readings')
+      COMMENT = 'IoT sensor readings: ambient light (lux), motion, and temperature per light.',
 
-    COLUMN "status"
-      SYNONYMS ('condition', 'light_status', 'operational_status', 'state')
-      COMMENT 'Current operational status: operational, faulty, or maintenance_required.'
-      SAMPLE VALUES ('operational', 'faulty', 'maintenance_required')
+    demographics AS <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."demographics"
+      PRIMARY KEY (neighborhood)
+      WITH SYNONYMS ('area_demographics', 'census_data', 'neighborhood_data', 'population_data')
+      COMMENT = 'Neighborhood-level demographics: population, median income, and commercial share.',
 
-    COLUMN "wattage"
-      SYNONYMS ('energy_usage', 'power', 'power_consumption', 'watts')
-      COMMENT 'Power consumption in watts. LED: 100W, sodium vapor: up to 250W.'
-      SAMPLE VALUES ('100', '150', '200', '250')
+    power_grid_zones AS <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."power_grid_zones"
+      PRIMARY KEY (zone_id)
+      WITH SYNONYMS ('electrical_zones', 'grid_data', 'grid_zones', 'power_supply')
+      COMMENT = 'Electrical grid zones with capacity and current load.',
 
-    COLUMN "installation_date"
-      SYNONYMS ('commissioned_date', 'install_date', 'setup_date')
-      COMMENT 'Date when the street light was installed. Used for age calculations.'
+    weather AS <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."weather_enrichment"
+      PRIMARY KEY (date)
+      WITH SYNONYMS ('climate_data', 'daily_weather', 'weather_data', 'weather_factors')
+      COMMENT = 'Daily weather data including temperature, humidity, wind, and precipitation.'
 
-    COLUMN "last_maintenance"
-      SYNONYMS ('last_inspection', 'last_repair', 'last_service')
-      COMMENT 'Timestamp of most recent maintenance performed.'
+  )
 
-    COLUMN "neighborhood_id"
-      SYNONYMS ('area_id', 'district_id', 'zone_id')
-      COMMENT 'Foreign key to neighborhoods table for geographic grouping.'
-      SAMPLE VALUES ('NH-001', 'NH-025', 'NH-050')
+  RELATIONSHIPS (
 
-  -- ===================================================
-  -- Table: maintenance_requests
-  -- ===================================================
-  TABLE ${PREFIX}_STREETLIGHTS_CLD."streetlights"."maintenance_requests"
-    PRIMARY KEY ("request_id")
-    SYNONYMS ('complaints', 'issues', 'maintenance_tickets', 'repairs', 'service_requests', 'work_orders')
-    COMMENT 'Historical and active maintenance requests tracking issues, response times, and resolution.'
+    -- maintenance_records → street_lights
+    maintenance_to_lights AS
+      maintenance_records (light_id) REFERENCES street_lights (id),
 
-    COLUMN "request_id"
-      SYNONYMS ('case_id', 'incident_id', 'ticket_id', 'work_order_id')
-      COMMENT 'Unique identifier in format REQ-XXXX.'
-      SAMPLE VALUES ('REQ-0001', 'REQ-0250', 'REQ-0500')
+    -- energy_consumption → street_lights
+    energy_to_lights AS
+      energy_consumption (light_id) REFERENCES street_lights (id),
 
-    COLUMN "light_id"
-      SYNONYMS ('asset_id', 'fixture_id', 'lamp_id')
-      COMMENT 'Foreign key to the street light requiring maintenance.'
+    -- light_sensors → street_lights
+    sensors_to_lights AS
+      light_sensors (light_id) REFERENCES street_lights (id),
 
-    COLUMN "reported_at"
-      SYNONYMS ('created_at', 'opened_at', 'report_date')
-      COMMENT 'Timestamp when the issue was reported. Start of SLA clock.'
+    -- street_lights → demographics (neighborhood name join)
+    lights_to_demographics AS
+      street_lights (neighborhood) REFERENCES demographics (neighborhood),
 
-    COLUMN "resolved_at"
-      SYNONYMS ('closed_at', 'completed_at', 'fixed_at')
-      COMMENT 'Timestamp when resolved. NULL means still open.'
+    -- energy_consumption → weather (date join for weather enrichment)
+    energy_to_weather AS
+      energy_consumption (date) REFERENCES weather (date)
 
-    COLUMN "issue_type"
-      SYNONYMS ('defect_type', 'failure_type', 'problem_category', 'problem_type')
-      COMMENT 'Category: bulb_failure, wiring, pole_damage, sensor_malfunction, timer_issue, vandalism, storm_damage.'
-      SAMPLE VALUES ('bulb_failure', 'wiring', 'pole_damage', 'sensor_malfunction', 'timer_issue')
+  )
 
-    COLUMN "description"
-      COMMENT 'Free-text description of the issue from field staff or residents.'
+  FACTS (
 
-  -- ===================================================
-  -- Table: neighborhoods
-  -- ===================================================
-  TABLE ${PREFIX}_STREETLIGHTS_CLD."streetlights"."neighborhoods"
-    PRIMARY KEY ("neighborhood_id")
-    SYNONYMS ('areas', 'districts', 'localities', 'regions', 'wards', 'zones')
-    COMMENT 'Geographic neighborhoods with boundaries and population data for spatial aggregation.'
+    -- street_lights: numeric and spatial measures
+    street_lights.light_id        AS "id"
+      COMMENT = 'Street light identifier. Use for counting lights.',
 
-    COLUMN "neighborhood_id"
-      SYNONYMS ('area_id', 'district_id', 'locality_id', 'zone_id')
-      COMMENT 'Unique identifier in format NH-XXX.'
-      SAMPLE VALUES ('NH-001', 'NH-025', 'NH-050')
+    street_lights.wattage         AS "wattage"
+      WITH SYNONYMS ('energy_usage', 'power', 'power_consumption', 'watts')
+      COMMENT = 'Power consumption in watts.',
 
-    COLUMN "name"
-      SYNONYMS ('area_name', 'district_name', 'neighborhood_name')
-      COMMENT 'Human-readable neighborhood name.'
+    street_lights.location        AS ST_MAKEPOINT("longitude", "latitude")
+      WITH SYNONYMS ('coordinates', 'geo_location', 'geo_point', 'position')
+      COMMENT = 'Geographic point reconstructed from lat/lng for spatial queries.',
 
-    COLUMN "population"
-      SYNONYMS ('inhabitants', 'people', 'residents')
-      COMMENT 'Estimated population for per-capita calculations.'
-      SAMPLE VALUES ('50000', '125000', '200000')
+    -- maintenance_records: cost measures
+    maintenance_records.record_id AS "id"
+      COMMENT = 'Maintenance record identifier. Use for counting maintenance events.',
 
-  -- ===================================================
-  -- Table: suppliers
-  -- ===================================================
-  TABLE ${PREFIX}_STREETLIGHTS_CLD."streetlights"."suppliers"
-    PRIMARY KEY ("supplier_id")
-    SYNONYMS ('contractors', 'maintenance_companies', 'service_providers', 'vendors')
-    COMMENT 'Light equipment suppliers with coverage areas, response times, and specializations.'
+    maintenance_records.cost      AS "cost"
+      WITH SYNONYMS ('maintenance_cost', 'repair_cost', 'service_cost')
+      COMMENT = 'Cost of the maintenance event in local currency.',
 
-    COLUMN "supplier_id"
-      SYNONYMS ('company_id', 'contractor_id', 'vendor_id')
-      COMMENT 'Unique identifier in format SUP-XXX.'
-      SAMPLE VALUES ('SUP-001', 'SUP-010', 'SUP-020')
+    -- energy_consumption: electrical measures
+    energy_consumption.reading_id AS "id"
+      COMMENT = 'Energy reading identifier. Use for counting readings.',
 
-    COLUMN "name"
-      SYNONYMS ('company_name', 'supplier_name', 'vendor_name')
-      COMMENT 'Supplier company name.'
+    energy_consumption.kwh        AS "kwh"
+      WITH SYNONYMS ('energy', 'energy_consumed', 'kilowatt_hours', 'power_used')
+      COMMENT = 'Energy consumed in kilowatt-hours for the hour.',
 
-    COLUMN "latitude"
-      COMMENT 'Supplier office latitude in WGS84.'
+    energy_consumption.voltage    AS "voltage"
+      WITH SYNONYMS ('supply_voltage', 'v', 'volts')
+      COMMENT = 'Voltage reading in volts.',
 
-    COLUMN "longitude"
-      COMMENT 'Supplier office longitude in WGS84.'
+    energy_consumption.power_factor AS "power_factor"
+      WITH SYNONYMS ('efficiency', 'pf')
+      COMMENT = 'Power factor (0–1). Values below 0.9 indicate inefficiency.',
 
-    COMPUTED COLUMN supplier_location
-      COMMENT 'Geographic point for supplier office, reconstructed from lat/lng.'
-      AS ST_MAKEPOINT("longitude", "latitude")
+    -- light_sensors: sensor measurements
+    light_sensors.sensor_id       AS "id"
+      COMMENT = 'Sensor reading identifier. Use for counting sensor events.',
 
-    COLUMN "contact_phone"
-      SYNONYMS ('contact', 'phone', 'telephone')
-      COMMENT 'Contact phone number for dispatch.'
+    light_sensors.lux             AS "lux"
+      WITH SYNONYMS ('ambient_light', 'brightness', 'illuminance', 'light_level')
+      COMMENT = 'Ambient light level in lux. High values indicate daylight.',
 
-    COLUMN "service_radius_km"
-      SYNONYMS ('coverage_distance', 'coverage_radius', 'service_area')
-      COMMENT 'Maximum service distance in kilometers.'
-      SAMPLE VALUES ('8', '10', '12')
+    light_sensors.sensor_temperature AS "temperature"
+      WITH SYNONYMS ('ambient_temp', 'sensor_temp')
+      COMMENT = 'Ambient temperature reading from the sensor in Celsius.',
 
-    COLUMN "avg_response_hours"
-      SYNONYMS ('response_time', 'sla_hours', 'turnaround_time')
-      COMMENT 'Average response time in hours. Lower is better.'
-      SAMPLE VALUES ('3', '4', '6')
+    -- demographics: area metrics
+    demographics.population       AS "population"
+      WITH SYNONYMS ('inhabitants', 'people', 'residents')
+      COMMENT = 'Neighborhood population.',
 
-    COLUMN "specialization"
-      SYNONYMS ('equipment_type', 'expertise', 'specialty')
-      COMMENT 'Equipment specialization: LED, Sodium Vapor, or All.'
-      SAMPLE VALUES ('LED', 'Sodium Vapor', 'All')
+    demographics.median_income    AS "median_income"
+      WITH SYNONYMS ('avg_income', 'income', 'income_level')
+      COMMENT = 'Median household income in the neighborhood.',
 
-  -- ===================================================
-  -- Table: weather_enrichment
-  -- ===================================================
-  TABLE ${PREFIX}_STREETLIGHTS_CLD."streetlights"."weather_enrichment"
-    PRIMARY KEY ("light_id", "season")
-    SYNONYMS ('climate_data', 'seasonal_data', 'weather_data', 'weather_factors')
-    COMMENT 'Seasonal weather patterns and failure risk predictions per light.'
+    demographics.commercial_pct   AS "commercial_pct"
+      WITH SYNONYMS ('commercial_share', 'commercial_zone_pct')
+      COMMENT = 'Percentage of area classified as commercial.',
 
-    COLUMN "light_id"
-      COMMENT 'Foreign key to street light.'
+    -- power_grid_zones: capacity and load
+    power_grid_zones.capacity_kw  AS "capacity_kw"
+      WITH SYNONYMS ('grid_capacity', 'max_capacity', 'total_capacity')
+      COMMENT = 'Total grid capacity in kilowatts.',
 
-    COLUMN "season"
-      SYNONYMS ('seasonal_period', 'time_of_year', 'weather_season')
-      COMMENT 'Season: spring, summer, fall, or winter.'
-      SAMPLE VALUES ('spring', 'summer', 'fall', 'winter')
+    power_grid_zones.current_load_kw AS "current_load_kw"
+      WITH SYNONYMS ('current_demand', 'grid_load', 'load_kw')
+      COMMENT = 'Current grid load in kilowatts.',
 
-    COLUMN "avg_temperature_c"
-      SYNONYMS ('average_temperature', 'avg_temp', 'temperature')
-      COMMENT 'Average temperature in Celsius for the season.'
-      SAMPLE VALUES ('22.80', '28.50', '35.20')
+    power_grid_zones.zone_location AS ST_MAKEPOINT("longitude", "latitude")
+      WITH SYNONYMS ('grid_location', 'substation_location', 'zone_coordinates')
+      COMMENT = 'Geographic point of the grid zone substation.',
 
-    COLUMN "rainfall_mm"
-      SYNONYMS ('average_rainfall', 'precipitation', 'rain')
-      COMMENT 'Average rainfall in millimeters for the season.'
-      SAMPLE VALUES ('10.50', '25.30', '185.75')
+    -- weather: meteorological measures
+    weather.temperature           AS "temperature"
+      WITH SYNONYMS ('air_temp', 'daily_temp', 'outdoor_temp')
+      COMMENT = 'Daily temperature in Celsius.',
 
-    COLUMN "failure_risk_score"
-      SYNONYMS ('failure_likelihood', 'failure_probability', 'risk_level', 'risk_score')
-      COMMENT 'Predicted failure probability 0.0 to 1.0. Higher in wet/hot seasons.'
-      SAMPLE VALUES ('0.35', '0.62', '0.78')
+    weather.humidity              AS "humidity"
+      WITH SYNONYMS ('moisture', 'relative_humidity', 'rh')
+      COMMENT = 'Relative humidity percentage.',
 
-    COLUMN "predicted_failure_date"
-      SYNONYMS ('expected_failure', 'failure_prediction', 'predicted_outage')
-      COMMENT 'ML-predicted failure date based on weather and historical patterns.'
+    weather.wind_speed            AS "wind_speed"
+      WITH SYNONYMS ('wind', 'wind_velocity')
+      COMMENT = 'Wind speed in km/h.',
 
-  -- ===================================================
-  -- Table: demographics
-  -- ===================================================
-  TABLE ${PREFIX}_STREETLIGHTS_CLD."streetlights"."demographics"
-    PRIMARY KEY ("neighborhood_id")
-    SYNONYMS ('area_demographics', 'census_data', 'population_data')
-    COMMENT 'Neighborhood demographics for priority-based maintenance scheduling.'
+    weather.precipitation         AS "precipitation"
+      WITH SYNONYMS ('rainfall', 'rain_mm')
+      COMMENT = 'Daily precipitation in millimeters.'
 
-    COLUMN "neighborhood_id"
-      SYNONYMS ('area_id', 'district_id', 'zone_id')
-      COMMENT 'Foreign key to neighborhoods table.'
+  )
 
-    COLUMN "population_density"
-      SYNONYMS ('density', 'people_per_sqkm', 'residents_per_area')
-      COMMENT 'People per square kilometer. Urban >10000, suburban 5000-10000, rural <5000.'
-      SAMPLE VALUES ('5200', '9800', '12500')
+  DIMENSIONS (
 
-    COLUMN "urban_classification"
-      SYNONYMS ('area_type', 'development_level', 'urbanization', 'zone_type')
-      COMMENT 'Development level: urban, suburban, or rural.'
-      SAMPLE VALUES ('urban', 'suburban', 'rural')
+    -- street_lights: categorical and time attributes
+    street_lights.status          AS "status"
+      WITH SYNONYMS ('condition', 'light_status', 'operational_status', 'state')
+      COMMENT = 'Operational status: operational, faulty, or maintenance_required.',
 
-  -- ===================================================
-  -- Table: power_grid_zones
-  -- ===================================================
-  TABLE ${PREFIX}_STREETLIGHTS_CLD."streetlights"."power_grid_zones"
-    PRIMARY KEY ("light_id")
-    SYNONYMS ('electrical_data', 'grid_data', 'power_grid', 'power_supply')
-    COMMENT 'Electrical grid zone data for correlating light failures with grid issues.'
+    street_lights.light_type      AS "light_type"
+      WITH SYNONYMS ('bulb_type', 'fixture_type', 'lamp_type', 'technology')
+      COMMENT = 'Lighting technology: LED, Sodium Vapor, etc.',
 
-    COLUMN "light_id"
-      COMMENT 'Foreign key to street light.'
+    street_lights.neighborhood    AS "neighborhood"
+      WITH SYNONYMS ('area', 'district', 'locality', 'zone')
+      COMMENT = 'Neighborhood where the street light is located.',
 
-    COLUMN "grid_zone"
-      SYNONYMS ('electrical_zone', 'grid_area', 'power_zone', 'supply_zone')
-      COMMENT 'Power grid zone identifier (e.g., ZONE-A, ZONE-B).'
-      SAMPLE VALUES ('ZONE-A', 'ZONE-B', 'ZONE-C')
+    street_lights.install_date    AS "install_date"
+      WITH SYNONYMS ('commissioned_date', 'installation_date', 'setup_date')
+      COMMENT = 'Date when the street light was installed.',
 
-    COLUMN "avg_load_percent"
-      SYNONYMS ('capacity_usage', 'grid_load', 'load_percentage', 'power_load')
-      COMMENT 'Average grid load percentage. Above 80% indicates potential stress.'
-      SAMPLE VALUES ('65.40', '78.50', '82.30')
+    -- maintenance_records: event attributes
+    maintenance_records.maintenance_date AS "date"
+      WITH SYNONYMS ('repair_date', 'service_date', 'work_date')
+      COMMENT = 'Date the maintenance was performed.',
 
-    COLUMN "outage_history_count"
-      SYNONYMS ('blackouts', 'outage_count', 'outages', 'power_outages')
-      COMMENT 'Historical power outage count. Higher = less reliable supply.'
-      SAMPLE VALUES ('1', '3', '5')
+    maintenance_records.maintenance_type AS "type"
+      WITH SYNONYMS ('repair_type', 'service_type', 'work_type')
+      COMMENT = 'Type of maintenance performed.',
 
-  -- ===================================================
-  -- Relationships
-  -- ===================================================
-  RELATIONSHIPS
-    ${PREFIX}_STREETLIGHTS_CLD."streetlights"."street_lights"("neighborhood_id")
-      REFERENCES ${PREFIX}_STREETLIGHTS_CLD."streetlights"."neighborhoods"("neighborhood_id")
-    ,
-    ${PREFIX}_STREETLIGHTS_CLD."streetlights"."maintenance_requests"("light_id")
-      REFERENCES ${PREFIX}_STREETLIGHTS_CLD."streetlights"."street_lights"("light_id")
-    ,
-    ${PREFIX}_STREETLIGHTS_CLD."streetlights"."weather_enrichment"("light_id")
-      REFERENCES ${PREFIX}_STREETLIGHTS_CLD."streetlights"."street_lights"("light_id")
-    ,
-    ${PREFIX}_STREETLIGHTS_CLD."streetlights"."demographics"("neighborhood_id")
-      REFERENCES ${PREFIX}_STREETLIGHTS_CLD."streetlights"."neighborhoods"("neighborhood_id")
-    ,
-    ${PREFIX}_STREETLIGHTS_CLD."streetlights"."power_grid_zones"("light_id")
-      REFERENCES ${PREFIX}_STREETLIGHTS_CLD."streetlights"."street_lights"("light_id")
+    maintenance_records.technician AS "technician"
+      WITH SYNONYMS ('engineer', 'repair_person', 'service_tech', 'worker')
+      COMMENT = 'Name or ID of the technician who performed the work.',
+
+    -- energy_consumption: time and hour breakdown
+    energy_consumption.reading_date AS "date"
+      WITH SYNONYMS ('consumption_date', 'energy_date')
+      COMMENT = 'Date of the energy reading.',
+
+    energy_consumption.hour       AS "hour"
+      WITH SYNONYMS ('hour_of_day', 'time_of_day', 'time_slot')
+      COMMENT = 'Hour of the day (0–23) for the reading.',
+
+    -- light_sensors: time attributes
+    light_sensors.reading_timestamp AS "timestamp"
+      WITH SYNONYMS ('reading_time', 'sensor_time')
+      COMMENT = 'Timestamp of the sensor reading.',
+
+    light_sensors.motion_detected AS "motion_detected"
+      WITH SYNONYMS ('activity', 'motion', 'pedestrian_activity')
+      COMMENT = 'Whether motion was detected at the time of the reading.',
+
+    -- power_grid_zones: zone identifiers
+    power_grid_zones.zone_name    AS "zone_name"
+      WITH SYNONYMS ('grid_area', 'grid_name', 'power_zone', 'supply_zone')
+      COMMENT = 'Human-readable name for the power grid zone.',
+
+    -- weather: time and seasonal dimensions
+    weather.weather_date          AS "date"
+      WITH SYNONYMS ('forecast_date', 'measurement_date', 'observation_date')
+      COMMENT = 'Date of the weather observation.',
+
+    weather.season                AS "season"
+      WITH SYNONYMS ('quarter_season', 'seasonal_period', 'time_of_year')
+      COMMENT = 'Season: spring, summer, fall, or winter.'
+
+  )
+
+  METRICS (
+
+    -- Street light counts and health
+    street_lights.total_lights AS COUNT(street_lights.light_id)
+      WITH SYNONYMS ('light_count', 'number_of_lights', 'total_lamps')
+      COMMENT = 'Total number of street lights.',
+
+    street_lights.faulty_lights AS COUNT_IF(street_lights.status = 'faulty')
+      WITH SYNONYMS ('broken_lights', 'defective_lights', 'fault_count', 'non_operational')
+      COMMENT = 'Count of street lights with faulty status.',
+
+    street_lights.maintenance_required AS COUNT_IF(street_lights.status = 'maintenance_required')
+      WITH SYNONYMS ('lights_needing_service', 'pending_maintenance')
+      COMMENT = 'Count of street lights requiring maintenance.',
+
+    street_lights.operational_lights AS COUNT_IF(street_lights.status = 'operational')
+      WITH SYNONYMS ('active_lights', 'working_lights')
+      COMMENT = 'Count of operational street lights.',
+
+    street_lights.avg_wattage AS AVG(street_lights.wattage)
+      WITH SYNONYMS ('average_power', 'mean_wattage')
+      COMMENT = 'Average power consumption in watts across all street lights.',
+
+    -- Maintenance metrics
+    maintenance_records.total_maintenance AS COUNT(maintenance_records.record_id)
+      WITH SYNONYMS ('maintenance_count', 'repair_count', 'service_events')
+      COMMENT = 'Total number of maintenance events.',
+
+    maintenance_records.total_maintenance_cost AS SUM(maintenance_records.cost)
+      WITH SYNONYMS ('total_repair_cost', 'total_spend')
+      COMMENT = 'Total cost of all maintenance events.',
+
+    maintenance_records.avg_maintenance_cost AS AVG(maintenance_records.cost)
+      WITH SYNONYMS ('average_cost', 'average_repair_cost', 'mean_cost')
+      COMMENT = 'Average cost per maintenance event.',
+
+    -- Energy metrics
+    energy_consumption.total_kwh AS SUM(energy_consumption.kwh)
+      WITH SYNONYMS ('total_energy', 'total_energy_consumed', 'total_power_used')
+      COMMENT = 'Total energy consumed in kilowatt-hours.',
+
+    energy_consumption.avg_kwh AS AVG(energy_consumption.kwh)
+      WITH SYNONYMS ('average_energy', 'average_kwh', 'mean_energy')
+      COMMENT = 'Average hourly energy consumption per reading.',
+
+    energy_consumption.avg_power_factor AS AVG(energy_consumption.power_factor)
+      WITH SYNONYMS ('average_efficiency', 'average_pf', 'mean_power_factor')
+      COMMENT = 'Average power factor — values below 0.9 indicate inefficiency.',
+
+    -- Sensor metrics
+    light_sensors.avg_lux AS AVG(light_sensors.lux)
+      WITH SYNONYMS ('average_brightness', 'average_light_level', 'mean_lux')
+      COMMENT = 'Average ambient light level in lux.',
+
+    -- Weather metrics
+    weather.avg_temperature AS AVG(weather.temperature)
+      WITH SYNONYMS ('average_temp', 'mean_temperature')
+      COMMENT = 'Average daily temperature in Celsius.',
+
+    weather.avg_precipitation AS AVG(weather.precipitation)
+      WITH SYNONYMS ('average_rainfall', 'mean_precipitation')
+      COMMENT = 'Average daily precipitation in millimeters.'
+
+  )
+
+  COMMENT = 'Semantic view for streetlight infrastructure intelligence — enables natural language queries via Cortex Analyst and Intelligence Agent.'
 ;

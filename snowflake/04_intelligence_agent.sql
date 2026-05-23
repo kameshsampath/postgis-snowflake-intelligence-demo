@@ -98,10 +98,10 @@ CREATE OR REPLACE AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_agent
 
   tool_resources:
     StreetlightsAnalyst:
-      semantic_view: "<% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_semantic_view"
+      semantic_view: "<% PREFIX %>_STREETLIGHTS.PUBLIC.STREETLIGHTS_SEMANTIC_VIEW"
     MaintenanceSearch:
-      name: "<% PREFIX %>_STREETLIGHTS.PUBLIC.maintenance_search"
+      name: "<% PREFIX %>_STREETLIGHTS.PUBLIC.MAINTENANCE_SEARCH"
       max_results: "5"
-      title_column: "maintenance_type"
-      id_column: "id"
+      title_column: "MAINTENANCE_TYPE"
+      id_column: "RECORD_ID"
   $$;
