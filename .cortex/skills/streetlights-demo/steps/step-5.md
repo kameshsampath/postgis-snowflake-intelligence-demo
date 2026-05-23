@@ -90,15 +90,23 @@ If user skips: note it was skipped, move to next step.
 
 ### Verification
 
-- Run `gate.py check_semantic_view_exists`
-- Show the Semantic View definition to user
-- Test a simple query against the view
+Run the gate check (validates existence AND YAML primary_key column format):
+```bash
+uv run gate --step step-5 --action check
+```
+- **PASS** = view exists + all `primary_key.columns` are unquoted identifiers (e.g. `ID`, not `'"id"'`)
+- **BLOCK** = view missing, OR primary_key columns contain double-quote wrappers — redeploy `02_semantic_view.sql`
+
+Show the Semantic View definition to user:
+```sql
+SHOW SEMANTIC VIEWS IN DATABASE {database};
+```
 
 ## What we did
 
 - ✅ Semantic View created on CLD tables
 - ✅ Quoted lowercase identifiers preserved for CLD compatibility
-- ✅ Gate check: `check_semantic_view_exists` passed
+- ✅ Gate check: semantic view exists and YAML primary_key columns are valid unquoted identifiers
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 

@@ -105,3 +105,30 @@ CREATE OR REPLACE AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_agent
       title_column: "MAINTENANCE_TYPE"
       id_column: "RECORD_ID"
   $$;
+
+-- =====================================================
+-- Grant Access
+-- =====================================================
+-- Required for non-ACCOUNTADMIN roles to open and query
+-- the agent in Snowflake Intelligence.
+-- CLD access (database / schema / tables) was granted in Step 4.
+--
+-- Additional variables:
+--   <% ROLE %> = role to grant access to (e.g., KAMESH_DEMOS)
+-- =====================================================
+
+USE ROLE ACCOUNTADMIN;
+
+-- Agent access
+GRANT USAGE ON AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.STREETLIGHTS_AGENT TO ROLE <% ROLE %>;
+
+-- Database and schema access
+GRANT USAGE ON DATABASE <% PREFIX %>_STREETLIGHTS TO ROLE <% ROLE %>;
+GRANT USAGE ON SCHEMA <% PREFIX %>_STREETLIGHTS.PUBLIC TO ROLE <% ROLE %>;
+
+-- Tool resources access
+GRANT USAGE ON SEMANTIC VIEW <% PREFIX %>_STREETLIGHTS.PUBLIC.STREETLIGHTS_SEMANTIC_VIEW TO ROLE <% ROLE %>;
+GRANT USAGE ON CORTEX SEARCH SERVICE <% PREFIX %>_STREETLIGHTS.PUBLIC.MAINTENANCE_SEARCH TO ROLE <% ROLE %>;
+
+-- Warehouse for query execution
+GRANT USAGE ON WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH TO ROLE <% ROLE %>;

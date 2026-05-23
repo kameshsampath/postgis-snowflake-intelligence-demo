@@ -75,12 +75,21 @@ If user skips: note it was skipped, move to next step.
 
 ### Steps
 
-1. Read manifest for database/warehouse names
-2. Execute Agent DDL:
+1. Read manifest for database/warehouse/role names
+2. Execute Agent DDL + Grant Access:
    ```bash
-   snow sql -f snowflake/04_intelligence_agent.sql
+   snow sql -f snowflake/04_intelligence_agent.sql \
+     -D "PREFIX={manifest.demo.prefix.upper()}" \
+     -D "ROLE={manifest.snowflake.role}" \
+     -c {manifest.snowflake.connection} \
+     --enable-templating ALL
    ```
 3. Verify agent responds to a test query
+4. Verify grants were applied:
+   ```sql
+   SHOW GRANTS TO ROLE {manifest.snowflake.role};
+   ```
+   Expect `USAGE` on `STREETLIGHTS_AGENT`, `STREETLIGHTS_SEMANTIC_VIEW`, `MAINTENANCE_SEARCH`, and `STREETLIGHTS_WH`.
 
 ### Key Details
 
@@ -109,6 +118,7 @@ If user skips: note it was skipped, move to next step.
 - ✅ Intelligence Agent created with FROM SPECIFICATION
 - ✅ Orchestration routing rules configured (Analyst vs Search)
 - ✅ Map link generation enabled for lat/lng results
+- ✅ Grant Access applied: configured role can open the agent in Snowflake Intelligence
 - ✅ Gate check: `check_agent_accessible` passed
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.

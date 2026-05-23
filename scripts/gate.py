@@ -48,6 +48,34 @@ class GateResult:
 # ---------------------------------------------------------------------------
 
 
+def _snow_json(query: str, connection: str) -> tuple[int, list[dict]]:
+    """Run a snow sql query and return (returncode, list-of-row-dicts)."""
+    import json as _json
+
+    r = subprocess.run(
+        [
+            "snow",
+            "sql",
+            "-q",
+            query,
+            "-c",
+            connection,
+            "--format",
+            "json",
+            "--enable-templating",
+            "ALL",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if r.returncode != 0:
+        return r.returncode, []
+    try:
+        return 0, _json.loads(r.stdout)
+    except Exception:
+        return 0, []
+
+
 def _get_current_ip() -> str:
     """Detect current public IP address."""
     try:
@@ -63,19 +91,21 @@ def _get_current_ip() -> str:
             return ""
 
 
-def _get_pg_allowed_ips(instance: str) -> list[str]:
+def _get_pg_allowed_ips(instance: str, connection: str | None = None) -> list[str]:
     """Get allowed IPs from PG instance network policy via DESCRIBE."""
     import re
 
-    result = subprocess.run(
-        ["snow", "sql", "-q", f"DESCRIBE POSTGRES INSTANCE {instance}"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
+    if not connection:
+        return []
+    query = f"DESCRIBE POSTGRES INSTANCE {instance}"
+    rc, rows = _snow_json(query, connection)
+    if rc != 0:
         return []
     # Extract IP-like patterns from the describe output
-    ips = re.findall(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:/\d{1,2})?", result.stdout)
+    ips: list[str] = []
+    for row in rows:
+        for v in row.values():
+            ips.extend(re.findall(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}(?:/\d{1,2})?", str(v)))
     return ips
 
 
@@ -128,41 +158,34 @@ def _pg_ping(manifest: Manifest) -> bool:
             pass
 
     # Last resort: verify instance exists via Snowflake SQL
-    result = subprocess.run(
-        ["snow", "sql", "-q", f"SHOW POSTGRES INSTANCES LIKE '{instance}'"],
-        capture_output=True,
-        text=True,
-    )
-    return result.returncode == 0 and instance.lower() in result.stdout.lower()
+    query = f"SHOW POSTGRES INSTANCES LIKE '{instance}'"
+    rc, rows = _snow_json(query, manifest.snowflake.connection)
+    return rc == 0 and any(r.get("name", "").lower() == instance.lower() for r in rows)
 
 
-def _cld_table_count(cld_db: str) -> int:
+def _cld_table_count(cld_db: str, connection: str | None = None) -> int:
     """Return table count in CLD database."""
-    result = subprocess.run(
-        ["snow", "sql", "-q", f"SELECT COUNT(*) FROM {cld_db}.INFORMATION_SCHEMA.TABLES"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
+    if not connection:
         raise Exception(f"CLD database {cld_db} does not exist or is not accessible")
-    # Parse count from output
-    for line in result.stdout.strip().splitlines():
-        line = line.strip()
-        if line.isdigit():
-            return int(line)
-    return 0
+    query = f"SELECT COUNT(*) FROM {cld_db}.INFORMATION_SCHEMA.TABLES"
+    rc, rows = _snow_json(query, connection)
+    if rc != 0:
+        raise Exception(f"CLD database {cld_db} does not exist or is not accessible")
+    try:
+        return int(rows[0]["COUNT(*)"]) if rows else 0
+    except (KeyError, ValueError):
+        return 0
 
 
-def _get_account_params() -> dict[str, bool]:
+def _get_account_params(connection: str | None = None) -> dict[str, bool]:
     """Get account parameters related to Snowflake Postgres."""
     params = {}
+    if not connection:
+        return params
     for param in ["ENABLE_SNOWFLAKE_POSTGRES", "ENABLE_POSTGRES_HIDDEN_EXTERNAL_VOLUME"]:
-        result = subprocess.run(
-            ["snow", "sql", "-q", f"SHOW PARAMETERS LIKE '{param}' IN ACCOUNT"],
-            capture_output=True,
-            text=True,
-        )
-        params[param] = result.returncode == 0 and "true" in result.stdout.lower()
+        query = f"SHOW PARAMETERS LIKE '{param}' IN ACCOUNT"
+        rc, rows = _snow_json(query, connection)
+        params[param] = rc == 0 and any(r.get("value", "").lower() == "true" for r in rows)
     return params
 
 
@@ -255,26 +278,47 @@ def check_pg_reachable(project_root: Path) -> GateResult:
 
 
 def check_cld_healthy(project_root: Path) -> GateResult:
-    """Gate: CLD DB exists + table count > 0."""
+    """Gate: warehouse exists + CLD DB exists + table count > 0."""
     try:
         manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
+    connection = manifest.snowflake.connection
+    warehouse = manifest.demo.warehouse
+
+    # Check warehouse exists (use JSON format for reliable parsing)
+    wh_query = f"SHOW WAREHOUSES LIKE '{warehouse}'"
+    wh_rc, wh_rows = _snow_json(wh_query, connection)
+    if wh_rc != 0:
+        return GateResult(success=False, message="Could not query warehouses")
+    wh_exists = any(r.get("name", "").upper() == warehouse.upper() for r in wh_rows)
+    if not wh_exists:
+        return GateResult(
+            success=False,
+            message=f"Warehouse '{warehouse}' not found — re-run Step 4 setup (01_setup.sql)",
+        )
+
     cld_db = manifest.demo.cld_database
     try:
-        count = _cld_table_count(cld_db)
+        count = _cld_table_count(cld_db, connection)
     except Exception as e:
         return GateResult(success=False, message=f"CLD database error: {e}")
 
     if count > 0:
-        return GateResult(success=True, message=f"CLD healthy: {count} tables found")
+        return GateResult(
+            success=True, message=f"CLD healthy: {count} tables found, warehouse present"
+        )
     return GateResult(success=False, message="CLD has 0 tables — propagation may not be complete")
 
 
 def check_account_params(project_root: Path) -> GateResult:
     """Gate: required account params are set."""
-    params = _get_account_params()
+    try:
+        manifest = load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+    params = _get_account_params(manifest.snowflake.connection)
     if params.get("ENABLE_SNOWFLAKE_POSTGRES"):
         return GateResult(success=True, message="Account params enabled")
     return GateResult(
@@ -291,19 +335,15 @@ def check_snowflake_connection(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     connection = manifest.snowflake.connection or "default"
-    result = subprocess.run(
-        ["snow", "sql", "-q", "SELECT CURRENT_ACCOUNT()", "-c", connection],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0:
+    rc, rows = _snow_json("SELECT CURRENT_ACCOUNT()", connection)
+    if rc == 0:
         return GateResult(
             success=True,
             message=f"Snowflake connection '{connection}' is valid",
         )
     return GateResult(
         success=False,
-        message=f"Snowflake connection '{connection}' failed: {result.stderr.strip()[:200]}",
+        message=f"Snowflake connection '{connection}' failed",
     )
 
 
@@ -329,7 +369,7 @@ def check_pg_network_access(project_root: Path) -> GateResult:
         )
 
     # Get allowed IPs from PG instance
-    allowed_ips = _get_pg_allowed_ips(instance)
+    allowed_ips = _get_pg_allowed_ips(instance, manifest.snowflake.connection)
     if not allowed_ips:
         # Can't determine policy — fall back to connectivity check
         if _pg_ping(manifest):
@@ -408,7 +448,7 @@ def _check_pg_tables(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     instance = manifest.demo.pg_instance
-    pg_service = os.environ.get("PGSERVICE", instance)
+    pg_service = manifest.demo.pg_service or instance
 
     query = (
         "SELECT COUNT(*) FROM information_schema.tables "
@@ -434,25 +474,54 @@ def _check_pg_tables(project_root: Path) -> GateResult:
 
 
 def _check_semantic_view(project_root: Path) -> GateResult:
-    """Verify semantic view exists via snow sql."""
+    """Verify semantic view exists and YAML primary_key columns are valid identifiers."""
+    import re as _re
+
     try:
         manifest = load_manifest(project_root)
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     connection = manifest.snowflake.connection or "default"
-    cld_db = manifest.demo.cld_database
-    result = subprocess.run(
-        ["snow", "sql", "-q", f"SHOW SEMANTIC VIEWS IN DATABASE {cld_db}", "-c", connection],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0 and "semantic" in result.stdout.lower():
-        return GateResult(success=True, message="Semantic view found")
-    if result.returncode == 0:
-        return GateResult(success=False, message="No semantic views found in CLD database")
+    # Semantic view is created in the regular database (CLD is read-only)
+    database = manifest.demo.database
+    query = f"SHOW SEMANTIC VIEWS IN DATABASE {database}"
+    rc, rows = _snow_json(query, connection)
+    if rc != 0:
+        return GateResult(success=False, message="SHOW SEMANTIC VIEWS failed")
+    if not rows:
+        return GateResult(success=False, message="No semantic views found in database")
+
+    # Build FQN for YAML validation
+    row = rows[0]
+    db_name = row.get("database_name", database)
+    schema_name = row.get("schema_name", "PUBLIC")
+    view_name = row.get("name", "STREETLIGHTS_SEMANTIC_VIEW")
+    fqn = f"{db_name}.{schema_name}.{view_name}"
+
+    # Validate YAML: primary_key columns must not be quoted (e.g., '"id"' is invalid)
+    yaml_query = f"SELECT SYSTEM$READ_YAML_FROM_SEMANTIC_VIEW('{fqn}') AS YAML_CONTENT"
+    yaml_rc, yaml_rows = _snow_json(yaml_query, connection)
+    if yaml_rc != 0 or not yaml_rows:
+        return GateResult(
+            success=False,
+            message=f"Could not read YAML from semantic view {fqn}",
+        )
+
+    yaml_str = str(list(yaml_rows[0].values())[0]) if yaml_rows else ""
+    # Detect quoted primary_key columns: pattern "- '"id"'" under primary_key.columns
+    if _re.search(r"primary_key:.*?columns:.*?- '\"", yaml_str, _re.DOTALL):
+        return GateResult(
+            success=False,
+            message=(
+                f"Semantic view YAML has quoted primary_key columns (e.g. '\"id\"'). "
+                f"Redeploy {fqn} with unquoted PRIMARY KEY identifiers."
+            ),
+        )
+
     return GateResult(
-        success=False, message=f"SHOW SEMANTIC VIEWS failed: {result.stderr.strip()[:200]}"
+        success=True,
+        message=f"Semantic view found and YAML primary_key columns are valid ({fqn})",
     )
 
 
@@ -464,26 +533,14 @@ def _check_cortex_search(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     connection = manifest.snowflake.connection or "default"
-    cld_db = manifest.demo.cld_database
-    result = subprocess.run(
-        [
-            "snow",
-            "sql",
-            "-q",
-            f"SHOW CORTEX SEARCH SERVICES IN DATABASE {cld_db}",
-            "-c",
-            connection,
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0 and "search" in result.stdout.lower():
+    database = manifest.demo.database
+    query = f"SHOW CORTEX SEARCH SERVICES IN DATABASE {database}"
+    rc, rows = _snow_json(query, connection)
+    if rc == 0 and len(rows) > 0:
         return GateResult(success=True, message="Cortex Search Service found")
-    if result.returncode == 0:
+    if rc == 0:
         return GateResult(success=False, message="No Cortex Search Services found")
-    return GateResult(
-        success=False, message=f"SHOW CORTEX SEARCH SERVICES failed: {result.stderr.strip()[:200]}"
-    )
+    return GateResult(success=False, message="SHOW CORTEX SEARCH SERVICES failed")
 
 
 def _check_agent(project_root: Path) -> GateResult:
@@ -494,17 +551,14 @@ def _check_agent(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     connection = manifest.snowflake.connection or "default"
-    cld_db = manifest.demo.cld_database
-    result = subprocess.run(
-        ["snow", "sql", "-q", f"SHOW AGENTS IN DATABASE {cld_db}", "-c", connection],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0 and "agent" in result.stdout.lower():
+    database = manifest.demo.database
+    query = f"SHOW AGENTS IN DATABASE {database}"
+    rc, rows = _snow_json(query, connection)
+    if rc == 0 and len(rows) > 0:
         return GateResult(success=True, message="Intelligence Agent found")
-    if result.returncode == 0:
-        return GateResult(success=False, message="No Agents found in CLD database")
-    return GateResult(success=False, message=f"SHOW AGENTS failed: {result.stderr.strip()[:200]}")
+    if rc == 0:
+        return GateResult(success=False, message="No Agents found in database")
+    return GateResult(success=False, message="SHOW AGENTS failed")
 
 
 def _check_forecast(project_root: Path) -> GateResult:
@@ -515,26 +569,14 @@ def _check_forecast(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     connection = manifest.snowflake.connection or "default"
-    cld_db = manifest.demo.cld_database
-    result = subprocess.run(
-        [
-            "snow",
-            "sql",
-            "-q",
-            f"SHOW SNOWFLAKE.ML.FORECAST IN DATABASE {cld_db}",
-            "-c",
-            connection,
-        ],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0 and "forecast" in result.stdout.lower():
+    database = manifest.demo.database
+    query = f"SHOW SNOWFLAKE.ML.FORECAST IN DATABASE {database}"
+    rc, rows = _snow_json(query, connection)
+    if rc == 0 and len(rows) > 0:
         return GateResult(success=True, message="ML Forecast model found")
-    if result.returncode == 0:
+    if rc == 0:
         return GateResult(success=False, message="No Forecast models found")
-    return GateResult(
-        success=False, message=f"SHOW FORECAST failed: {result.stderr.strip()[:200]}"
-    )
+    return GateResult(success=False, message="SHOW FORECAST failed")
 
 
 def _check_streamlit(project_root: Path) -> GateResult:
@@ -545,19 +587,14 @@ def _check_streamlit(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     connection = manifest.snowflake.connection or "default"
-    cld_db = manifest.demo.cld_database
-    result = subprocess.run(
-        ["snow", "sql", "-q", f"SHOW STREAMLITS IN DATABASE {cld_db}", "-c", connection],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode == 0 and "streamlit" in result.stdout.lower():
+    database = manifest.demo.database
+    query = f"SHOW STREAMLITS IN DATABASE {database}"
+    rc, rows = _snow_json(query, connection)
+    if rc == 0 and len(rows) > 0:
         return GateResult(success=True, message="Streamlit app found")
-    if result.returncode == 0:
+    if rc == 0:
         return GateResult(success=False, message="No Streamlit apps found")
-    return GateResult(
-        success=False, message=f"SHOW STREAMLITS failed: {result.stderr.strip()[:200]}"
-    )
+    return GateResult(success=False, message="SHOW STREAMLITS failed")
 
 
 def _check_all(project_root: Path) -> GateResult:
