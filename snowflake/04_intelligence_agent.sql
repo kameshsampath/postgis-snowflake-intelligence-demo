@@ -25,12 +25,12 @@
 -- routing and chart generation.
 --
 -- Variables to replace:
---   ${PREFIX} = your demo_resource_prefix in UPPERCASE (e.g., KAMESHS)
+--   <% PREFIX %> = your demo_resource_prefix in UPPERCASE (e.g., KAMESHS)
 -- =====================================================
 
-USE WAREHOUSE ${PREFIX}_STREETLIGHTS_WH;
+USE WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH;
 
-CREATE OR REPLACE CORTEX AGENT ${PREFIX}_STREETLIGHTS_CLD."streetlights".streetlights_agent
+CREATE OR REPLACE AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_agent
   COMMENT = 'Intelligence agent for streetlight infrastructure: analytics + maintenance search'
   FROM SPECIFICATION
   $$
@@ -98,9 +98,9 @@ CREATE OR REPLACE CORTEX AGENT ${PREFIX}_STREETLIGHTS_CLD."streetlights".streetl
 
   tool_resources:
     StreetlightsAnalyst:
-      semantic_view: "${PREFIX}_STREETLIGHTS_CLD.\"streetlights\".streetlights_semantic_view"
+      semantic_view: "<% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_semantic_view"
     MaintenanceSearch:
-      name: "${PREFIX}_STREETLIGHTS_CLD.\"streetlights\".maintenance_search"
+      name: "<% PREFIX %>_STREETLIGHTS.PUBLIC.maintenance_search"
       max_results: "5"
       title_column: "maintenance_type"
       id_column: "id"
