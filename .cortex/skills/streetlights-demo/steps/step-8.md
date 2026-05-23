@@ -78,7 +78,7 @@ If user skips: note it was skipped, move to next step.
 1. Read manifest for database/warehouse names
 2. Execute ML Forecast DDL:
    ```bash
-   snow sql -f snowflake/05_ml_forecast.sql
+   snow sql -f snowflake/05_ml_forecast.sql -D "PREFIX=KAMESHS" -c local-oauth --enable-templating ALL
    ```
 3. Wait for model training to complete (may take 2-5 minutes)
 

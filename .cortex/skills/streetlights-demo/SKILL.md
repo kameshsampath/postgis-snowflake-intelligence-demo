@@ -11,6 +11,19 @@ invocations:
 # Streetlights Demo Skill
 
 ## Global Rules
+
+### Core execution rules (see AGENTS.md for full details)
+
+1. **snow sql**: always pass `--format json`, `-c {connection}`, `--enable-templating ALL`.
+   - Template syntax: `<% PREFIX %>` (STANDARD). Never `${PREFIX}`.
+   - Execution: `snow sql -f snowflake/FILE.sql -D "PREFIX=KAMESHS" -c {connection} --enable-templating ALL`
+
+2. **manifest.toml is source of truth**: read config via `load_manifest()`. Never use `.env` as a config source. `prefix` is lowercase in manifest but must be UPPERCASE in `-D "PREFIX=..."` flag.
+
+3. **CLD columns need quoting**: CLD tables have lowercase column names from PostgreSQL. Always double-quote: `"light_id"`, `"date"`, `"status"`, `"kwh"`, etc.
+
+4. **Object placement**: create ALL Snowflake objects (semantic views, Cortex Search, agents, ML Forecast, Streamlit) in `{PREFIX}_STREETLIGHTS.PUBLIC`. CLD is read-only — SELECT only.
+
 - **Always use markdown** for all user-facing output (tables, code blocks, admonitions)
 - **Never hallucinate** — if uncertain about any value, path, or state, use `ask_user_question` to confirm with the user
 - **Stop on billable actions** — always warn and confirm before creating PG instances or CLD

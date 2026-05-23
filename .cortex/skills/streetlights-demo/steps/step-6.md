@@ -78,7 +78,7 @@ If user skips: note it was skipped, move to next step.
 1. Read manifest for database/warehouse names
 2. Execute Cortex Search DDL:
    ```bash
-   snow sql -f snowflake/03_cortex_search.sql
+   snow sql -f snowflake/03_cortex_search.sql -D "PREFIX=KAMESHS" -c local-oauth --enable-templating ALL
    ```
 3. Wait for service to become ACTIVE (may take 1-2 minutes)
 
