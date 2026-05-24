@@ -31,6 +31,8 @@ If PASS: continue below.
 uv run gate --step setup --desc "Initializing streetlights demo" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Setup: Initialize Streetlights Demo
 
 ## What we'll do
@@ -44,14 +46,7 @@ Configure the demo by collecting your Snowflake connection, resource prefix, and
 
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
-## ⚠️ Proceed?
-
-Use `ask_user_question` to confirm:
-- Header: "Setup"
-- Question: "Ready to initialize the streetlights demo configuration?"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a summary of what setup will configure. Proceed to Execution only after the user confirms.
 
 ## Execution
 

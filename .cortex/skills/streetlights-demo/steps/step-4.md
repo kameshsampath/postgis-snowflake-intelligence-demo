@@ -18,6 +18,8 @@ If PASS: continue below.
 uv run gate --step step-4 --desc "Creating Catalog Integration + CLD" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Step 4: Catalog Integration + CLD
 
 ## Why this matters
@@ -29,15 +31,6 @@ uv run gate --step step-4 --desc "Creating Catalog Integration + CLD" --action s
 **IDD connection** — The CLD is the [Ghost in the Machine](https://blogs.kameshs.dev/the-ghost-in-the-machine-why-ai-needs-the-spirit-of-uml-0d8864e583e2) — a live, self-updating data contract that bridges two systems without human intervention. Combined with [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c), the entire setup (catalog integration + CLD + access grants) is declared as intent in this skill file and executed by CoCo.
 
 > ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
-
----
-
-**STOP** — Use `ask_user_question` to confirm:
-- Header: "Step 4"
-- Question: "Ready to proceed with catalog integration? (billable — enables continuous Iceberg sync)"
-- Options: ["Yes, proceed", "Skip this step"]
-
----
 
 ## What we'll do
 
@@ -53,7 +46,7 @@ Create the Snowflake catalog integration pointing to the Postgres instance, then
 
 ## Dry-Run
 
-> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+> ⚠️ **MANDATORY**: Plan mode is already active. Run the dry-run command and present the output to the user.
 
 Show the execution plan to the user:
 ```bash
@@ -61,16 +54,7 @@ uv run gate --step step-4 --action dry-run
 ```
 Present the output, then ask user to proceed.
 
-## Proceed?
-
-> ⚠️ **Billable**: This creates a Catalog Integration and enables continuous sync. Credits consumed while running.
-
-Use `ask_user_question` to confirm:
-- Header: "Step 4"
-- Question: "Ready to create the Catalog Integration and CLD? (billable — enables continuous sync)"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a plan summary of what the step will execute. Proceed to Execution only after the user confirms.
 
 ## Execution
 

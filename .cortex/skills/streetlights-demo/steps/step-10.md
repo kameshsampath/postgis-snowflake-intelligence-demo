@@ -18,6 +18,8 @@ If PASS: continue below.
 uv run gate --step step-10 --desc "Validating end-to-end demo" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Step 10: Validate & Demo
 
 ## What we'll do
@@ -30,14 +32,7 @@ Run the full end-to-end sanity gate to verify all components are operational, th
 
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
-## ⚠️ Proceed?
-
-Use `ask_user_question` to confirm:
-- Header: "Step 10"
-- Question: "Ready to run end-to-end validation?"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a summary of what validation will run. Proceed to Execution only after the user confirms.
 
 ## Execution
 

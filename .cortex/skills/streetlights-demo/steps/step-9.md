@@ -18,6 +18,8 @@ If PASS: continue below.
 uv run gate --step step-9 --desc "Deploying SiS app" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Step 9: Deploy SiS App
 
 ## Why this matters
@@ -29,15 +31,6 @@ uv run gate --step step-9 --desc "Deploying SiS app" --action start
 **IDD connection** — The SiS deployment is the final layer of [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14): the app source directory *is* the intent, and the `$developing-with-streamlit-in-snowflake` skill handles deployment mechanics (staging, permissions, CREATE STREAMLIT).
 
 > ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
-
----
-
-**STOP** — Use `ask_user_question` to confirm:
-- Header: "Step 9"
-- Question: "Ready to proceed with Streamlit app deployment? (multi-page dashboard in Snowflake)"
-- Options: ["Yes, proceed", "Skip this step"]
-
----
 
 ## What we'll do
 
@@ -51,7 +44,7 @@ Deploy the multi-page Streamlit in Snowflake (SiS) application that provides a v
 
 ## Dry-Run
 
-> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+> ⚠️ **MANDATORY**: Plan mode is already active. Run the dry-run command and present the output to the user.
 
 Show the execution plan to the user:
 ```bash
@@ -59,14 +52,7 @@ uv run gate --step step-9 --action dry-run
 ```
 Present the output, then ask user to proceed.
 
-## ⚠️ Proceed?
-
-Use `ask_user_question` to confirm:
-- Header: "Step 9"
-- Question: "Ready to deploy the Streamlit dashboard app?"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a plan summary of what the step will execute. Proceed to Execution only after the user confirms.
 
 ## Execution
 

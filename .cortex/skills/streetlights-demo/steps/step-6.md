@@ -18,6 +18,8 @@ If PASS: continue below.
 uv run gate --step step-6 --desc "Creating Cortex Search service" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Step 6: Create Cortex Search Service
 
 ## Why this matters
@@ -29,15 +31,6 @@ uv run gate --step step-6 --desc "Creating Cortex Search service" --action start
 **IDD connection** — The Cortex Search service is another layer of [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14) — declared once in DDL and continuously maintained by Snowflake. The skill file captures the *what*, the platform handles the *how* (embedding generation, index maintenance, refresh cycles).
 
 > ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
-
----
-
-**STOP** — Use `ask_user_question` to confirm:
-- Header: "Step 6"
-- Question: "Ready to proceed with Cortex Search? (indexes maintenance records for semantic text search)"
-- Options: ["Yes, proceed", "Skip this step"]
-
----
 
 ## What we'll do
 
@@ -53,7 +46,7 @@ Create a Cortex Search service that indexes maintenance record descriptions for 
 
 ## Dry-Run
 
-> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+> ⚠️ **MANDATORY**: Plan mode is already active. Run the dry-run command and present the output to the user.
 
 Show the execution plan to the user:
 ```bash
@@ -61,14 +54,7 @@ uv run gate --step step-6 --action dry-run
 ```
 Present the output, then ask user to proceed.
 
-## ⚠️ Proceed?
-
-Use `ask_user_question` to confirm:
-- Header: "Step 6"
-- Question: "Ready to create the Cortex Search service on maintenance records?"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a plan summary of what the step will execute. Proceed to Execution only after the user confirms.
 
 ## Execution
 

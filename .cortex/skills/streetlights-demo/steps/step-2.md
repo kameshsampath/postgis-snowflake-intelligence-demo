@@ -18,6 +18,8 @@ If PASS: continue below.
 uv run gate --step step-2 --desc "Creating Snowflake Postgres instance" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Step 2: Snowflake Postgres Instance
 
 ## What we'll do
@@ -34,7 +36,7 @@ Create a Snowflake Postgres instance with managed storage (required for CLD). Th
 
 ## Dry-Run
 
-> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+> ⚠️ **MANDATORY**: Plan mode is already active. Run the dry-run command and present the output to the user.
 
 Show the execution plan to the user:
 ```bash
@@ -42,16 +44,9 @@ uv run gate --step step-2 --action dry-run
 ```
 Present the output, then ask user to proceed.
 
-## ⚠️ Proceed?
+> ⚠️ **Billable**: This creates a Snowflake Postgres instance. Credits will be consumed while running.
 
-> **⚠️ Billable**: This creates a Snowflake Postgres instance. Credits consumed while running.
-
-Use `ask_user_question` to confirm:
-- Header: "Step 2"
-- Question: "Ready to create a Snowflake Postgres instance? (billable — credits consumed while running)"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a plan summary noting the billable action. Proceed to Execution only after the user confirms.
 
 ## Execution
 

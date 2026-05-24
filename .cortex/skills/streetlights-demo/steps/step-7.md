@@ -18,6 +18,8 @@ If PASS: continue below.
 uv run gate --step step-7 --desc "Creating Intelligence Agent" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Step 7: Create Intelligence Agent
 
 ## Why this matters
@@ -29,15 +31,6 @@ uv run gate --step step-7 --desc "Creating Intelligence Agent" --action start
 **IDD connection** — The agent's `FROM SPECIFICATION` block is the purest form of [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c) — you declare routing rules, sample questions, and tool configurations as intent. The platform handles LLM orchestration, tool invocation, and response synthesis.
 
 > ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
-
----
-
-**STOP** — Use `ask_user_question` to confirm:
-- Header: "Step 7"
-- Question: "Ready to proceed with Intelligence Agent creation? (combines Analyst + Search)"
-- Options: ["Yes, proceed", "Skip this step"]
-
----
 
 ## What we'll do
 
@@ -54,7 +47,7 @@ Create the Cortex Intelligence Agent that combines Semantic View (structured ana
 
 ## Dry-Run
 
-> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+> ⚠️ **MANDATORY**: Plan mode is already active. Run the dry-run command and present the output to the user.
 
 Show the execution plan to the user:
 ```bash
@@ -62,14 +55,7 @@ uv run gate --step step-7 --action dry-run
 ```
 Present the output, then ask user to proceed.
 
-## ⚠️ Proceed?
-
-Use `ask_user_question` to confirm:
-- Header: "Step 7"
-- Question: "Ready to create the Intelligence Agent?"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a plan summary of what the step will execute. Proceed to Execution only after the user confirms.
 
 ## Execution
 

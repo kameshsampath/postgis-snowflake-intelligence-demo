@@ -18,6 +18,8 @@ If PASS: continue below.
 uv run gate --step step-1 --desc "Generating synthetic data" --action start
 ```
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` immediately after marking the step IN_PROGRESS. Do NOT present any step content until plan mode is active.
+
 # Step 1: Generate Synthetic Data
 
 ## What we'll do
@@ -32,14 +34,7 @@ Generate 7 CSV files of synthetic streetlight data (lights, maintenance records,
 
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
-## ⚠️ Proceed?
-
-Use `ask_user_question` to confirm:
-- Header: "Step 1"
-- Question: "Ready to generate synthetic data for your city?"
-- Options: ["Yes, proceed", "Skip this step"]
-
-If user skips: note it was skipped, move to next step.
+> ⚠️ **MANDATORY**: Call `exit_plan_mode` with a summary of what data will be generated. Proceed to Execution only after the user confirms.
 
 ## Execution
 
