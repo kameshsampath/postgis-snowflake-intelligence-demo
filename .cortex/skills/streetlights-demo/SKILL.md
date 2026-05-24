@@ -112,6 +112,8 @@ commands run, Python scripts called, API calls made, configuration files written
 Step 10 recalls these from session memory and compiles the full **IDD Session Summary**
 (Infrastructure ICR + Query ICR via `uv run idd-metrics`).
 
+For pre-computed baseline values to answer user questions, see `references/idd-metrics.md`.
+
 ## Step Overview
 
 | Step | Title | Key Actions |

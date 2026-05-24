@@ -108,6 +108,17 @@ def _fmt_row(
     )
 
 
+LEGEND = """\
+  Column legend:
+    NL tok      tokens in your natural language intent (SNOWFLAKE.CORTEX.COUNT_TOKENS or tiktoken)
+    Trad ops    traditional manual ops this intent replaces (SQL + bash + Python + API calls)
+    SQL~est     estimated tokens in the SQL Cortex Analyst generates (~approximation)
+    SQL/NL tok  output amplification — SQL tokens generated per NL intent token (higher = better)
+                e.g. 9 NL tokens → 54 SQL tokens = 6.0×  (Cortex did 6× the token work you typed)
+    ICR score   int(trad_ops × 1000 ÷ NL tokens) — ops per intent token, higher = better (icr-lab)
+"""
+
+
 @click.command()
 @click.option("--intent", default=None, help="Single custom intent to analyse (NL query text)")
 @click.option(
@@ -156,7 +167,7 @@ def main(intent: str | None, model: str) -> None:
         click.echo(
             f"  NL tokens: {nl_tokens}" "  (ops + SQL estimates require live Cortex execution)"
         )
-        click.echo()
+        click.echo(LEGEND)
         return
 
     total_nl = total_ops = total_sql = total_icr = 0
@@ -191,4 +202,4 @@ def main(intent: str | None, model: str) -> None:
     click.echo(
         "  Note: SQL token counts (~) are estimates based on observed Cortex Analyst patterns."
     )
-    click.echo()
+    click.echo(LEGEND)
