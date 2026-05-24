@@ -109,25 +109,40 @@ This will:
 - Ask which **Snowflake connection** to use
 - Write `.streetlights-demo/manifest.toml` (gitignored, local only)
 
-### 3. Walk through steps 1–10
+### 3. Run the two phases
 
-Each step shows what it will do, asks you to confirm, executes, then shows results:
+The demo is split into two self-contained phases. Each phase is a single command with one
+upfront plan-mode confirmation — you see why it matters, what will execute, and a dry-run
+preview before anything runs.
 
+**Phase 1 — Infrastructure** (steps 1–7, sequential):
 ```
-$streetlights-demo step 1    # Generate synthetic data (7 CSVs for your city)
-$streetlights-demo step 2    # Create Snowflake Postgres instance (⚠️ billable)
-$streetlights-demo step 3    # Create Iceberg tables + load data
-$streetlights-demo step 4    # Create CLD — zero-pipeline sync (⚠️ billable)
-$streetlights-demo step 5    # Create Semantic View
-$streetlights-demo step 6    # Create Cortex Search service
-$streetlights-demo step 7    # Create Intelligence Agent
-$streetlights-demo step 8    # Train ML Forecast model
-$streetlights-demo step 9    # Deploy Streamlit app
-$streetlights-demo step 10   # Validate everything + demo questions
+$streetlights-demo infra
 ```
+Builds: CSV data → PG Iceberg tables → CLD → Semantic View → Cortex Search → Intelligence Agent.
+At the end you're asked whether to continue to the App phase or stop — the Agent is fully
+queryable in Snowflake Intelligence at this point.
 
-> **Tip**: You can run steps individually or ask CoCo to "run all remaining steps"
-> and it will walk you through each one sequentially.
+**Phase 2 — App** (steps 8–10, Forecast + SiS run in parallel):
+```
+$streetlights-demo app
+```
+Adds: ML Forecast model + Streamlit dashboard + end-to-end validation.
+
+> **Or run steps individually** if you prefer step-by-step control:
+>
+> ```
+> $streetlights-demo step 1    # Generate synthetic data (7 CSVs for your city)
+> $streetlights-demo step 2    # Create Snowflake Postgres instance (⚠️ billable)
+> $streetlights-demo step 3    # Create Iceberg tables + load data
+> $streetlights-demo step 4    # Create CLD — zero-pipeline sync (⚠️ billable)
+> $streetlights-demo step 5    # Create Semantic View
+> $streetlights-demo step 6    # Create Cortex Search service
+> $streetlights-demo step 7    # Create Intelligence Agent
+> $streetlights-demo step 8    # Train ML Forecast model
+> $streetlights-demo step 9    # Deploy Streamlit app
+> $streetlights-demo step 10   # Validate everything + demo questions
+> ```
 
 ### 4. Test the demo end-to-end
 
@@ -221,17 +236,17 @@ $$
 
 Run `uv run idd-metrics` to compute live ICR scores for the demo intents.
 
-**Demo ICR — this session:**
+**Infrastructure phase ICR** — traditional ops replaced per phase invocation:
 
-| Intent | Traditional ops | ICR |
-|---|---|---|
-| "How many street lights are faulty?" | SELECT + WHERE + COUNT + GROUP BY + format = 5 | **5** |
-| "Which neighborhoods use most energy?" | 2-table JOIN + GROUP BY + ORDER BY + LIMIT = 5 | **5** |
-| "Find reports about exposed wires" | Semantic search + rank + dedupe + display = 4 | **4** |
-| "Predict energy for next 30 days" | FORECAST call + params + execute + chart = 5 | **5** |
-| "Issues in the busiest neighborhood" | Subquery + JOIN + Search + merge results = 8 | **8** |
+| Phase | Command | Trad. ops | Invocations | ICR |
+|-------|---------|----------:|:-----------:|----:|
+| Infrastructure | `$streetlights-demo infra` | 60 | 1 | **60** |
+| Infrastructure (per-step avg) | `$streetlights-demo step N` × 7 | 60 | 7 | **8** avg |
+| App phase | `$streetlights-demo app` | 19 | 1 | **19** |
+| **Full session** | setup + infra + app | **79** | **3** | **26** avg |
 
-**Average ICR: 5** (27 ops ÷ 5 intents, floor — ops are always whole numbers)
+> Phase-level ICR shows the leverage of expressing *intent at the phase boundary* rather than
+> step-by-step. One `$streetlights-demo infra` replaces 60 discrete manual operations.
 
 ### Token Economics
 
@@ -292,9 +307,13 @@ task sf:forecast
 .
 ├── .cortex/skills/streetlights-demo/   # CoCo skill (guided workflow)
 │   ├── SKILL.md                        # Coordinator + router
-│   ├── steps/                          # Step sub-skills (setup, 1-10)
+│   ├── steps/                          # Step sub-skills
+│   │   ├── infra.md                    # Phase 1 orchestrator (steps 1–7, sequential)
+│   │   ├── app.md                      # Phase 2 orchestrator (steps 8–10, parallel)
+│   │   ├── setup.md                    # Init manifest
+│   │   └── step-1.md … step-10.md     # Individual step files
 │   ├── cleanup/                        # Teardown skill
-│   └── references/                     # Concepts + PostGIS contrast
+│   └── references/                     # Concepts + IDD metrics
 ├── app/                                # Streamlit in Snowflake app
 │   ├── Home.py                         # Entry point
 │   ├── pages/                          # Multi-page views
