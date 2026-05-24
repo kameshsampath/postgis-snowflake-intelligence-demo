@@ -875,16 +875,20 @@ def _dry_run(project_root: Path, step: str) -> None:
         print("=" * 40)
         print()
         print(f"  Database: {cld_database}")
-        print(f"  Warehouse: {warehouse}")
+        print(f"  Warehouse: {warehouse} (resized MEDIUM during training, XSMALL after)")
         print()
         print("Actions:")
-        print("  1. Train SNOWFLAKE.ML.FORECAST on energy_consumption")
-        print("  2. Verify model exists and produces predictions")
+        print("  1. Grant CREATE VIEW + CREATE FORECAST on schema (as ACCOUNTADMIN)")
+        print("  2. Resize warehouse to MEDIUM")
+        print("  3. Create energy_daily_vw (with lat/lng/neighborhood/status)")
+        print("  4. Train SNOWFLAKE.ML.FORECAST on energy_consumption (background)")
+        print("  5. Resize warehouse back to XSMALL (auto, after training)")
         print()
         print("  File:    snowflake/05_ml_forecast.sql")
         print("  Command: snow sql -f snowflake/05_ml_forecast.sql \\")
+        print(f'             -D "PREFIX={prefix.upper()}" -D "ROLE={role}" \\')
         print(
-            f'             -D "PREFIX={prefix.upper()}" -c {connection} --enable-templating STANDARD'  # noqa: E501
+            f"             -c {connection} --enable-templating STANDARD"  # noqa: E501
         )
 
     elif step == "step-9":
