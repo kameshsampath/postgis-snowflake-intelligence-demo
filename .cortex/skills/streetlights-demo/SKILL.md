@@ -50,6 +50,7 @@ description: >
 | `$streetlights-demo step 5` | → `steps/step-5.md` |
 | `$streetlights-demo step 6` | → `steps/step-6.md` |
 | `$streetlights-demo step 7` | → `steps/step-7.md` |
+| `$streetlights-demo infra` | → `steps/infra.md` (Infrastructure phase: steps 1–7 sequential) |
 | `$streetlights-demo step 8` | → `steps/step-8.md` (standalone; or via `$streetlights-demo app`) |
 | `$streetlights-demo step 9` | → `steps/step-9.md` (routes to `$developing-with-streamlit-in-snowflake` [bundled]; or via `$streetlights-demo app`) |
 | `$streetlights-demo step 10` | → `steps/step-10.md` (or via `$streetlights-demo app`) |
@@ -76,7 +77,7 @@ This demo has **two self-contained phases**:
 
 | Phase | Command | Steps | What it builds |
 |-------|---------|-------|----------------|
-| **Infrastructure** | `$streetlights-demo step 1` … `step 7` | setup → 7 | PG Iceberg → CLD → Semantic View → Cortex Search → Intelligence Agent |
+| **Infrastructure** | `$streetlights-demo infra` | setup → 7 (sequential) | PG Iceberg → CLD → Semantic View → Cortex Search → Intelligence Agent |
 | **App** | `$streetlights-demo app` | 8–10 (parallel) | ML Forecast + Streamlit dashboard + end-to-end validation |
 
 **The Infrastructure phase is self-contained.** At the end of step 7, the user is asked whether
@@ -90,7 +91,14 @@ Intelligence. The App phase (`$streetlights-demo app`) can be run at any time af
 - `psql` for PostgreSQL access
 
 ## Quick Start
+
 ```
+# Run phases end-to-end (recommended)
+$streetlights-demo setup
+$streetlights-demo infra    ← steps 1–7 sequential
+$streetlights-demo app      ← steps 8–10 in parallel
+
+# Or step-by-step
 $streetlights-demo setup
 $streetlights-demo step 1
 ... (follow steps sequentially)
