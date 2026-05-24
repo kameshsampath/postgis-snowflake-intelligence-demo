@@ -68,8 +68,24 @@ description: >
 > 3. **Architecture overview** — from the Architecture section below.
 > 4. **Step table** — from the Step Overview section below.
 >
-> Call `exit_plan_mode` after presenting all four. Then ask which step to start with
-> and suggest `$streetlights-demo setup` as the entry point.
+> Call `exit_plan_mode` after presenting all four. Then use `ask_user_question`:
+>
+> - Header: `"Run mode"`
+> - Question: `"How would you like to run the demo?"`
+> - Options:
+>   - `"Full run — setup → infra → app (end-to-end)"`
+>   - `"Infrastructure only — setup → infra (steps 1–7, opt-in to app at end of step 7)"`
+>   - `"Pick a specific step or phase"`
+>
+> **If "Full run"**: route → `$streetlights-demo setup` → on COMPLETE →
+> `$streetlights-demo infra` → on COMPLETE (and user chooses Continue at step-7 gate) →
+> `$streetlights-demo app`
+>
+> **If "Infrastructure only"**: route → `$streetlights-demo setup` → on COMPLETE →
+> `$streetlights-demo infra` (the step-7 opt-in gate handles the app decision naturally)
+>
+> **If "Pick a specific step or phase"**: ask `"Which step or phase?"` (e.g. `step 3`,
+> `infra`, `app`) and route from the routing table above.
 
 ## Phase Overview
 
