@@ -103,7 +103,7 @@ class TestGenerateNeighborhoods:
         """generate_neighborhoods() returns a list of neighborhood dicts."""
         from scripts._location import generate_neighborhoods
 
-        result = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=5)
+        result, _ = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=5)
         assert isinstance(result, list)
         assert len(result) == 5
 
@@ -111,7 +111,7 @@ class TestGenerateNeighborhoods:
         """Each neighborhood has name, polygon, and centroid fields."""
         from scripts._location import generate_neighborhoods
 
-        result = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=3)
+        result, _ = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=3)
         for neighborhood in result:
             assert "name" in neighborhood
             assert "polygon" in neighborhood or "geometry" in neighborhood
@@ -122,7 +122,7 @@ class TestGenerateNeighborhoods:
         from scripts._location import generate_neighborhoods
 
         center_lat, center_lng = 45.5152, -122.6784
-        result = generate_neighborhoods(center_lat=center_lat, center_lng=center_lng, count=5)
+        result, _ = generate_neighborhoods(center_lat=center_lat, center_lng=center_lng, count=5)
         for n in result:
             # Centroids should be within ~0.1 degrees of center
             centroid = n.get("centroid", {"lat": center_lat, "lng": center_lng})
@@ -134,14 +134,14 @@ class TestGenerateNeighborhoods:
         """generate_neighborhoods() with count=0 returns empty list."""
         from scripts._location import generate_neighborhoods
 
-        result = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=0)
+        result, _ = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=0)
         assert result == []
 
     def test_neighborhoods_have_unique_names(self) -> None:
         """Generated neighborhood names are unique."""
         from scripts._location import generate_neighborhoods
 
-        result = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=10)
+        result, _ = generate_neighborhoods(center_lat=45.5152, center_lng=-122.6784, count=10)
         names = [n["name"] for n in result]
         assert len(names) == len(set(names))
 
@@ -309,7 +309,7 @@ class TestGenerateNeighborhoodsWithOsm:
         from scripts._location import generate_neighborhoods
 
         with patch("scripts._location._fetch_osm_neighborhoods", return_value=list(self._OSM_8)):
-            result = generate_neighborhoods(
+            result, _ = generate_neighborhoods(
                 self._CENTER_LAT, self._CENTER_LNG, count=8, use_real_names=True
             )
         assert len(result) == 8
@@ -320,7 +320,7 @@ class TestGenerateNeighborhoodsWithOsm:
         from scripts._location import generate_neighborhoods
 
         with patch("scripts._location._fetch_osm_neighborhoods", return_value=[]):
-            result = generate_neighborhoods(
+            result, _ = generate_neighborhoods(
                 self._CENTER_LAT, self._CENTER_LNG, count=5, use_real_names=True
             )
         assert len(result) == 5
@@ -341,7 +341,7 @@ class TestGenerateNeighborhoodsWithOsm:
         from scripts._location import generate_neighborhoods
 
         with patch("scripts._location._fetch_osm_neighborhoods", return_value=list(self._OSM_3)):
-            result = generate_neighborhoods(
+            result, _ = generate_neighborhoods(
                 self._CENTER_LAT, self._CENTER_LNG, count=8, use_real_names=True
             )
         assert len(result) == 8
@@ -356,7 +356,7 @@ class TestGenerateNeighborhoodsWithOsm:
             {"name": "OSM Place B", "lat": 45.540, "lng": -122.700},
         ]
         with patch("scripts._location._fetch_osm_neighborhoods", return_value=osm_entries):
-            result = generate_neighborhoods(
+            result, _ = generate_neighborhoods(
                 self._CENTER_LAT, self._CENTER_LNG, count=2, use_real_names=True
             )
         by_name = {n["name"]: n for n in result}

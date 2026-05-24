@@ -47,9 +47,13 @@ Create the `streetlights` schema with Iceberg tables on the Postgres instance an
 - Create Iceberg tables in the `streetlights` schema
 - Load all CSV data via `\copy`
 
+> **Files**: `init/01_enable_extensions.sql` → `init/02_create_iceberg_tables.sql` → 7 CSV `\copy` commands
+
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
+
+> **Note**: Enter plan mode before presenting the dry-run output (per SKILL.md global dry-run rule).
 
 Show the execution plan to the user:
 ```bash
@@ -138,6 +142,17 @@ psql "service=$PGSERVICE" \
 - ✅ Row counts verified
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
+
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 3` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~14 — (2 SQL init scripts + 7 bash \copy commands + 3 row count queries + 2 gate calls without this skill) |
+| **Step ICR** | **14** (14 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
 
 ## Mark COMPLETE
 

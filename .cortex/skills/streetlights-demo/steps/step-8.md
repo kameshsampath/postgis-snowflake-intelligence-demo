@@ -110,6 +110,17 @@ If user skips: note it was skipped, move to next step.
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 8` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~5 — (1 SQL FORECAST DDL + 1 bash deploy + 1 wait + 1 SQL test CALL + 1 gate without this skill) |
+| **Step ICR** | **5** (5 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
+
 ## Mark COMPLETE
 
 ```bash

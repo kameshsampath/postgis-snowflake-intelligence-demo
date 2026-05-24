@@ -47,9 +47,13 @@ Create a Cortex Search service that indexes maintenance record descriptions for 
 - Wait for indexing to complete (service becomes ACTIVE)
 - Test semantic search capability
 
+> **File**: `snowflake/03_cortex_search.sql` (executed with `PREFIX=<prefix>` template variable)
+
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
+
+> **Note**: Enter plan mode before presenting the dry-run output (per SKILL.md global dry-run rule).
 
 Show the execution plan to the user:
 ```bash
@@ -111,6 +115,17 @@ If user skips: note it was skipped, move to next step.
 - ✅ Gate check: `check_cortex_search_ready` passed
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
+
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 6` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~6 — (1 SQL search DDL + 1 bash deploy + 1 wait + 1 bash test query + 2 gate calls without this skill) |
+| **Step ICR** | **6** (6 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
 
 ## Mark COMPLETE
 

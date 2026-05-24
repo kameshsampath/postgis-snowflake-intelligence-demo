@@ -135,19 +135,25 @@ SELECT SNOWFLAKE.CORTEX.AGENT(
 );
 ```
 
-**Top 5 questions to try:**
+**Sample intents — grouped by routing path:**
 
-| # | Question | What it tests |
-|---|----------|---------------|
-| 1 | "How many street lights are currently faulty?" | Status aggregation (Analyst) |
-| 2 | "Which neighborhoods have the highest energy consumption?" | Cross-table join (Analyst) |
-| 3 | "Find maintenance reports about exposed wires or sparking" | Semantic search (Search) |
-| 4 | "What is the average repair cost by maintenance type?" | Grouped metrics (Analyst) |
-| 5 | "Show me the top 5 neighborhoods by maintenance frequency" | Rankings (Analyst) |
+| Category | Intent | Routes to |
+|---|---|---|
+| Status | "How many street lights are currently faulty?" | Analyst |
+| Geographic | "Show me faulty lights in Koramangala" | Analyst |
+| Energy | "Which neighborhoods have the highest energy consumption?" | Analyst |
+| Cost | "What is the average repair cost by maintenance type?" | Analyst |
+| Rankings | "Show me the top 5 neighborhoods by maintenance frequency" | Analyst |
+| Predictive | "Predict energy consumption for the next 30 days" | Analyst (Forecast) |
+| Safety | "Find maintenance reports about exposed wires or sparking" | Search |
+| Maintenance | "What does the maintenance history say about pole integrity?" | Search |
+| Hybrid | "Tell me about maintenance issues in the busiest neighborhood" | Analyst + Search |
+| Hybrid | "What's the repair status for flickering light reports?" | Analyst + Search |
 
-**Bonus — combined queries** (Agent routes to both tools):
-- "Tell me about maintenance issues in the busiest neighborhood"
-- "What's the situation with faulty lights and their repair status?"
+> **Routing logic**: Structured questions involving counts, trends, or rankings route to
+> **Cortex Analyst** (generates SQL via the Semantic View). Questions about maintenance
+> descriptions, observations, or field notes route to **Cortex Search** (semantic similarity
+> over maintenance text). Hybrid intents trigger both tools.
 
 The Agent will:
 - Route structured questions to **Cortex Analyst** (generates SQL via Semantic View)
@@ -180,6 +186,73 @@ Confirms each destructive step before executing.
 | 8 | `forecast_model_ready` | Model trained |
 | 9 | `SHOW STREAMLITS` | App deployed |
 | 10 | `sanity_gate.py` | Full end-to-end smoke test |
+
+## Intent-Driven Development (IDD)
+
+This demo is a working example of IDD in practice — you express *what* you want,
+the agent determines *how*. No table names. No JOIN syntax. No schema knowledge required.
+
+### Intent Compression Ratio (ICR)
+
+ICR measures how much operational complexity the system absorbs per unit of developer intent
+([blog](https://blogs.kameshs.dev/intent-compression-ratio-measuring-the-power-of-intent-ceb6faf2e2f9)):
+
+$$
+\text{ICR} = \frac{\text{Total Operations Required}}{\text{Number of Intent Expressions}}
+$$
+
+**"Traditional ops"** includes all discrete manual actions without this skill:
+SQL statements written, bash/shell commands run, Python scripts called, API calls made,
+and configuration files written.
+
+**ICR score** (per [icr-lab](https://github.com/kameshsampath/icr-lab) formula) measures
+token efficiency — ops achieved per intent token spent:
+
+$$
+\text{ICR score} = \left\lfloor \frac{\text{Ops Achieved}}{\text{NL Tokens}} \times 1000 \right\rfloor
+$$
+
+Run `uv run idd-metrics` to compute live ICR scores for the demo intents.
+
+**Demo ICR — this session:**
+
+| Intent | Traditional ops | ICR |
+|---|---|---|
+| "How many street lights are faulty?" | SELECT + WHERE + COUNT + GROUP BY + format = 5 | **5** |
+| "Which neighborhoods use most energy?" | 2-table JOIN + GROUP BY + ORDER BY + LIMIT = 5 | **5** |
+| "Find reports about exposed wires" | Semantic search + rank + dedupe + display = 4 | **4** |
+| "Predict energy for next 30 days" | FORECAST call + params + execute + chart = 5 | **5** |
+| "Issues in the busiest neighborhood" | Subquery + JOIN + Search + merge results = 8 | **8** |
+
+**Average ICR: 5** (27 ops ÷ 5 intents, floor — ops are always whole numbers)
+
+### Token Economics
+
+SQL tokens generated per NL token expressed — measured with `SNOWFLAKE.CORTEX.COUNT_TOKENS`
+([blog](https://blogs.kameshs.dev/icr-and-token-economics-9a014a75b399)):
+
+| Intent | NL tokens | Est. SQL tokens | SQL tokens / NL token |
+|---|---|---|---|
+| "How many street lights are faulty?" | 8 | ~42 | 5.3 |
+| "Which neighborhoods use most energy?" | 7 | ~58 | 8.3 |
+| "Tell me about issues in the busiest neighborhood" | 9 | ~85 (SQL + search query) | 9.4 |
+
+> Run `uv run idd-metrics` to compute live token counts using `SNOWFLAKE.CORTEX.COUNT_TOKENS`.
+> tiktoken (cl100k_base) is used as offline fallback when no Snowflake connection is configured.
+
+### Other IDD Signals
+
+| Metric | Value | What it means |
+|---|---|---|
+| **Schema abstraction** | 7 tables, 0 mentioned by user | User never specifies a table or column name |
+| **Tool routing** | 2 tools, automatic selection | Agent chooses Analyst or Search per intent |
+| **Join elimination** | Avg ~2 joins per query, 0 specified | Semantic View encodes all join logic |
+| **Intent log** | 500 operational intents tracked | Maintenance work surfaces as structured data |
+
+> See [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c)
+> for the broader IDD philosophy.
+
+---
 
 ## Manual Path (Taskfile)
 

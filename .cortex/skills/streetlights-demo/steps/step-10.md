@@ -73,6 +73,68 @@ CALL {database}.{schema}.BULB_FAILURE_FORECASTER!FORECAST(
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 10` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~8 — (8 sanity gate component checks + 2 bash/SQL demo queries without this skill) |
+| **Step ICR** | **8** (8 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
+
+## IDD Session Summary
+
+Recall the IDD metrics tracked after each step in this session. For any step that was
+skipped, use the traditional ops baseline shown. Compile and present the full summary.
+
+### Infrastructure ICR
+
+$$
+\text{Infrastructure ICR} = \left\lfloor \frac{\text{Total Traditional Ops}}{\text{Total Skill Invocations}} \right\rfloor
+$$
+
+| Step | Invocation | Agent Ops (actual) | Trad. Ops (baseline) | Step ICR |
+|---|---|---|---|---|
+| 1 — Generate Data | `$streetlights-demo step 1` | (recall from context) | 12 | 12 |
+| 2 — PG Instance   | `$streetlights-demo step 2` | (recall from context) | 7  | 7  |
+| 3 — Schema + Load | `$streetlights-demo step 3` | (recall from context) | 14 | 14 |
+| 4 — CLD           | `$streetlights-demo step 4` | (recall from context) | 9  | 9  |
+| 5 — Semantic View | `$streetlights-demo step 5` | (recall from context) | 7  | 7  |
+| 6 — Cortex Search | `$streetlights-demo step 6` | (recall from context) | 6  | 6  |
+| 7 — Agent         | `$streetlights-demo step 7` | (recall from context) | 8  | 8  |
+| 8 — ML Forecast   | `$streetlights-demo step 8` | (recall from context) | 5  | 5  |
+| 9 — SiS App       | `$streetlights-demo step 9` | (recall from context) | 7  | 7  |
+| 10 — Validate     | `$streetlights-demo step 10`| (recall from context) | 8  | 8  |
+| **Total**         | **10 invocations**          |                       | **83** | **8** (83 ÷ 10, floor) |
+
+> **Infrastructure ICR: 8** — each skill invocation replaced ~8 traditional manual operations on average.
+> "Traditional ops" counts SQL statements + bash commands + Python scripts + API calls.
+
+### Query ICR
+
+Run `uv run idd-metrics` to show natural language query metrics:
+
+```bash
+uv run idd-metrics
+```
+
+ICR score = int(traditional_ops × 1000 ÷ NL tokens) — ops per intent token
+(per [icr-lab](https://github.com/kameshsampath/icr-lab) formula).
+
+### Combined IDD Picture
+
+| Dimension | Value | What it measures |
+|---|---|---|
+| **Infrastructure ICR** | 8 | Skill invocations vs manual setup ops (83 ÷ 10, floor) |
+| **Query ICR score** | run `idd-metrics` | NL query ops × 1000 ÷ NL tokens (icr-lab) |
+| **SQL leverage** | ~5.9 | SQL tokens generated per NL token |
+| **Schema abstraction** | 7 tables / 0 mentioned | User never specifies a table or column name |
+
+> End-to-end [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c):
+> infrastructure as intent + queries as intent + AI handles *how*.
+
 ## Try these with Snowflake Intelligence
 
 | # | Question | Routing | What it tests |

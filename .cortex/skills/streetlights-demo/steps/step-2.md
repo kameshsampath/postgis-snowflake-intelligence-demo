@@ -28,6 +28,8 @@ Create a Snowflake Postgres instance with managed storage (required for CLD). Th
 - Create (or reuse) a Postgres instance with managed storage
 - Create the `streetlights` database on the instance
 
+> **Note**: No SQL file — network policy creation and PG instance operations use inline `snow sql` calls.
+
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
@@ -86,18 +88,38 @@ Route to `$snowflake-postgres` to create instance:
   - Pass `--use-role <admin_role>` to `pg_connect.py --create`
 - Create database: `streetlights`
 
-### Network Access Check
+### Create Demo Network Policy
 
-After instance is created (or reused), verify network connectivity:
+After instance is ready, create a dedicated network policy for this demo:
 
-- The gate check (`uv run gate --step step-2 --prior-step step-1 --action check`) verifies PG reachability internally.
-- If **IP MISMATCH** detected:
-  - Show current IP vs allowed IPs
-  - Use `ask_user_question`: "Your IP ({current_ip}) isn't in the network policy. Update it?"
-    - Options: ["Yes, update network policy", "No, I'll fix it manually"]
-  - If yes: Route to `$snowflake-postgres` to update the network policy with the new IP
-- This check runs on **every step that needs PG access** (steps 3, 4) — not just step 2.
-  Users commonly switch WiFi/VPN between steps.
+1. **Detect current IP** (always mask last two octets in display — show `xxx.xxx.*.*` format)
+
+2. **Create network rule**:
+   ```sql
+   CREATE OR REPLACE NETWORK RULE {PREFIX}_STREETLIGHTS_HOME_RULE
+     TYPE = IPV4
+     MODE = POSTGRES_INGRESS
+     VALUE_LIST = ('{current_ip}/32')
+     COMMENT = 'Home IP for streetlights demo Postgres access';
+   ```
+
+3. **Create network policy**:
+   ```sql
+   CREATE OR REPLACE NETWORK POLICY {PREFIX}_STREETLIGHTS_INGRESS
+     ALLOWED_NETWORK_RULE_LIST = ('{DATABASE}.NETWORKS.{PREFIX}_STREETLIGHTS_HOME_RULE')
+     COMMENT = 'Streetlights demo Postgres ingress policy';
+   ```
+   Note: The network rule should be created in a NETWORKS schema in the main database. Create the schema if needed: `CREATE SCHEMA IF NOT EXISTS {database}.NETWORKS;`
+   And the network rule should be `{database}.NETWORKS.{PREFIX}_STREETLIGHTS_HOME_RULE`.
+
+4. **Attach to PG instance**:
+   ```sql
+   ALTER POSTGRES INSTANCE {pg_instance} SET NETWORK_POLICY = {PREFIX}_STREETLIGHTS_INGRESS;
+   ```
+
+5. **Persist in manifest**: Write `pg_network_policy = "{PREFIX}_STREETLIGHTS_INGRESS"` to manifest.
+
+> ⚠️ **IP display**: Always show IPs in masked form (`xxx.xxx.*.*`). Never display full IP in output.
 
 ### Verification
 
@@ -111,6 +133,17 @@ After instance is created (or reused), verify network connectivity:
 - ✅ Gate check passed (PG reachable + managed storage confirmed)
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
+
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 2` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~7 — (2 SQL param checks + 1 PG create + 3 SQL network ops + 1 verification without this skill) |
+| **Step ICR** | **7** (7 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
 
 ## Mark COMPLETE
 

@@ -48,9 +48,13 @@ Create the Cortex Intelligence Agent that combines Semantic View (structured ana
 - Test both structured and unstructured queries
 - Register agent with `SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT` so it appears in the Snowflake Intelligence UI
 
+> **File**: `snowflake/04_intelligence_agent.sql` (executed with `PREFIX=<prefix>`, `ROLE=<role>`, `CURRENCY_SYMBOL=<symbol>` template variables)
+
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
+
+> **Note**: Enter plan mode before presenting the dry-run output (per SKILL.md global dry-run rule).
 
 Show the execution plan to the user:
 ```bash
@@ -82,6 +86,7 @@ If user skips: note it was skipped, move to next step.
    snow sql -f snowflake/04_intelligence_agent.sql \
      -D "PREFIX={manifest.demo.prefix.upper()}" \
      -D "ROLE={manifest.snowflake.role}" \
+     -D "CURRENCY_SYMBOL={manifest.demo.currency_symbol}" \
      -c {manifest.snowflake.connection} \
      --enable-templating STANDARD
    ```
@@ -124,6 +129,44 @@ If user skips: note it was skipped, move to next step.
 - ✅ Gate check: `check_agent_accessible` passed
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
+
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 7` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~8 — (1 SQL agent DDL + 1 bash deploy + 1 SQL grant verify + 3 bash/SQL test queries + 2 gate calls without this skill) |
+| **Step ICR** | **8** (8 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
+
+## Live Demo
+
+> ⚠️ **MANDATORY**: Run these 3 sample queries after step completion to show the agent working end-to-end. Present each question, run it, and show the formatted response.
+
+Run against the deployed agent. Use `SNOWFLAKE.CORTEX.SEARCH_PREVIEW` for the search query. For agent queries, use the agent REST API via `snow cortex` CLI or inline SQL with `SNOWFLAKE.CORTEX.COMPLETE`.
+
+### Query 1 — Analyst (structured)
+**Question**: "How many street lights are faulty by neighborhood?"
+- Routes to: `StreetlightsAnalyst` (Cortex Analyst → SQL → Semantic View)
+- Expected output: table with `neighborhood`, `faulty_count`, sorted descending
+- Show result as formatted markdown table
+
+### Query 2 — Search (unstructured)
+**Question**: "Find maintenance records about sparking or exposed wires"
+- Routes to: `MaintenanceSearch` (Cortex Search → embedding similarity)
+- Expected output: 3–5 maintenance record excerpts with `description`, `maintenance_type`, `neighborhood`
+- Show results as a short list
+
+### Query 3 — Geographic (natural language, agent infers map links)
+**Question**: "Which neighborhood has the most faulty lights, and where are they located?"
+- Routes to: `StreetlightsAnalyst` first (finds top neighborhood), then returns lat/lng
+- Agent should infer from location context and orchestration instructions that OSM map links are needed — do NOT explicitly say "with map links"
+- Expected output: neighborhood name + list of light locations as clickable OSM links
+- Format: `[POLE-XXXXX](https://www.openstreetmap.org/?mlat=...&mlon=...&zoom=16)`
+
+Present all 3 results to the user before marking COMPLETE.
 
 ## Mark COMPLETE
 

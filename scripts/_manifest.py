@@ -112,6 +112,9 @@ class DemoSection:
     center_lng: float | None = None
     pg_host: str = ""
     pg_user: str = ""
+    pg_network_policy: str = ""
+    currency: str = "USD"
+    currency_symbol: str = "$"
     steps: dict[str, StepState] = field(default_factory=dict)
 
     @classmethod
@@ -130,6 +133,9 @@ class DemoSection:
             center_lng=data.get("center_lng"),
             pg_host=data.get("pg_host", ""),
             pg_user=data.get("pg_user", ""),
+            pg_network_policy=data.get("pg_network_policy", ""),
+            currency=data.get("currency", "USD"),
+            currency_symbol=data.get("currency_symbol", "$"),
             steps=steps,
         )
 
@@ -157,6 +163,12 @@ class DemoSection:
             d["pg_host"] = self.pg_host
         if self.pg_user:
             d["pg_user"] = self.pg_user
+        if self.pg_network_policy:
+            d["pg_network_policy"] = self.pg_network_policy
+        if self.currency:
+            d["currency"] = self.currency
+        if self.currency_symbol:
+            d["currency_symbol"] = self.currency_symbol
         if self.steps:
             # Sort steps by chain order
             chain_order = list(STEP_CHAIN.keys())

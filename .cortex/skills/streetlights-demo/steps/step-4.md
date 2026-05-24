@@ -47,9 +47,13 @@ Create the Snowflake catalog integration pointing to the Postgres instance, then
 - Create CLD database linked to the catalog
 - Wait for table propagation (~30 seconds)
 
+> **Note**: No SQL file — catalog integration and CLD creation use inline `snow sql` calls.
+
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
+
+> **Note**: Enter plan mode before presenting the dry-run output (per SKILL.md global dry-run rule).
 
 Show the execution plan to the user:
 ```bash
@@ -182,7 +186,7 @@ Run these checks in order:
 
 2. **CLD status**:
    ```sql
-   SELECT SYSTEM$CATALOG_LINK_STATUS('{cld_database}');
+   SELECT SYSTEM$GET_LINKED_DATABASE_STATUS('{cld_database}');
    ```
    Confirm: status is `ACTIVE` or `READY`.
 
@@ -211,6 +215,17 @@ Run these checks in order:
 - ✅ Gate check: `check_cld_healthy` passed
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
+
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 4` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~9 — (2 SQL DDL statements + 4 SQL grants + 3 verification queries without this skill) |
+| **Step ICR** | **9** (9 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
 
 ## Mark COMPLETE
 

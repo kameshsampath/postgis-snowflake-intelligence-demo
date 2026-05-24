@@ -1,93 +1,191 @@
-# Streetlights Demo — AI Agent Rules
+# AGENTS.md
 
-Rules for any AI agent (Claude, Copilot, Cursor, etc.) running this demo.
-All `{field}` values resolve from `.streetlights-demo/manifest.toml` via `load_manifest()`.
+## Purpose
 
-## 1. snow CLI
+This repository is a Snowflake Postgres + pg_lake + Cortex AI reference demo.
 
-- All `snow sql` calls require: `--format json`, `-c {connection}`, `--enable-templating STANDARD`
-- Template syntax is `<% PREFIX %>` (STANDARD mode). Never use `${VAR}` — bash-only, not expanded by snow CLI.
-- Full execution pattern:
-  ```bash
-  snow sql -f snowflake/FILE.sql \
-    -D "PREFIX={prefix.upper()}" \
-    -D "ROLE={role}" \
-    -c {connection} \
-    --enable-templating STANDARD
-  ```
+It is a guided engineering workspace used by synthesis engines such as Codex, Claude Code, and Cortex Code to demonstrate Intent-Driven Development through a real-world streetlights infrastructure scenario.
 
-## 2. Manifest: single source of truth
+The repository itself is not the running demo.
 
-- All config from `.streetlights-demo/manifest.toml` via `load_manifest()`. Never use `.env` as a config source.
-- `manifest.demo.prefix` is **lowercase**. SQL `-D "PREFIX=..."` must be **UPPERCASE**.
+## Core Principle
 
-| Field | Purpose |
-|-------|---------|
-| `demo.prefix` | Resource name prefix (uppercase in SQL `-D` flags) |
-| `demo.database` | Main Snowflake database (`{PREFIX}_STREETLIGHTS`) |
-| `demo.cld_database` | Catalog-Linked Database — read-only (`{PREFIX}_STREETLIGHTS_CLD`) |
-| `demo.warehouse` | Compute warehouse |
-| `demo.pg_instance` | Snowflake Postgres instance name |
-| `demo.pg_service` | psql service name (maps to `~/.pg_service.conf`) |
-| `snowflake.connection` | snow CLI connection name |
-| `snowflake.role` | Non-admin working role (grants target) |
-| `snowflake.admin_role` | Elevated role for DDL and grants |
+Treat this repository as structured demo engineering context.
 
-## 3. CLD column quoting
+Do not treat it as a generic codebase to refactor freely.
 
-- CLD tables mirror PostgreSQL — all column names are **lowercase**.
-- Always double-quote in Snowflake SQL: `"status"`, `"light_id"`, `"date"`, `"kwh"`.
-- Unquoted identifiers are uppercased by Snowflake → `invalid identifier` error.
+## Demo Skill
 
-## 4. Object placement
+The primary reusable reasoning context for this repository is:
 
-- **All Snowflake objects** (Semantic Views, Cortex Search, Agents, ML Forecast, Streamlit) → `{database}.PUBLIC`
-- **CLD** (`{cld_database}`) is **read-only** — SELECT only. Never CREATE in CLD.
-  Error: `operation not supported in catalog-linked database`
+```text
+.cortex/skills/streetlights-demo/
+```
 
-## 5. PostgreSQL connections
+This skill bundle is designed to be autoloaded by compatible coding agents.
 
-- Connect via: `psql "service={pg_service}"`. Never use `-h`, `-U`, or `-d` flags.
-- Credentials live in `~/.pg_service.conf` (managed by `$snowflake-postgres` skill).
-- `pg_service` is `manifest.demo.pg_service`, **not** the `PGSERVICE` env var.
+Agents should treat:
 
-## 6. Roles
+```text
+.cortex/skills/streetlights-demo/SKILL.md
+```
 
-- **`admin_role`** (typically `ACCOUNTADMIN`): DDL — `CREATE WAREHOUSE`, `GRANT`, `CREATE SEMANTIC VIEW`, `CREATE CORTEX SEARCH SERVICE`, `CREATE AGENT`, `ALTER SNOWFLAKE INTELLIGENCE`.
-- **`role`**: DML, verification queries, and day-to-day operations.
+as the orchestration entrypoint for:
 
-## 7. Warehouse resilience
+- demo step sequencing (setup through step 10)
+- gate verification logic
+- SQL execution patterns
+- manifest configuration
+- cleanup and teardown
 
-- `{warehouse}` can be dropped by account-level cleanup jobs.
-- If any gate step fails with "warehouse not found", recreate:
-  ```sql
-  USE ROLE {admin_role};
-  CREATE WAREHOUSE IF NOT EXISTS {warehouse}
-    WAREHOUSE_SIZE='XSMALL' AUTO_SUSPEND=60 AUTO_RESUME=TRUE;
-  GRANT USAGE ON WAREHOUSE {warehouse} TO ROLE {role};
-  ```
+The skill bundle also contains per-step guidance under:
 
-## 8. Intelligence registration
+```text
+.cortex/skills/streetlights-demo/steps/
+```
 
-- Agents must be explicitly registered to appear in the Snowflake Intelligence UI:
-  ```sql
-  ALTER SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT
-    ADD AGENT {database}.PUBLIC.STREETLIGHTS_AGENT;
-  ```
-- `04_intelligence_agent.sql` handles this automatically at the end of each deployment.
-- `CREATE OR REPLACE AGENT` invalidates prior registration — re-registration always runs after redeploy.
+Operational rules (snow CLI flags, manifest field references, CLD quoting, object placement, warehouse resilience, Intelligence registration, map link format, gate timing) are packaged inside SKILL.md and AGENTS.md in the skill bundle — not in this file.
 
-## 9. Map links
+## Stable Framework Areas
 
-- Always use **OpenStreetMap** (public, no API key, no billing):
-  ```
-  https://www.openstreetmap.org/?mlat={latitude}&mlon={longitude}&zoom=16
-  ```
-- Never display raw coordinates — always wrap in a map link with neighborhood name or pole_id as anchor text.
+The following directories define the demo framework and should not be modified during demo execution unless explicitly requested:
 
-## 10. Gate timing
+```text
+.cortex/skills/streetlights-demo/
+scripts/
+snowflake/
+init/
+tests/
+```
 
-- Cache TTL: 1 hour. After expiry the gate re-verifies live state.
-- Always pass `--prior-step` to enforce the full step-chain check.
-- Cortex Search: wait **1–2 min** after creation for `ACTIVE` status.
-- ML Forecast: wait **2–5 min** after `CREATE` for model training to complete.
+Note:
+
+- `scripts/` contains gate logic, data generation, and manifest helpers — changes affect all demo steps
+- `snowflake/` contains DDL templates executed against live Snowflake — changes are destructive if applied without re-running steps
+- `tests/` defines the correctness contract — do not weaken assertions
+
+## Data Directory
+
+- `data/` and its generated CSVs are git-ignored
+- never commit files inside `data/` unless explicitly requested
+
+Generated CSV files:
+
+```text
+data/street_lights.csv
+data/maintenance_records.csv
+data/energy_consumption.csv
+data/light_sensors.csv
+data/weather_enrichment.csv
+data/demographics.csv
+data/power_grid_zones.csv
+```
+
+## Generation Boundary
+
+During demo execution:
+
+- stable framework context lives outside `data/`
+- synthesized data artifacts belong only under `data/`
+- generated postgresql file belong only under `init/` 
+
+Agents must not rewrite framework SQL or scripts as a side-effect of running demo steps.
+
+## Demo Philosophy
+
+This repository demonstrates Intent-Driven Development:
+
+```text
+Intent
+→ Reusable Skill Context
+→ Structured Contracts (manifest.toml, gate checks)
+→ Deterministic Templates (SQL with <% PREFIX %>)
+→ Generated Artifacts (data/, Snowflake objects)
+→ Evaluation (sanity_gate.py)
+→ Refinement
+```
+
+The skill file is the stable engineering context.
+
+Generated Snowflake objects and data are ephemeral synthesis artifacts.
+
+## GitHub
+
+- all GitHub operations must use the `kameshsampath` account
+- always verify `gh auth status` shows `kameshsampath` as the active account before any GitHub operations
+- if the active account is not `kameshsampath`, switch with:
+
+```bash
+gh auth switch --user kameshsampath
+```
+
+## Commits
+
+Always use Conventional Commits style:
+
+```text
+https://www.conventionalcommits.org/
+```
+
+Allowed types:
+
+- feat
+- fix
+- chore
+- docs
+- refactor
+- test
+- build
+- ci
+- perf
+- style
+- revert
+
+Example:
+
+```text
+feat: add user authentication module
+```
+
+## Pre-commit
+
+All commits and code changes must pass pre-commit hooks before being committed.
+
+Run before committing:
+
+```bash
+pre-commit run --all-files
+```
+
+Task completion requires all pre-commit hooks to pass.
+
+Do not mark a task done if hooks are failing.
+
+Install hooks on first use:
+
+```bash
+pre-commit install
+pre-commit install --hook-type commit-msg
+```
+
+## Tone
+
+Use a calm, architectural, engineering-oriented, teaching tone.
+
+Prefer:
+
+- practical explanations
+- systems-thinking
+- architectural framing
+- deterministic workflows
+- reusable context
+- measurable abstraction
+
+Avoid:
+
+- AI magic
+- autonomous agent hype
+- replace developers language
+- 10x engineer claims
+- vibe coding language
+- product marketing language

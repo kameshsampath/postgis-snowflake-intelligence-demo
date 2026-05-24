@@ -79,7 +79,7 @@ def _generate_street_lights(
 ) -> list[list]:
     """Generate street_lights.csv data."""
     light_types = ["LED", "HPS", "Metal Halide", "CFL"]
-    statuses = ["active", "maintenance_needed", "inactive", "scheduled_replacement"]
+    statuses = ["operational", "faulty", "maintenance_required"]
     rows = []
     for i in range(1, count + 1):
         nb = rng.choice(neighborhoods)
@@ -159,7 +159,7 @@ def _generate_energy_consumption(count: int, rng: random.Random) -> list[list]:
     rows = []
     record_id = 1
     # Generate 30 days of hourly data for a subset of lights
-    sample_lights = min(count, 50)
+    sample_lights = min(count, max(200, count // 5))
     for light_id in range(1, sample_lights + 1):
         for day_offset in range(30):
             d = date.today() - timedelta(days=day_offset)
@@ -179,7 +179,7 @@ def _generate_light_sensors(count: int, rng: random.Random) -> list[list]:
     """Generate light_sensors.csv data."""
     rows = []
     record_id = 1
-    sample_lights = min(count, 50)
+    sample_lights = min(count, max(100, count // 10))
     for light_id in range(1, sample_lights + 1):
         for day_offset in range(7):  # 7 days of sensor data
             for hour in range(0, 24, 4):  # Every 4 hours
@@ -243,7 +243,7 @@ def _generate_demographics(neighborhoods: list[dict], rng: random.Random) -> lis
 
 
 def _generate_power_grid_zones(
-    center_lat: float, center_lng: float, rng: random.Random
+    center_lat: float, center_lng: float, rng: random.Random, osm_names: list[dict] | None = None
 ) -> list[list]:
     """Generate power_grid_zones.csv data."""
     rows = []
@@ -258,6 +258,8 @@ def _generate_power_grid_zones(
         "Airport Zone",
     ]
     for i, name in enumerate(zone_names):
+        if osm_names and len(osm_names) >= i + 1:
+            name = osm_names[i]["name"]
         angle = (2 * math.pi * i) / len(zone_names)
         radius = 0.02 + rng.uniform(0, 0.01)
         lat = round(center_lat + radius * math.cos(angle), 6)
@@ -268,11 +270,53 @@ def _generate_power_grid_zones(
     return rows
 
 
+def _generate_intent_log(
+    count: int, num_lights: int, neighborhoods: list[dict], rng: random.Random
+) -> list[list]:
+    """Generate intent_log.csv — structured operational intent records."""
+    intent_types = [
+        "scheduled_maintenance",
+        "upgrade_planned",
+        "safety_inspection",
+        "emergency_repair",
+    ]
+    priorities = ["low", "medium", "high", "critical"]
+    descriptions = [
+        "Routine annual inspection scheduled",
+        "LED retrofit upgrade planned",
+        "Safety inspection following reported flickering",
+        "Emergency repair after storm damage",
+        "Proactive replacement of aging fixtures",
+        "Energy efficiency audit scheduled",
+        "Pole integrity check after vehicle impact",
+        "Sensor calibration required",
+    ]
+    rows = []
+    num_records = max(1, count // 4)
+    for i in range(1, num_records + 1):
+        light_id = rng.randint(1, num_lights)
+        nb = rng.choice(neighborhoods)
+        days_ahead = rng.randint(-30, 90)  # mix of past and future intent
+        ts = datetime.now() + timedelta(days=days_ahead)
+        rows.append(
+            [
+                i,
+                light_id,
+                ts.strftime("%Y-%m-%d %H:%M:%S"),
+                rng.choice(intent_types),
+                rng.choice(descriptions),
+                rng.choice(priorities),
+                nb["name"],
+            ]
+        )
+    return rows
+
+
 @click.command()
 @click.option("--city", default=None, help="City name for data generation location.")
 @click.option("--lat", default=None, type=float, help="Center latitude override.")
 @click.option("--lng", default=None, type=float, help="Center longitude override.")
-@click.option("--count", default=500, type=int, help="Number of street lights to generate.")
+@click.option("--count", default=2000, type=int, help="Number of street lights to generate.")
 @click.option(
     "--no-auto-detect", is_flag=True, default=False, help="Disable IP-based location detection."
 )
@@ -305,8 +349,9 @@ def main(
     np.random.seed(42)
 
     # Generate neighborhoods first (used by other generators)
-    neighborhoods = generate_neighborhoods(
-        center_lat, center_lng, count=8, use_real_names=real_names
+    nb_count = min(16, max(8, count // 200))
+    neighborhoods, osm_names = generate_neighborhoods(
+        center_lat, center_lng, count=nb_count, use_real_names=real_names
     )
 
     click.echo("Generating CSV files:")
@@ -360,11 +405,17 @@ def main(
     _write_csv(
         "power_grid_zones.csv",
         ["zone_id", "zone_name", "capacity_kw", "current_load_kw", "latitude", "longitude"],
-        _generate_power_grid_zones(center_lat, center_lng, rng),
+        _generate_power_grid_zones(center_lat, center_lng, rng, osm_names),
+    )
+
+    _write_csv(
+        "intent_log.csv",
+        ["id", "light_id", "timestamp", "intent_type", "description", "priority", "neighborhood"],
+        _generate_intent_log(count, count, neighborhoods, rng),
     )
 
     click.echo()
-    click.echo(f"Done! {7} CSV files written to {DATA_DIR}/")
+    click.echo(f"Done! {8} CSV files written to {DATA_DIR}/")
 
     # Generate Iceberg DDL from TABLE_SCHEMAS
     ddl_path = Path("init") / "02_create_iceberg_tables.sql"

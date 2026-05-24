@@ -25,6 +25,7 @@
 --
 -- Variables to replace:
 --   <% PREFIX %> = your demo_resource_prefix in UPPERCASE (e.g., KAMESHS)
+--   <% CURRENCY_SYMBOL %> = local currency symbol (e.g., $, ₹, £)
 -- =====================================================
 
 USE WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH;
@@ -33,9 +34,6 @@ CREATE OR REPLACE AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_agent
   COMMENT = 'Intelligence agent for streetlight infrastructure: analytics + maintenance search'
   FROM SPECIFICATION
   $$
-  models:
-    orchestration: auto
-
   orchestration:
     budget:
       seconds: 30
@@ -46,6 +44,7 @@ CREATE OR REPLACE AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_agent
       Respond in clear, concise markdown. Use tables for tabular data.
       Prioritize visualizations (charts, graphs) over raw tables when possible.
       Include units (kWh, count, hours, etc.) in all numeric outputs.
+      Use <% CURRENCY_SYMBOL %> as the currency symbol for all cost and monetary values.
     orchestration: |
       ## ROUTING RULES
       Use MaintenanceSearch (Cortex Search) for:

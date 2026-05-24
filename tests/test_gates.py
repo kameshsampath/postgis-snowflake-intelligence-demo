@@ -345,13 +345,18 @@ class TestGateChainVerification:
         # But setup is fresh
         update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
 
-        # Create CSV files so step-1 check passes
+        # Create CSV files so step-1 check passes (street_lights.csv needs a real
+        # neighborhood name so the OSM sanity check in _check_step1_complete passes)
         data_dir = manifest_dir / "data"
         data_dir.mkdir(exist_ok=True)
+        (data_dir / "street_lights.csv").write_text(
+            "id,pole_id,latitude,longitude,neighborhood,install_date,wattage,light_type,status\n"
+            "1,P001,45.51,-122.68,Indiranagar,2020-01-01,100,LED,active\n"
+        )
         for name in [
-            "street_lights.csv",
             "maintenance_records.csv",
             "energy_consumption.csv",
+            "intent_log.csv",
             "light_sensors.csv",
             "weather_enrichment.csv",
             "demographics.csv",
@@ -403,12 +408,17 @@ class TestGateChainVerification:
         update_step(manifest_dir, "setup", "COMPLETE", desc="Initialize")
 
         # step-1 is NOT in manifest (missing) — create CSV files so it can backfill
+        # street_lights.csv must have a real neighborhood name to pass the OSM check
         data_dir = manifest_dir / "data"
         data_dir.mkdir(exist_ok=True)
+        (data_dir / "street_lights.csv").write_text(
+            "id,pole_id,latitude,longitude,neighborhood,install_date,wattage,light_type,status\n"
+            "1,P001,45.51,-122.68,Indiranagar,2020-01-01,100,LED,active\n"
+        )
         for name in [
-            "street_lights.csv",
             "maintenance_records.csv",
             "energy_consumption.csv",
+            "intent_log.csv",
             "light_sensors.csv",
             "weather_enrichment.csv",
             "demographics.csv",
@@ -526,6 +536,74 @@ class TestGateVerifyAction:
         assert exit_code == 0
         assert "PASS" in output
         assert "ready" in output.lower()
+
+
+class TestCsvNeighborhoodNames:
+    """gate._check_csv_neighborhood_names detects all-template name sets."""
+
+    _REAL_STREET_LIGHTS_CSV = (
+        "id,pole_id,latitude,longitude,neighborhood,install_date,wattage,light_type,status\n"
+    )
+
+    def _write_street_lights(self, data_dir: Path, neighborhoods: list[str]) -> None:
+        rows = "\n".join(
+            f"{i},P{i:03d},12.97,77.59,{n},2020-01-01,100,LED,active"
+            for i, n in enumerate(neighborhoods, 1)
+        )
+        (data_dir / "street_lights.csv").write_text(self._REAL_STREET_LIGHTS_CSV + rows + "\n")
+
+    def test_passes_with_all_real_osm_names(self, manifest_dir: Path) -> None:
+        """All real OSM neighborhood names → PASS."""
+        from scripts.gate import _check_csv_neighborhood_names
+
+        data_dir = manifest_dir / "data"
+        data_dir.mkdir(exist_ok=True)
+        self._write_street_lights(data_dir, ["Koramangala", "Indiranagar", "Whitefield"])
+        result = _check_csv_neighborhood_names(manifest_dir)
+        assert result.success is True
+
+    def test_passes_with_mixed_real_and_template_names(self, manifest_dir: Path) -> None:
+        """Mix of real and template names → PASS (not all-template)."""
+        from scripts.gate import _check_csv_neighborhood_names
+
+        data_dir = manifest_dir / "data"
+        data_dir.mkdir(exist_ok=True)
+        self._write_street_lights(data_dir, ["Koramangala", "North District", "East Heights"])
+        result = _check_csv_neighborhood_names(manifest_dir)
+        assert result.success is True
+
+    def test_blocks_when_all_template_names(self, manifest_dir: Path) -> None:
+        """All generated template names → BLOCK (OSM lookup likely failed)."""
+        from scripts.gate import _check_csv_neighborhood_names
+
+        data_dir = manifest_dir / "data"
+        data_dir.mkdir(exist_ok=True)
+        self._write_street_lights(data_dir, ["North District", "East Heights", "Lake Village"])
+        result = _check_csv_neighborhood_names(manifest_dir)
+        assert result.success is False
+        assert "template" in result.message.lower()
+        assert "uv run generate" in result.message
+
+    def test_blocks_when_csv_missing(self, manifest_dir: Path) -> None:
+        """Missing street_lights.csv → BLOCK."""
+        from scripts.gate import _check_csv_neighborhood_names
+
+        result = _check_csv_neighborhood_names(manifest_dir)
+        assert result.success is False
+        assert "street_lights.csv" in result.message
+
+    def test_passes_single_real_name_among_templates(self, manifest_dir: Path) -> None:
+        """One real name among many templates → PASS (boundary case)."""
+        from scripts.gate import _check_csv_neighborhood_names
+
+        data_dir = manifest_dir / "data"
+        data_dir.mkdir(exist_ok=True)
+        self._write_street_lights(
+            data_dir,
+            ["North District", "East Heights", "Lake Village", "Park Commons", "Whitefield"],
+        )
+        result = _check_csv_neighborhood_names(manifest_dir)
+        assert result.success is True
 
 
 class TestManifestIO:

@@ -421,11 +421,12 @@ def check_pg_network_access(project_root: Path) -> GateResult:
 
 
 def _check_csv_files(project_root: Path) -> GateResult:
-    """Verify 7 CSV files exist in data/ directory."""
+    """Verify 8 CSV files exist in data/ directory."""
     data_dir = project_root / "data"
     expected = [
         "demographics.csv",
         "energy_consumption.csv",
+        "intent_log.csv",
         "light_sensors.csv",
         "maintenance_records.csv",
         "power_grid_zones.csv",
@@ -439,6 +440,113 @@ def _check_csv_files(project_root: Path) -> GateResult:
             message=f"Missing CSV files in data/: {', '.join(missing)}",
         )
     return GateResult(success=True, message=f"All {len(expected)} CSV files present in data/")
+
+
+# ---------------------------------------------------------------------------
+# Template name detection — mirrors _location.py without importing it
+# ---------------------------------------------------------------------------
+
+_TEMPLATE_NAME_PREFIXES: frozenset[str] = frozenset(
+    {
+        "North",
+        "South",
+        "East",
+        "West",
+        "Central",
+        "Upper",
+        "Lower",
+        "Old",
+        "New",
+        "Lake",
+        "River",
+        "Park",
+        "Hill",
+        "Oak",
+        "Cedar",
+        "Pine",
+        "Maple",
+        "Elm",
+        "Harbor",
+        "Bridge",
+        "Market",
+        "Garden",
+    }
+)
+_TEMPLATE_NAME_SUFFIXES: frozenset[str] = frozenset(
+    {
+        "District",
+        "Heights",
+        "Square",
+        "Village",
+        "Quarter",
+        "Commons",
+        "Place",
+        "Crossing",
+        "Landing",
+        "Point",
+        "Green",
+        "Park",
+    }
+)
+
+
+def _is_template_name(name: str) -> bool:
+    """Return True when name matches the two-word Prefix Suffix template pattern."""
+    parts = name.split()
+    return (
+        len(parts) == 2
+        and parts[0] in _TEMPLATE_NAME_PREFIXES
+        and parts[1] in _TEMPLATE_NAME_SUFFIXES
+    )
+
+
+def _check_csv_neighborhood_names(project_root: Path) -> GateResult:
+    """Verify street_lights.csv has at least one non-template neighborhood name.
+
+    If every neighborhood is a generated template (e.g. "North District"), the
+    OpenStreetMap lookup likely failed silently during generation. The user should
+    re-run ``uv run generate`` to retry.
+    """
+    import csv
+
+    csv_path = project_root / "data" / "street_lights.csv"
+    if not csv_path.exists():
+        return GateResult(success=False, message="data/street_lights.csv not found")
+
+    try:
+        with csv_path.open(newline="") as f:
+            reader = csv.DictReader(f)
+            names = {row["neighborhood"] for row in reader if row.get("neighborhood")}
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot read street_lights.csv: {e}")
+
+    if not names:
+        return GateResult(
+            success=False,
+            message="street_lights.csv has no neighborhood values",
+        )
+
+    if all(_is_template_name(n) for n in names):
+        return GateResult(
+            success=False,
+            message=(
+                "All neighborhood names are generated templates — OSM lookup likely "
+                "failed. Re-run `uv run generate` to retry fetching real names."
+            ),
+        )
+
+    return GateResult(
+        success=True,
+        message=f"Neighborhood names look real ({len(names)} unique values)",
+    )
+
+
+def _check_step1_complete(project_root: Path) -> GateResult:
+    """Verify step-1: CSV files exist and contain real neighborhood names."""
+    result = _check_csv_files(project_root)
+    if not result.success:
+        return result
+    return _check_csv_neighborhood_names(project_root)
 
 
 def _check_pg_tables(project_root: Path) -> GateResult:
@@ -635,7 +743,7 @@ def _check_all(project_root: Path) -> GateResult:
 # Step verification mapping
 STEP_CHECKS: dict[str, callable] = {
     "setup": check_manifest,
-    "step-1": _check_csv_files,
+    "step-1": _check_step1_complete,
     "step-2": check_pg_reachable,
     "step-3": _check_pg_tables,
     "step-4": check_cld_healthy,

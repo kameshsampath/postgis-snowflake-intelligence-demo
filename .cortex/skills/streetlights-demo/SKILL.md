@@ -18,7 +18,7 @@ invocations:
    - Template syntax: `<% PREFIX %>` (STANDARD). Never `${PREFIX}`.
    - Execution: `snow sql -f snowflake/FILE.sql -D "PREFIX=KAMESHS" -c {connection} --enable-templating STANDARD`
 
-2. **manifest.toml is source of truth**: read config via `load_manifest()`. Never use `.env` as a config source. `prefix` is lowercase in manifest but must be UPPERCASE in `-D "PREFIX=..."` flag.
+2. **manifest.toml is source of truth**: read config via `load_manifest()`. manifest.toml is the single config source — no `.env` lookup. `prefix` is lowercase in manifest but must be UPPERCASE in `-D "PREFIX=..."` flag.
 
 3. **CLD columns need quoting**: CLD tables have lowercase column names from PostgreSQL. Always double-quote: `"light_id"`, `"date"`, `"status"`, `"kwh"`, etc.
 
@@ -34,6 +34,7 @@ invocations:
   2. "What we'll do" — the intro preview of actions
   3. "What we did" — the outro summary of completed work
   Each is a natural pause point. Present it, let the user read it, then continue.
+- **Dry-run → plan mode**: When presenting a dry-run output, call `enter_plan_mode` before showing it. Exit plan mode (call `exit_plan_mode`) only after the user confirms. Then execute.
 
 ## Routing
 
@@ -90,8 +91,26 @@ References:
 - [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14)
 - [Ghost in the Machine](https://blogs.kameshs.dev/the-ghost-in-the-machine-why-ai-needs-the-spirit-of-uml-0d8864e583e2)
 - [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c)
-- [Intent Compression Ratio](https://medium.com/@kameshsampath/intent-compression-ratio-measuring-the-power-of-intent-ceb6faf2e2f9)
-- [ICR and Token Economics](https://medium.com/@kameshsampath/icr-and-token-economics-9a014a75b399)
+- [Intent Compression Ratio](https://blogs.kameshs.dev/intent-compression-ratio-measuring-the-power-of-intent-ceb6faf2e2f9)
+- [ICR and Token Economics](https://blogs.kameshs.dev/icr-and-token-economics-9a014a75b399)
+- [icr-lab](https://github.com/kameshsampath/icr-lab) — interactive ICR + token economics simulator
+
+## IDD Tracking
+
+After each step's "What we did" section, display and carry forward in session memory:
+
+| Metric | What to count |
+|---|---|
+| **Intent expressed** | Always 1 — the `$streetlights-demo step N` invocation |
+| **Agent operations** | Distinct commands actually run: SQL statements, bash commands, Python scripts, API calls |
+| **Traditional ops** | The step's pre-defined baseline (what a developer would do manually without this skill) |
+| **Step ICR** | `traditional_ops ÷ 1 invocation = traditional_ops` (whole integer) |
+
+**"Traditional ops"** counts all discrete manual actions: SQL statements written, bash/shell
+commands run, Python scripts called, API calls made, configuration files written.
+
+Step 10 recalls these from session memory and compiles the full **IDD Session Summary**
+(Infrastructure ICR + Query ICR via `uv run idd-metrics`).
 
 ## Step Overview
 

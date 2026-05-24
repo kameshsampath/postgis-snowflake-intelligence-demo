@@ -96,7 +96,7 @@ def geocode_city(city: str) -> dict:
     }
 
 
-def _fetch_osm_neighborhoods(lat: float, lng: float, radius_m: int = 10000) -> list[dict]:
+def _fetch_osm_neighborhoods(lat: float, lng: float, radius_m: int = 20000) -> list[dict]:
     """Fetch real neighborhood names from OpenStreetMap Overpass API.
 
     Uses GET with User-Agent (required — POST returns 406 from Overpass).
@@ -149,7 +149,7 @@ def generate_neighborhoods(
     center_lng: float,
     count: int = 8,
     use_real_names: bool = True,
-) -> list[dict]:
+) -> tuple[list[dict], list[dict]]:
     """Generate synthetic neighborhoods around a center point.
 
     Neighborhoods are distributed in a radial pattern within ~5km of center.
@@ -160,10 +160,12 @@ def generate_neighborhoods(
         count: Number of neighborhoods to generate.
 
     Returns:
-        List of neighborhood dicts with: name, polygon (WKT), centroid (lat/lng).
+        Tuple of (neighborhoods, osm_names) where neighborhoods is a list of dicts
+        with name/polygon/centroid and osm_names is the raw OSM names list
+        (each dict has keys name, lat, lng).
     """
     if count <= 0:
-        return []
+        return [], []
 
     # --- Try real neighborhood names from OpenStreetMap ---
     osm_names: list[dict] = []
@@ -263,4 +265,4 @@ def generate_neighborhoods(
             }
         )
 
-    return neighborhoods
+    return neighborhoods, osm_names

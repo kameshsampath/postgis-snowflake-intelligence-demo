@@ -47,9 +47,13 @@ Create a Semantic View over the CLD tables that defines dimensions, measures, an
 - Validate the view was created and is queryable
 - This enables structured SQL generation from natural language
 
+> **File**: `snowflake/02_semantic_view.sql` (executed with `PREFIX=<prefix>` template variable)
+
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
+
+> **Note**: Enter plan mode before presenting the dry-run output (per SKILL.md global dry-run rule).
 
 Show the execution plan to the user:
 ```bash
@@ -109,6 +113,17 @@ SHOW SEMANTIC VIEWS IN DATABASE {database};
 - ✅ Gate check: semantic view exists and YAML primary_key columns are valid unquoted identifiers
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
+
+### IDD Metrics — This Step
+
+| Metric | Value |
+|---|---|
+| **Intent expressed** | 1 — `$streetlights-demo step 5` |
+| **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
+| **Traditional ops** | ~7 — (1 SQL semantic view + 1 bash deploy + 3 SQL verification queries + 2 gate calls without this skill) |
+| **Step ICR** | **7** (7 ops replaced by 1 invocation) |
+
+> Carry forward in session memory — Step 10 compiles the full IDD session summary.
 
 ## Mark COMPLETE
 

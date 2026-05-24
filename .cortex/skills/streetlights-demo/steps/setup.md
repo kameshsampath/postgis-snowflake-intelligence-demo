@@ -65,9 +65,15 @@ If user skips: note it was skipped, move to next step.
    - Options: suggest username-based prefix (e.g., "kameshs")
 
 3. **Detect or ask for city**
-   - Try auto-detection via IP geolocation
-   - If fails: ask user for city name
-   - Show detected city + coordinates, ask for confirmation
+   - Run auto-detection via IP geolocation first (always attempt before asking)
+   - If successful: present detected city as the **first** option in `ask_user_question`, labeled `"Detected: <city> (<lat>, <lng>)"`. List common cities below it.
+   - If auto-detection fails: show common cities directly, no detected option.
+   - After city is confirmed, look up the local currency using this built-in mapping:
+     - India (Bengaluru, Mumbai, Delhi, Chennai, Hyderabad) → `currency = "INR"`, `currency_symbol = "₹"`
+     - UK (London, Manchester, Edinburgh) → `currency = "GBP"`, `currency_symbol = "£"`
+     - EU cities (Berlin, Paris, Amsterdam, Madrid, Rome) → `currency = "EUR"`, `currency_symbol = "€"`
+     - Default → `currency = "USD"`, `currency_symbol = "$"`
+   - Store detected `currency` and `currency_symbol` in manifest.
 
 4. **Ask for Snowflake connection**
    - List available connections: `snow connection list`
@@ -85,11 +91,15 @@ If user skips: note it was skipped, move to next step.
    - Note: Creating a warehouse requires `CREATE WAREHOUSE` privilege (typically `SYSADMIN`+)
 
 6. **Role capture (role + admin_role)**
-   - Capture user's current working role:
+   - Capture user's actual default role (not the session override):
      ```sql
-     SELECT CURRENT_ROLE() AS role;
+     SELECT CURRENT_USER() AS u;
+     -- then:
+     DESC USER <u>;  -- read the DEFAULT_ROLE property
      ```
-   - Store this as `role` in manifest `[snowflake]` — this is the user's everyday role (grants target)
+   - Use `DEFAULT_ROLE` from DESC USER output as `role` in manifest — this is the user's everyday working role (grants target), not the session role which may be ACCOUNTADMIN due to connection config.
+   - If `DEFAULT_ROLE` is blank or null, fall back to `CURRENT_ROLE()`.
+   - Show the detected role to the user and ask for confirmation before writing to manifest.
 
    ---
 
@@ -125,6 +135,9 @@ If user skips: note it was skipped, move to next step.
       city         = "<city>"
       center_lat   = <lat>
       center_lng   = <lng>
+      currency      = "<currency_code>"
+      currency_symbol = "<symbol>"
+      pg_network_policy = ""
       ```
 
 > **Note**: Existing instances keep their current names; only new setups use the shorter naming convention.
@@ -175,7 +188,6 @@ psql "service=$PGSERVICE connect_timeout=10"
 | **direnv** (recommended) | `brew install direnv` + add hook to shell. The `.envrc` in this project loads them automatically. |
 | **source manually** | Add to your `~/.bashrc` / `~/.zshrc`: `source /path/to/project/.envrc` |
 | **export directly** | Copy the two `export` lines above into your shell session |
-| **dotenv** | Create a `.env` file with `PGSERVICE=<value>` and source it with your preferred tool |
 
 > **Note**: You do NOT need `PGHOST`, `PGUSER`, or `PGPASSWORD` env vars.
 > The `PGSERVICE` var tells psql to look up everything from `~/.pg_service.conf` + `~/.pgpass`.
