@@ -34,7 +34,7 @@ invocations:
   2. "What we'll do" — the intro preview of actions
   3. "What we did" — the outro summary of completed work
   Each is a natural pause point. Present it, let the user read it, then continue.
-- **Dry-run → plan mode**: When presenting a dry-run output, call `enter_plan_mode` before showing it. Exit plan mode (call `exit_plan_mode`) only after the user confirms. Then execute.
+- ⚠️ **MANDATORY — Dry-run → plan mode**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
 
 ## Routing
 
