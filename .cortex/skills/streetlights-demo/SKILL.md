@@ -146,6 +146,8 @@ For pre-computed baseline values to answer user questions, see `references/idd-m
 
 ## Step Overview
 
+### Phase 1 — Infrastructure (self-contained)
+
 | Step | Title | Key Actions |
 |------|-------|-------------|
 | setup | Init manifest | Create `.streetlights-demo/manifest.toml`, confirm prefix |
@@ -155,9 +157,18 @@ For pre-computed baseline values to answer user questions, see `references/idd-m
 | 4 | ⚠️ CLD | Catalog Integration + Catalog-Linked Database |
 | 5 | Semantic View | Create Semantic View on CLD tables |
 | 6 | Cortex Search | Create Cortex Search service on maintenance records |
-| 7 | Agent | Create Intelligence Agent (Semantic View + Search) ← **Infrastructure phase ends here** |
-| — | — | *Step 7 asks: continue to App phase or stop here?* |
-| **app** | **App Phase** | **`$streetlights-demo app` — runs steps 8–10 in parallel via Team `streetlights-app-phase`** |
+| 7 | Agent | Create Intelligence Agent (Semantic View + Search) |
+
+> After step 7 the user is asked: **continue to the App phase, or stop here?**
+> Stopping here is valid — the Intelligence Agent is fully operational in Snowflake Intelligence.
+
+### Phase 2 — App (opt-in, via `$streetlights-demo app`)
+
+Steps 8–10 run in parallel inside Team `streetlights-app-phase`.
+Forecast worker and Deploy worker are spawned concurrently; the Synthesizer converges at step 10.
+
+| Step | Title | Key Actions |
+|------|-------|-------------|
 | 8 | ML Forecast | Train FORECAST model on energy consumption (Forecast worker) |
 | 9 | Deploy SiS | Deploy multi-page Streamlit app (Deploy worker) |
 | 10 | Validate | Run sanity gate, compile full IDD session summary (Synthesizer) |
