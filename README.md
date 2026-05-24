@@ -77,9 +77,10 @@ The following account parameters must be enabled:
 
 ## Quick Start (Cortex Code)
 
-The recommended path uses Cortex Code's guided workflow. Each step follows a
-**What we'll do → Proceed? → Execute → What we did** pattern — you always see
-what's about to happen and confirm before anything runs.
+The recommended path uses Cortex Code's guided workflow. Each step opens in
+**plan mode** — you see why it matters, what will run, and a dry-run preview
+before anything executes. Confirm once to proceed; execution begins only after
+you exit plan mode.
 
 ### 1. Open Cortex Code in this project
 
@@ -94,6 +95,12 @@ Type in the Cortex Code prompt:
 
 ```
 $streetlights-demo setup
+```
+
+Or use a natural language trigger:
+```
+start the streetlights demo
+show me the streetlights demo
 ```
 
 This will:

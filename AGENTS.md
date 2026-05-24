@@ -168,6 +168,20 @@ pre-commit install
 pre-commit install --hook-type commit-msg
 ```
 
+## Skill Development Standards
+
+When modifying any file under `.cortex/skills/streetlights-demo/`, follow the
+`$skill-development` best practices:
+
+- **Frontmatter**: `name` and `description` only — no custom fields (`invocations`,
+  `intent_triggers`, or others)
+- **Triggers**: encode intent phrases inside the `description` field, not in
+  separate fields
+- **Size**: keep `SKILL.md` under 500 lines; move reference material to
+  `references/` sub-files
+- **Instructions**: prefer explaining *why* over rigid `ALWAYS`/`NEVER` rules;
+  use ⚠️ **MANDATORY** only for truly required actions, not stylistic preferences
+
 ## Tone
 
 Use a calm, architectural, engineering-oriented, teaching tone.
