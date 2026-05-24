@@ -1,11 +1,12 @@
 ---
 name: streetlights-demo
-description: Guided pedagogical demo of Snowflake Postgres + pg_lake + Intelligence
-invocations:
-  - streetlights-demo
-  - streetlights-demo setup
-  - streetlights-demo step <N>
-  - streetlights-demo cleanup
+description: >
+  Guided pedagogical demo of Snowflake Postgres + pg_lake + Cortex AI,
+  demonstrating Intent-Driven Development through a streetlights infrastructure
+  scenario. Use when: "start the streetlights demo", "run the streetlights demo",
+  "show me the streetlights demo", "streetlights infrastructure demo",
+  "demo snowflake postgres with Cortex", "pg_lake demo",
+  "demo Cortex Intelligence with streetlights".
 ---
 
 # Streetlights Demo Skill
@@ -34,12 +35,13 @@ invocations:
   2. "What we'll do" — the intro preview of actions
   3. "What we did" — the outro summary of completed work
   Each is a natural pause point. Present it, let the user read it, then continue.
-- ⚠️ **MANDATORY — Dry-run → plan mode**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+- ⚠️ **MANDATORY — Step plan mode**: Call `enter_plan_mode` immediately after marking a step IN_PROGRESS, before presenting any content. The full step preview (Why this matters → What we'll do → dry-run output) runs inside plan mode. Call `exit_plan_mode` with a plan summary after the dry-run output (or after "What we'll do" for steps without a dry-run). There are no intermediate `Proceed?` asks or `STOP` blocks within the step flow — `exit_plan_mode` is the single confirmation gate.
 
 ## Routing
 
 | Command | Route |
 |---------|-------|
+| `$streetlights-demo` (no args) | → Demo Introduction (plan mode overview) |
 | `$streetlights-demo setup` | → `steps/setup.md` |
 | `$streetlights-demo step 1` | → `steps/step-1.md` |
 | `$streetlights-demo step 2` | → `steps/step-2.md` (routes to `$snowflake-postgres` [bundled]) |
@@ -52,6 +54,19 @@ invocations:
 | `$streetlights-demo step 9` | → `steps/step-9.md` (routes to `$developing-with-streamlit-in-snowflake` [bundled]) |
 | `$streetlights-demo step 10` | → `steps/step-10.md` |
 | `$streetlights-demo cleanup` | → `cleanup/SKILL.md` |
+
+## Demo Introduction
+
+> ⚠️ **MANDATORY**: When `$streetlights-demo` is invoked with no step argument (or via
+> an intent trigger), call `enter_plan_mode` before presenting any content. Then present:
+>
+> 1. **What this demo is** — Intent-Driven Development applied to real infrastructure:
+>    a single skill invocation replaces dozens of manual Snowflake + Postgres operations.
+> 2. **Architecture overview** — from the Architecture section below.
+> 3. **Step table** — from the Step Overview section below.
+>
+> Call `exit_plan_mode` after presenting all three. Then ask which step to start with
+> and suggest `$streetlights-demo setup` as the entry point.
 
 ## Prerequisites
 - Snowflake account with Cortex features enabled
