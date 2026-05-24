@@ -5,8 +5,12 @@ Uses IP geolocation for auto-detection and geopy Nominatim for geocoding.
 
 from __future__ import annotations
 
+import json
 import math
 import random
+import sys
+import urllib.parse
+import urllib.request
 
 import httpx
 from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
@@ -92,10 +96,59 @@ def geocode_city(city: str) -> dict:
     }
 
 
+def _fetch_osm_neighborhoods(lat: float, lng: float, radius_m: int = 10000) -> list[dict]:
+    """Fetch real neighborhood names from OpenStreetMap Overpass API.
+
+    Uses GET with User-Agent (required — POST returns 406 from Overpass).
+    Filters unnamed elements so caller sees [] when no named results exist.
+    Returns list of {name, lat, lng} sorted by distance from center.
+    Returns [] on any failure — generate_neighborhoods falls back to generic names.
+    """
+    delta = radius_m / 111_000
+    s, n = lat - delta, lat + delta
+    w, e = lng - delta, lng + delta
+    query = (
+        f"[out:json][timeout:10];"
+        f'(node["place"~"suburb|neighbourhood|quarter|village"]({s},{w},{n},{e});'
+        f'way["place"~"suburb|neighbourhood|quarter"]({s},{w},{n},{e});'
+        f'relation["place"~"suburb|neighbourhood|quarter"]({s},{w},{n},{e}););'
+        f"out center;"
+    )
+    url = "https://overpass-api.de/api/interpreter?data=" + urllib.parse.quote(query)
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "streetlights-demo/1.0"})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            elements = json.loads(resp.read().decode()).get("elements", [])
+    except Exception:
+        return []
+
+    results = []
+    for el in elements:
+        name = el.get("tags", {}).get("name", "").strip()
+        if not name:
+            continue
+        if el["type"] == "node":
+            elat, elng = el.get("lat", lat), el.get("lon", lng)
+        else:
+            c = el.get("center", {})
+            elat, elng = c.get("lat", lat), c.get("lon", lng)
+        dist = math.sqrt((elat - lat) ** 2 + (elng - lng) ** 2)
+        results.append({"name": name, "lat": elat, "lng": elng, "dist": dist})
+
+    seen: set[str] = set()
+    unique = []
+    for r in sorted(results, key=lambda x: x["dist"]):
+        if r["name"] not in seen:
+            seen.add(r["name"])
+            unique.append({"name": r["name"], "lat": r["lat"], "lng": r["lng"]})
+    return unique
+
+
 def generate_neighborhoods(
     center_lat: float,
     center_lng: float,
     count: int = 8,
+    use_real_names: bool = True,
 ) -> list[dict]:
     """Generate synthetic neighborhoods around a center point.
 
@@ -111,6 +164,21 @@ def generate_neighborhoods(
     """
     if count <= 0:
         return []
+
+    # --- Try real neighborhood names from OpenStreetMap ---
+    osm_names: list[dict] = []
+    if use_real_names:
+        osm_names = _fetch_osm_neighborhoods(center_lat, center_lng)
+
+    # Use real OSM names for up to `count` slots, supplement remainder with templates
+    real_count = min(len(osm_names), count)
+    if real_count > 0:
+        print(
+            f"  \u2713 Using {real_count} real neighborhood names from OpenStreetMap",
+            file=sys.stderr,
+        )
+    else:
+        print("  \u2139  Using generated neighborhood names", file=sys.stderr)
 
     # Generic neighborhood name templates
     _PREFIXES = [
@@ -154,29 +222,36 @@ def generate_neighborhoods(
 
     rng = random.Random(42)  # Deterministic for reproducibility
     names: list[str] = []
-    while len(names) < count:
+    while len(names) < count - real_count:
         name = f"{rng.choice(_PREFIXES)} {rng.choice(_SUFFIXES)}"
         if name not in names:
             names.append(name)
 
     neighborhoods: list[dict] = []
-    # Distribute neighborhoods in concentric rings
-    for i, name in enumerate(names):
-        angle = (2 * math.pi * i) / count
-        # Radius varies: ~1-4 km from center (in degrees, ~0.01-0.04)
-        radius_deg = 0.01 + (i % 3) * 0.012
-        lat = center_lat + radius_deg * math.cos(angle)
-        lng = center_lng + radius_deg * math.sin(angle)
+    for i in range(count):
+        if i < real_count:
+            # Use real OSM data
+            osm = osm_names[i]
+            name = osm["name"]
+            lat_c = osm["lat"]
+            lng_c = osm["lng"]
+        else:
+            # Use template-generated name and computed position
+            template_idx = i - real_count
+            name = names[template_idx] if template_idx < len(names) else f"District {i + 1}"
+            angle = (2 * math.pi * i) / count
+            radius_deg = 0.01 + (i % 3) * 0.012
+            lat_c = center_lat + radius_deg * math.cos(angle)
+            lng_c = center_lng + radius_deg * math.sin(angle)
 
-        # Create a small polygon (hexagonal approximation) around centroid
-        poly_radius = 0.005  # ~500m
+        # Hexagonal polygon approximation around centroid
+        poly_radius = 0.005
         polygon_points = []
         for j in range(6):
             pa = (2 * math.pi * j) / 6
-            plat = lat + poly_radius * math.cos(pa)
-            plng = lng + poly_radius * math.sin(pa)
+            plat = lat_c + poly_radius * math.cos(pa)
+            plng = lng_c + poly_radius * math.sin(pa)
             polygon_points.append(f"{plng} {plat}")
-        # Close the polygon
         polygon_points.append(polygon_points[0])
         polygon_wkt = f"POLYGON(({', '.join(polygon_points)}))"
 
@@ -184,7 +259,7 @@ def generate_neighborhoods(
             {
                 "name": name,
                 "polygon": polygon_wkt,
-                "centroid": {"lat": lat, "lng": lng},
+                "centroid": {"lat": lat_c, "lng": lng_c},
             }
         )
 

@@ -4,6 +4,24 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+## ⚠️ Demo Data Disclaimer
+
+All data in this demo — including street light locations, maintenance records,
+sensor readings, energy consumption figures, and operational statuses — is
+**entirely synthetic and computer-generated** for demonstration and educational
+purposes only.
+
+Geographic coordinates are placed within real map areas using the user's
+detected or specified city as a reference point. **These coordinates do not
+represent actual street light infrastructure.** Map links are provided solely
+to demonstrate location-aware query capabilities. Any resemblance to actual
+streetlight locations, infrastructure, or operational data is coincidental.
+
+This demo is provided "as is" for educational purposes only and is not intended
+to reflect the actual condition of any city's infrastructure. No reliance should
+be placed on any data shown for operational, commercial, safety, or any other
+real-world decisions.
+
 A complete demo showcasing how Snowflake Postgres with pg_lake Iceberg tables connects
 natively to Snowflake's AI stack — no CDC pipeline, no ETL, no data movement.
 
@@ -241,10 +259,6 @@ Or manually:
 ```bash
 task cleanup
 ```
-
-> **CAUTION**: This project uses entirely fictitious data for demonstration and
-> educational purposes. All company names, supplier names, contact information,
-> and other data are computer-generated and do not represent real entities.
 
 ---
 

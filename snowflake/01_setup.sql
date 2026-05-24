@@ -51,9 +51,9 @@ USE WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH;
 --
 -- Expected tables:
 --   "street_lights"
---   "neighborhoods"
---   "maintenance_requests"
---   "suppliers"
+--   "maintenance_records"
+--   "energy_consumption"
+--   "light_sensors"
 --   "weather_enrichment"
 --   "demographics"
 --   "power_grid_zones"
@@ -62,14 +62,14 @@ USE WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH;
 -- SELECT 'street_lights' AS table_name, COUNT(*) AS row_count
 --   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."street_lights"
 -- UNION ALL
--- SELECT 'neighborhoods', COUNT(*)
---   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."neighborhoods"
+-- SELECT 'maintenance_records', COUNT(*)
+--   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."maintenance_records"
 -- UNION ALL
--- SELECT 'maintenance_requests', COUNT(*)
---   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."maintenance_requests"
+-- SELECT 'energy_consumption', COUNT(*)
+--   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."energy_consumption"
 -- UNION ALL
--- SELECT 'suppliers', COUNT(*)
---   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."suppliers"
+-- SELECT 'light_sensors', COUNT(*)
+--   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."light_sensors"
 -- UNION ALL
 -- SELECT 'weather_enrichment', COUNT(*)
 --   FROM <% PREFIX %>_STREETLIGHTS_CLD."streetlights"."weather_enrichment"

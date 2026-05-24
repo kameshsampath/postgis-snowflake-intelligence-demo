@@ -22,7 +22,7 @@ uv run gate --step step-1 --desc "Generating synthetic data" --action start
 
 ## What we'll do
 
-Generate 7 CSV files of synthetic streetlight data (lights, maintenance records, energy consumption, sensors, weather, demographics, power grid zones) centered on the configured city.
+Generate 7 CSV files of synthetic streetlight data (lights, maintenance records, energy consumption, sensors, weather, demographics, power grid zones) centered on the configured city. Neighborhood names are fetched from OpenStreetMap when available (e.g., Koramangala, Indiranagar for Bangalore), with automatic fallback to generated names if unavailable.
 
 - Run the data generator with city coordinates from manifest
 - Produce ~500 street lights plus related tables
@@ -71,6 +71,7 @@ If user skips: note it was skipped, move to next step.
 - ✅ Generated 7 CSV files in `data/`
 - ✅ Data centered on configured city coordinates
 - ✅ All files have expected row counts
+- ✅ Neighborhood names: real names from OpenStreetMap (or generated names if OSM unavailable)
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 

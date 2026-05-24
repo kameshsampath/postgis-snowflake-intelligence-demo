@@ -92,7 +92,7 @@ The demo is fully operational. You now have:
 - Native CLD sync to Snowflake (no CDC pipeline needed)
 - Semantic View for structured analytics
 - Cortex Search for text retrieval
-- Intelligence Agent combining both + chart generation
+- Intelligence Agent combining both (UI auto-renders charts)
 - ML Forecast for predictive maintenance
 - Multi-page Streamlit dashboard
 

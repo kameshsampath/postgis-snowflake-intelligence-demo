@@ -76,7 +76,11 @@ class TestGateCldHealthy:
         """Gate passes when CLD database shows tables."""
         from scripts.gate import check_cld_healthy
 
-        with patch("scripts.gate._cld_table_count", return_value=7):
+        wh_rows = [{"name": "TESTUSER_STREETLIGHTS_WH"}]
+        with (
+            patch("scripts.gate._snow_json", return_value=(0, wh_rows)),
+            patch("scripts.gate._cld_table_count", return_value=7),
+        ):
             result = check_cld_healthy(project_root=manifest_dir)
             assert result.success is True
 
@@ -84,7 +88,11 @@ class TestGateCldHealthy:
         """Gate fails when CLD database has no tables (propagation not done)."""
         from scripts.gate import check_cld_healthy
 
-        with patch("scripts.gate._cld_table_count", return_value=0):
+        wh_rows = [{"name": "TESTUSER_STREETLIGHTS_WH"}]
+        with (
+            patch("scripts.gate._snow_json", return_value=(0, wh_rows)),
+            patch("scripts.gate._cld_table_count", return_value=0),
+        ):
             result = check_cld_healthy(project_root=manifest_dir)
             assert result.success is False
             assert "table" in result.message.lower() or "cld" in result.message.lower()

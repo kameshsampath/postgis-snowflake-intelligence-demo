@@ -1,65 +1,93 @@
 # Streetlights Demo — AI Agent Rules
 
 Rules for any AI agent (Claude, Copilot, Cursor, etc.) running this demo.
+All `{field}` values resolve from `.streetlights-demo/manifest.toml` via `load_manifest()`.
 
-## snow CLI
+## 1. snow CLI
 
-- `snow sql` always requires: `--format json`, `-c {connection}`, `--enable-templating ALL`
-- Execute SQL templates: `snow sql -f snowflake/FILE.sql -D "PREFIX=KAMESHS" -c {connection} --enable-templating ALL`
-- Template syntax is `<% PREFIX %>` (Snowflake STANDARD mode). Never use `${PREFIX}` — that is bash-only and is not expanded by snow CLI.
+- All `snow sql` calls require: `--format json`, `-c {connection}`, `--enable-templating STANDARD`
+- Template syntax is `<% PREFIX %>` (STANDARD mode). Never use `${VAR}` — bash-only, not expanded by snow CLI.
+- Full execution pattern:
+  ```bash
+  snow sql -f snowflake/FILE.sql \
+    -D "PREFIX={prefix.upper()}" \
+    -D "ROLE={role}" \
+    -c {connection} \
+    --enable-templating STANDARD
+  ```
 
-## Configuration: manifest.toml is source of truth
+## 2. Manifest: single source of truth
 
-- All config comes from `.streetlights-demo/manifest.toml` via `load_manifest()`.
-- `.env` is a derived convenience file — never read it as a configuration source.
-- `manifest.demo.prefix` is lowercase (`kameshs`). SQL `-D "PREFIX=..."` value must be UPPERCASE (`KAMESHS`).
-- Key manifest fields: `connection`, `role`, `admin_role`, `warehouse`, `database`, `cld_database`, `pg_service`, `prefix`.
+- All config from `.streetlights-demo/manifest.toml` via `load_manifest()`. Never use `.env` as a config source.
+- `manifest.demo.prefix` is **lowercase**. SQL `-D "PREFIX=..."` must be **UPPERCASE**.
 
-## CLD column quoting
+| Field | Purpose |
+|-------|---------|
+| `demo.prefix` | Resource name prefix (uppercase in SQL `-D` flags) |
+| `demo.database` | Main Snowflake database (`{PREFIX}_STREETLIGHTS`) |
+| `demo.cld_database` | Catalog-Linked Database — read-only (`{PREFIX}_STREETLIGHTS_CLD`) |
+| `demo.warehouse` | Compute warehouse |
+| `demo.pg_instance` | Snowflake Postgres instance name |
+| `demo.pg_service` | psql service name (maps to `~/.pg_service.conf`) |
+| `snowflake.connection` | snow CLI connection name |
+| `snowflake.role` | Non-admin working role (grants target) |
+| `snowflake.admin_role` | Elevated role for DDL and grants |
 
-- CLD tables come from PostgreSQL where all identifiers are lowercase.
-- **Always double-quote column names** in Snowflake SQL: `"status"`, `"light_id"`, `"date"`, `"kwh"`, etc.
-- Unquoted identifiers are uppercased by Snowflake and raise "invalid identifier" errors.
+## 3. CLD column quoting
 
-## Object placement
+- CLD tables mirror PostgreSQL — all column names are **lowercase**.
+- Always double-quote in Snowflake SQL: `"status"`, `"light_id"`, `"date"`, `"kwh"`.
+- Unquoted identifiers are uppercased by Snowflake → `invalid identifier` error.
 
-- Semantic views, Cortex Search services, Agents, ML Forecast models, Streamlit apps → `{PREFIX}_STREETLIGHTS.PUBLIC`
-- CLD (`{PREFIX}_STREETLIGHTS_CLD`) is **read-only** — it mirrors PostgreSQL. Only TABLE references (SELECT FROM) are valid there.
-- Attempting to CREATE any object in CLD produces: `operation not supported in catalog-linked database`
+## 4. Object placement
 
-## Real CLD table names (from PostgreSQL)
+- **All Snowflake objects** (Semantic Views, Cortex Search, Agents, ML Forecast, Streamlit) → `{database}.PUBLIC`
+- **CLD** (`{cld_database}`) is **read-only** — SELECT only. Never CREATE in CLD.
+  Error: `operation not supported in catalog-linked database`
 
-| Table | Columns |
-|---|---|
-| `"street_lights"` | `"id"`, `"pole_id"`, `"latitude"`, `"longitude"`, `"neighborhood"`, `"install_date"`, `"wattage"`, `"light_type"`, `"status"` |
-| `"maintenance_records"` | `"id"`, `"light_id"`, `"date"`, `"type"`, `"description"`, `"cost"`, `"technician"` |
-| `"energy_consumption"` | `"id"`, `"light_id"`, `"date"`, `"hour"`, `"kwh"`, `"voltage"`, `"power_factor"` |
-| `"light_sensors"` | `"id"`, `"light_id"`, `"timestamp"`, `"lux"`, `"motion_detected"`, `"temperature"` |
-| `"demographics"` | `"neighborhood"`, `"population"`, `"median_income"`, `"commercial_pct"` |
-| `"power_grid_zones"` | `"zone_id"`, `"zone_name"`, `"capacity_kw"`, `"current_load_kw"`, `"latitude"`, `"longitude"` |
-| `"weather_enrichment"` | `"date"`, `"season"`, `"temperature"`, `"humidity"`, `"wind_speed"`, `"precipitation"` |
+## 5. PostgreSQL connections
 
-> No `maintenance_requests`, `neighborhoods`, or `suppliers` tables exist.
+- Connect via: `psql "service={pg_service}"`. Never use `-h`, `-U`, or `-d` flags.
+- Credentials live in `~/.pg_service.conf` (managed by `$snowflake-postgres` skill).
+- `pg_service` is `manifest.demo.pg_service`, **not** the `PGSERVICE` env var.
 
-## PostgreSQL connections
+## 6. Roles
 
-- Always connect via: `psql "service={pg_service}"`. Never use `-h`/`-U`/`-d` directly.
-- Credentials come from `~/.pg_service.conf`, set up by the `snowflake-postgres` bundled skill.
-- `pg_service` is `manifest.demo.pg_service`, **not** the `PGSERVICE` environment variable.
+- **`admin_role`** (typically `ACCOUNTADMIN`): DDL — `CREATE WAREHOUSE`, `GRANT`, `CREATE SEMANTIC VIEW`, `CREATE CORTEX SEARCH SERVICE`, `CREATE AGENT`, `ALTER SNOWFLAKE INTELLIGENCE`.
+- **`role`**: DML, verification queries, and day-to-day operations.
 
-## Warehouse resilience
+## 7. Warehouse resilience
 
-- `{PREFIX}_STREETLIGHTS_WH` can be dropped by account-level cleanup jobs.
-- If a gate step fails with "warehouse not found": recreate with `CREATE WAREHOUSE IF NOT EXISTS {PREFIX}_STREETLIGHTS_WH ...` and re-grant: `GRANT USAGE ON WAREHOUSE {PREFIX}_STREETLIGHTS_WH TO ROLE KAMESH_DEMOS`.
+- `{warehouse}` can be dropped by account-level cleanup jobs.
+- If any gate step fails with "warehouse not found", recreate:
+  ```sql
+  USE ROLE {admin_role};
+  CREATE WAREHOUSE IF NOT EXISTS {warehouse}
+    WAREHOUSE_SIZE='XSMALL' AUTO_SUSPEND=60 AUTO_RESUME=TRUE;
+  GRANT USAGE ON WAREHOUSE {warehouse} TO ROLE {role};
+  ```
 
-## Roles
+## 8. Intelligence registration
 
-- Use `admin_role` (ACCOUNTADMIN) for DDL: `CREATE WAREHOUSE`, `GRANT`, `CREATE SEMANTIC VIEW`, `CREATE CORTEX SEARCH SERVICE`.
-- Use `role` (KAMESH_DEMOS) for DML and verification queries.
+- Agents must be explicitly registered to appear in the Snowflake Intelligence UI:
+  ```sql
+  ALTER SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT
+    ADD AGENT {database}.PUBLIC.STREETLIGHTS_AGENT;
+  ```
+- `04_intelligence_agent.sql` handles this automatically at the end of each deployment.
+- `CREATE OR REPLACE AGENT` invalidates prior registration — re-registration always runs after redeploy.
 
-## Gate timing
+## 9. Map links
 
-- Gate cache TTL: 1 hour. After expiry it re-verifies live infra state.
+- Always use **OpenStreetMap** (public, no API key, no billing):
+  ```
+  https://www.openstreetmap.org/?mlat={latitude}&mlon={longitude}&zoom=16
+  ```
+- Never display raw coordinates — always wrap in a map link with neighborhood name or pole_id as anchor text.
+
+## 10. Gate timing
+
+- Cache TTL: 1 hour. After expiry the gate re-verifies live state.
 - Always pass `--prior-step` to enforce the full step-chain check.
 - Cortex Search: wait **1–2 min** after creation for `ACTIVE` status.
 - ML Forecast: wait **2–5 min** after `CREATE` for model training to complete.

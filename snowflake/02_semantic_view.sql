@@ -117,6 +117,14 @@ CREATE OR REPLACE SEMANTIC VIEW <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_se
       WITH SYNONYMS ('coordinates', 'geo_location', 'geo_point', 'position')
       COMMENT = 'Geographic point reconstructed from lat/lng for spatial queries.',
 
+    street_lights.latitude        AS "latitude"
+      WITH SYNONYMS ('lat', 'y_coordinate')
+      COMMENT = 'Latitude of the street light in decimal degrees. Use with longitude for map links.',
+
+    street_lights.longitude       AS "longitude"
+      WITH SYNONYMS ('lng', 'x_coordinate')
+      COMMENT = 'Longitude of the street light in decimal degrees. Use with latitude for map links.',
+
     -- maintenance_records: cost measures
     maintenance_records.record_id AS "id"
       COMMENT = 'Maintenance record identifier. Use for counting maintenance events.',

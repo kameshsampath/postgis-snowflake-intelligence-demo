@@ -78,7 +78,7 @@ If user skips: note it was skipped, move to next step.
 1. Read manifest for database/warehouse names
 2. Execute Cortex Search DDL:
    ```bash
-   snow sql -f snowflake/03_cortex_search.sql -D "PREFIX=KAMESHS" -c local-oauth --enable-templating ALL
+   snow sql -f snowflake/03_cortex_search.sql -D "PREFIX=KAMESHS" -c local-oauth --enable-templating STANDARD
    ```
 3. Wait for service to become ACTIVE (may take 1-2 minutes)
 
@@ -93,12 +93,14 @@ If user skips: note it was skipped, move to next step.
 - Run `gate.py check_cortex_search_ready`
 - Service status must be `ACTIVE`
 - Test a sample search query:
-  ```sql
-  SELECT * FROM TABLE(
-    {database}.{schema}.MAINTENANCE_SEARCH(
-      SEARCH_QUERY => 'safety hazard exposed wires'
-    )
-  ) LIMIT 5;
+  ```bash
+  snow cortex search "safety hazard exposed wires" \
+    --service MAINTENANCE_SEARCH \
+    --columns NEIGHBORHOOD --columns MAINTENANCE_TYPE --columns DESCRIPTION \
+    --limit 5 \
+    -c {connection} \
+    --database {database} \
+    --schema PUBLIC
   ```
 
 ## What we did

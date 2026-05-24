@@ -15,6 +15,16 @@ This will DESTROY all demo resources. Confirm each step with the user.
 
 Execute in this exact order — each step depends on the previous:
 
+### 0. Deregister from Snowflake Intelligence
+
+Must run BEFORE Drop Agent — removes the agent from the Intelligence UI registry.
+
+```sql
+-- Note: syntax is DROP AGENT (not REMOVE AGENT)
+ALTER SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT
+  DROP AGENT {database}.{schema}.STREETLIGHTS_AGENT;
+```
+
 ### 1. Drop SiS App
 
 ```sql
@@ -42,7 +52,7 @@ DROP CORTEX SEARCH SERVICE IF EXISTS {database}.{schema}.MAINTENANCE_SEARCH;
 ### 5. Drop Semantic View
 
 ```sql
-DROP SEMANTIC VIEW IF EXISTS {database}.{schema}.STREETLIGHTS_SEMANTIC;
+DROP SEMANTIC VIEW IF EXISTS {database}.{schema}.STREETLIGHTS_SEMANTIC_VIEW;
 ```
 
 ### 6. Drop CLD Database
@@ -82,6 +92,39 @@ DROP DATABASE IF EXISTS {database};
 
 ```bash
 rm -rf .streetlights-demo/
+```
+
+### 12. Reset Gate State
+
+Reset all step progress tracking (already handled by step 11 which removes `.streetlights-demo/`):
+```bash
+# The manifest removal in step 11 resets gate state automatically.
+# If you want to reset only gate state without removing the full manifest:
+uv run gate --step step-7 --action reset
+uv run gate --step step-6 --action reset
+uv run gate --step step-5 --action reset
+uv run gate --step step-4 --action reset
+uv run gate --step step-3 --action reset
+uv run gate --step step-2 --action reset
+uv run gate --step step-1 --action reset
+uv run gate --step setup --action reset
+```
+
+### 13. Remove Generated CSV Data (optional)
+
+**Optional** — only needed if you want a completely clean slate before re-running Step 1.
+Keep the CSVs if you want to reload the same data without regenerating.
+
+```bash
+rm -rf data/
+```
+
+Files removed: `street_lights.csv`, `maintenance_records.csv`, `energy_consumption.csv`,
+`light_sensors.csv`, `weather_enrichment.csv`, `demographics.csv`, `power_grid_zones.csv`
+
+Also removes the generated Iceberg DDL:
+```bash
+rm -f init/02_create_iceberg_tables.sql
 ```
 
 ## Execution Notes

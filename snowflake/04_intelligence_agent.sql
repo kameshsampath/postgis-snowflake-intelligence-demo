@@ -18,11 +18,10 @@
 -- Creates a Cortex Agent that combines:
 --   - Cortex Analyst (Semantic View for structured SQL analytics)
 --   - Cortex Search (unstructured text retrieval on maintenance records)
---   - data_to_chart (visualization generation)
 --
 -- This enables natural language queries across both structured
 -- analytics and free-text maintenance descriptions, with automatic
--- routing and chart generation.
+-- routing for combined multi-source answers.
 --
 -- Variables to replace:
 --   <% PREFIX %> = your demo_resource_prefix in UPPERCASE (e.g., KAMESHS)
@@ -69,8 +68,9 @@ CREATE OR REPLACE AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_agent
       - For time-series data, use line charts
 
       ## LOCATION & MAP HANDLING
-      - When query results include latitude and longitude columns, construct a Google Maps URL:
-        https://www.google.com/maps/search/?api=1&query=LAT,LONG
+      - When the user asks about light locations, always include the LATITUDE and LONGITUDE columns in the query.
+        Construct an OpenStreetMap URL using those values:
+        https://www.openstreetmap.org/?mlat=LATITUDE&mlon=LONGITUDE&zoom=16
       - Display Logic:
         * Use the neighborhood name or pole_id as the hyperlink anchor text
         * If no name available, use "Show on Map" as fallback
@@ -91,10 +91,6 @@ CREATE OR REPLACE AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.streetlights_agent
         type: "cortex_search"
         name: "MaintenanceSearch"
         description: "Searches maintenance record descriptions using semantic search. Use for finding specific incidents, safety hazards, repair reports, or any free-text query about maintenance history and issue descriptions."
-    - tool_spec:
-        type: "data_to_chart"
-        name: "data_to_chart"
-        description: "Generates visualizations (bar charts, line charts, pie charts) from query results."
 
   tool_resources:
     StreetlightsAnalyst:
@@ -127,8 +123,22 @@ GRANT USAGE ON DATABASE <% PREFIX %>_STREETLIGHTS TO ROLE <% ROLE %>;
 GRANT USAGE ON SCHEMA <% PREFIX %>_STREETLIGHTS.PUBLIC TO ROLE <% ROLE %>;
 
 -- Tool resources access
-GRANT USAGE ON SEMANTIC VIEW <% PREFIX %>_STREETLIGHTS.PUBLIC.STREETLIGHTS_SEMANTIC_VIEW TO ROLE <% ROLE %>;
+GRANT SELECT ON SEMANTIC VIEW <% PREFIX %>_STREETLIGHTS.PUBLIC.STREETLIGHTS_SEMANTIC_VIEW TO ROLE <% ROLE %>;
 GRANT USAGE ON CORTEX SEARCH SERVICE <% PREFIX %>_STREETLIGHTS.PUBLIC.MAINTENANCE_SEARCH TO ROLE <% ROLE %>;
 
 -- Warehouse for query execution
 GRANT USAGE ON WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH TO ROLE <% ROLE %>;
+
+-- =====================================================
+-- Register with Snowflake Intelligence
+-- =====================================================
+-- Required for the agent to appear in the Snowflake Intelligence UI.
+-- Accounts with SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT show only
+-- explicitly registered agents — without this, the UI falls back
+-- to the default/main agent.
+-- Note: CREATE OR REPLACE above drops and recreates the agent,
+-- so this ADD must run after every deployment.
+-- =====================================================
+
+ALTER SNOWFLAKE INTELLIGENCE SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT
+  ADD AGENT <% PREFIX %>_STREETLIGHTS.PUBLIC.STREETLIGHTS_AGENT;

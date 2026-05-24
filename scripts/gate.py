@@ -63,7 +63,7 @@ def _snow_json(query: str, connection: str) -> tuple[int, list[dict]]:
             "--format",
             "json",
             "--enable-templating",
-            "ALL",
+            "STANDARD",
         ],
         capture_output=True,
         text=True,
@@ -89,6 +89,12 @@ def _get_current_ip() -> str:
                 return resp.read().decode().strip()
         except Exception:
             return ""
+
+
+def _mask_ip(ip: str) -> str:
+    """Mask last two octets for display: 192.168.1.2 → 192.168.*.*"""
+    parts = ip.split(".")
+    return f"{parts[0]}.{parts[1]}.*.*" if len(parts) == 4 else "[ip hidden]"
 
 
 def _get_pg_allowed_ips(instance: str, connection: str | None = None) -> list[str]:
@@ -375,12 +381,12 @@ def check_pg_network_access(project_root: Path) -> GateResult:
         if _pg_ping(manifest):
             return GateResult(
                 success=True,
-                message=f"PG reachable (current IP: {current_ip}, policy IPs unknown)",
+                message=f"PG reachable (current IP: {_mask_ip(current_ip)}, policy IPs unknown)",
             )
         return GateResult(
             success=False,
             message=(
-                f"PG unreachable. Current IP: {current_ip}. "
+                f"PG unreachable. Current IP: {_mask_ip(current_ip)}. "
                 f"Could not read network policy — IP may not be allowed."
             ),
         )
@@ -394,15 +400,15 @@ def check_pg_network_access(project_root: Path) -> GateResult:
     if ip_allowed:
         return GateResult(
             success=True,
-            message=f"Current IP {current_ip} is in PG network policy",
+            message=f"Current IP {_mask_ip(current_ip)} is in PG network policy",
         )
 
     return GateResult(
         success=False,
         message=(
-            f"IP MISMATCH: Your current IP ({current_ip}) is NOT in the "
+            f"IP MISMATCH: Your current IP ({_mask_ip(current_ip)}) is NOT in the "
             f"PG instance network policy.\n"
-            f"Allowed IPs: {', '.join(allowed_ips)}\n"
+            f"Allowed IPs: {', '.join([_mask_ip(ip) for ip in allowed_ips])}\n"
             f"You likely switched networks. "
             f"Run `$snowflake-postgres` to update the network policy."
         ),
@@ -673,6 +679,8 @@ def _dry_run(project_root: Path, step: str) -> None:
     cld_database = manifest.demo.cld_database
     warehouse = manifest.demo.warehouse
     pg_instance = manifest.demo.pg_instance
+    connection = manifest.snowflake.connection
+    role = manifest.snowflake.role
 
     if step == "step-2":
         print("Step 2: Snowflake Postgres Instance")
@@ -710,11 +718,17 @@ def _dry_run(project_root: Path, step: str) -> None:
         print("=" * 40)
         print()
         print(f"  Database: {cld_database}")
-        print("  DDL source: snowflake/semantic_view.sql (generated)")
+        print("  DDL source: snowflake/02_semantic_view.sql")
         print()
         print("Actions:")
         print("  1. Generate semantic view DDL from table schemas")
         print("  2. Execute DDL in Snowflake")
+        print()
+        print("  File:    snowflake/02_semantic_view.sql")
+        print("  Command: snow sql -f snowflake/02_semantic_view.sql \\")
+        print(
+            f'             -D "PREFIX={prefix.upper()}" -c {connection} --enable-templating STANDARD'  # noqa: E501
+        )
 
     elif step == "step-6":
         print("Step 6: Cortex Search Service")
@@ -726,6 +740,12 @@ def _dry_run(project_root: Path, step: str) -> None:
         print("Actions:")
         print("  1. Create Cortex Search service on maintenance data")
         print("  2. Verify service is active")
+        print()
+        print("  File:    snowflake/03_cortex_search.sql")
+        print("  Command: snow sql -f snowflake/03_cortex_search.sql \\")
+        print(
+            f'             -D "PREFIX={prefix.upper()}" -c {connection} --enable-templating STANDARD'  # noqa: E501
+        )
 
     elif step == "step-7":
         print("Step 7: Intelligence Agent")
@@ -736,6 +756,11 @@ def _dry_run(project_root: Path, step: str) -> None:
         print("Actions:")
         print("  1. Create Intelligence Agent with semantic view + search")
         print("  2. Verify agent responds to test query")
+        print()
+        print("  File:    snowflake/04_intelligence_agent.sql")
+        print("  Command: snow sql -f snowflake/04_intelligence_agent.sql \\")
+        print(f'             -D "PREFIX={prefix.upper()}" -D "ROLE={role}" \\')
+        print(f"             -c {connection} --enable-templating STANDARD")
 
     elif step == "step-8":
         print("Step 8: ML Forecast Model")
@@ -747,6 +772,12 @@ def _dry_run(project_root: Path, step: str) -> None:
         print("Actions:")
         print("  1. Train SNOWFLAKE.ML.FORECAST on energy_consumption")
         print("  2. Verify model exists and produces predictions")
+        print()
+        print("  File:    snowflake/05_ml_forecast.sql")
+        print("  Command: snow sql -f snowflake/05_ml_forecast.sql \\")
+        print(
+            f'             -D "PREFIX={prefix.upper()}" -c {connection} --enable-templating STANDARD'  # noqa: E501
+        )
 
     elif step == "step-9":
         print("Step 9: Streamlit App")
@@ -758,6 +789,9 @@ def _dry_run(project_root: Path, step: str) -> None:
         print("Actions:")
         print("  1. Deploy Streamlit-in-Snowflake app")
         print("  2. Verify app is accessible")
+        print()
+        print("  Deployment: handled by $developing-with-streamlit-in-snowflake skill")
+        print("  Source dir: app/  Entry point: app/Home.py")
 
     else:
         print(f"No dry-run available for '{step}'")

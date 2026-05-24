@@ -44,14 +44,14 @@ def _write_csv(filename: str, headers: list[str], rows: list[list]) -> Path:
 
 def _resolve_location(
     city: str | None, lat: float | None, lng: float | None, no_auto_detect: bool
-) -> tuple[str, float, float]:
+) -> tuple[str, float, float, bool]:
     """Resolve city/lat/lng from args or auto-detection."""
     if city:
         coords = geocode_city(city)
-        return city, coords["lat"], coords["lng"]
+        return city, coords["lat"], coords["lng"], False
 
     if lat is not None and lng is not None:
-        return "Custom Location", lat, lng
+        return "Custom Location", lat, lng, False
 
     if no_auto_detect:
         click.echo("Error: No location specified and auto-detect disabled.", err=True)
@@ -71,7 +71,7 @@ def _resolve_location(
         click.echo("Use --city or --lat/--lng to specify manually.", err=True)
         sys.exit(1)
 
-    return result["city"], result["lat"], result["lng"]
+    return result["city"], result["lat"], result["lng"], True
 
 
 def _generate_street_lights(
@@ -276,12 +276,28 @@ def _generate_power_grid_zones(
 @click.option(
     "--no-auto-detect", is_flag=True, default=False, help="Disable IP-based location detection."
 )
+@click.option(
+    "--real-names/--no-real-names",
+    default=True,
+    help="Fetch real neighborhood names from OpenStreetMap (default: on). Use --no-real-names for offline/privacy.",  # noqa: E501
+)
 def main(
-    city: str | None, lat: float | None, lng: float | None, count: int, no_auto_detect: bool
+    city: str | None,
+    lat: float | None,
+    lng: float | None,
+    count: int,
+    no_auto_detect: bool,
+    real_names: bool,
 ) -> None:
     """Generate synthetic streetlights data for the demo."""
-    city_name, center_lat, center_lng = _resolve_location(city, lat, lng, no_auto_detect)
-    click.echo(f"Generating data for: {city_name} ({center_lat:.4f}, {center_lng:.4f})")
+    city_name, center_lat, center_lng, auto_detected = _resolve_location(
+        city, lat, lng, no_auto_detect
+    )
+    if auto_detected:
+        coord_display = f"≈{center_lat:.2f}, ≈{center_lng:.2f}"
+    else:
+        coord_display = f"{center_lat:.4f}, {center_lng:.4f}"
+    click.echo(f"Generating data for: {city_name} ({coord_display})")
     click.echo(f"Count: {count} street lights")
     click.echo()
 
@@ -289,7 +305,9 @@ def main(
     np.random.seed(42)
 
     # Generate neighborhoods first (used by other generators)
-    neighborhoods = generate_neighborhoods(center_lat, center_lng, count=8)
+    neighborhoods = generate_neighborhoods(
+        center_lat, center_lng, count=8, use_real_names=real_names
+    )
 
     click.echo("Generating CSV files:")
 

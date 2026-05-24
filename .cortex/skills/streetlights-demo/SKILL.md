@@ -14,9 +14,9 @@ invocations:
 
 ### Core execution rules (see AGENTS.md for full details)
 
-1. **snow sql**: always pass `--format json`, `-c {connection}`, `--enable-templating ALL`.
+1. **snow sql**: always pass `--format json`, `-c {connection}`, `--enable-templating STANDARD`.
    - Template syntax: `<% PREFIX %>` (STANDARD). Never `${PREFIX}`.
-   - Execution: `snow sql -f snowflake/FILE.sql -D "PREFIX=KAMESHS" -c {connection} --enable-templating ALL`
+   - Execution: `snow sql -f snowflake/FILE.sql -D "PREFIX=KAMESHS" -c {connection} --enable-templating STANDARD`
 
 2. **manifest.toml is source of truth**: read config via `load_manifest()`. Never use `.env` as a config source. `prefix` is lowercase in manifest but must be UPPERCASE in `-D "PREFIX=..."` flag.
 
