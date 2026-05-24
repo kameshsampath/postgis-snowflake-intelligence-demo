@@ -51,6 +51,8 @@ Deploy the multi-page Streamlit in Snowflake (SiS) application that provides a v
 
 ## Dry-Run
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+
 Show the execution plan to the user:
 ```bash
 uv run gate --step step-9 --action dry-run

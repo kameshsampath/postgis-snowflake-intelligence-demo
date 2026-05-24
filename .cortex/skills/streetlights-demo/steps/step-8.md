@@ -34,22 +34,25 @@ uv run gate --step step-8 --desc "Training ML Forecast model" --action start
 
 **STOP** — Use `ask_user_question` to confirm:
 - Header: "Step 8"
-- Question: "Ready to proceed with ML Forecast training? (trains on energy data, takes 2-5 minutes)"
+- Question: "Ready to proceed with ML Forecast training? (fires in background, training takes 5-15 minutes on MEDIUM warehouse)"
 - Options: ["Yes, proceed", "Skip this step"]
 
 ---
 
 ## What we'll do
 
-Train a FORECAST model on energy consumption time-series data to predict future bulb failures. This enables proactive maintenance scheduling.
+Submit ML Forecast training as a background job, then proceed immediately to Step 9. The warehouse temporarily resizes to MEDIUM for training and auto-resizes back to XSMALL when done.
 
-- Deploy ML Forecast DDL on energy consumption data
-- Wait for model training (~2-5 minutes)
-- Verify the model produces predictions
+- Apply schema grants and resize warehouse to MEDIUM
+- Fire the forecast training SQL in background (do not wait)
+- The training view `energy_daily_vw` includes lat/lng/neighborhood/status for location-aware failure prediction
+- Move to Step 9 immediately — the step-9 gate automatically verifies the model is ready before allowing deployment to proceed
 
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
 ## Dry-Run
+
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
 
 Show the execution plan to the user:
 ```bash
@@ -61,7 +64,7 @@ Present the output, then ask user to proceed.
 
 Use `ask_user_question` to confirm:
 - Header: "Step 8"
-- Question: "Ready to train the ML Forecast model? (training takes 2-5 minutes)"
+- Question: "Ready to submit ML Forecast training? (runs in background on MEDIUM warehouse)"
 - Options: ["Yes, proceed", "Skip this step"]
 
 If user skips: note it was skipped, move to next step.
@@ -70,43 +73,61 @@ If user skips: note it was skipped, move to next step.
 
 ### Prerequisites
 
-- CLD database exists with energy_consumption table (Step 4 complete)
-- Warehouse exists (from `snowflake/01_setup.sql`)
+- CLD database exists with `energy_consumption` and `street_lights` tables (Step 4 complete)
+- Warehouse `{warehouse}` exists (Step 4 complete)
 
 ### Steps
 
-1. Read manifest for database/warehouse names
-2. Execute ML Forecast DDL:
+1. Read manifest for `prefix`, `role`, `connection`, `warehouse`.
+
+2. **Fire training in background** (do NOT wait — return immediately):
    ```bash
-   snow sql -f snowflake/05_ml_forecast.sql -D "PREFIX=KAMESHS" -c local-oauth --enable-templating STANDARD
+   snow sql -f snowflake/05_ml_forecast.sql \
+     -D "PREFIX={manifest.demo.prefix.upper()}" \
+     -D "ROLE={manifest.snowflake.role}" \
+     -c {manifest.snowflake.connection} \
+     --enable-templating STANDARD --format json
    ```
-3. Wait for model training to complete (may take 2-5 minutes)
+   Run with `run_in_background=True`. If the command starts without an immediate error, proceed.
+
+3. **Inform the user** (present verbatim):
+
+   > Training submitted on `{warehouse}` (resized to MEDIUM).
+   > The warehouse will auto-resize back to XSMALL when training completes.
+   > Proceeding to Step 9 now — the step-9 gate will automatically verify
+   > the model is ready and mark Step 8 complete before deployment proceeds.
+
+   > ⚠️ **Do NOT call `uv run gate --step step-8 --action complete` manually.**
+   > The gate auto-marks Step 8 COMPLETE via the step-9 prior-step backfill
+   > mechanism when `SHOW SNOWFLAKE.ML.FORECAST` confirms the model exists.
 
 ### Key Details
 
-- Trains a FORECAST model on energy consumption time-series data
-- Predicts future energy usage patterns per street light or zone
-- Useful for budget planning and proactive maintenance scheduling
+- `energy_daily_vw` joins CLD `energy_consumption` + `street_lights` for lat/lng/neighborhood/status
+- `ANY_VALUE()` is safe: location columns are constant per `light_id` across dates
+- Warehouse resize is embedded in the SQL: MEDIUM before training, XSMALL after
+- The gate's `--prior-step` backfill walks the chain and calls `_check_forecast()` automatically
 
-### Verification
+### Gate auto-backfill flow
 
-- Run `gate.py check_forecast_model_ready`
-- Verify model exists:
-  ```sql
-  SHOW SNOWFLAKE.ML.FORECAST MODELS IN SCHEMA {database}.{schema};
-  ```
-- Test a forecast query:
-  ```sql
-  CALL {database}.{schema}.BULB_FAILURE_FORECASTER!FORECAST(
-    FORECASTING_PERIODS => 30
-  );
-  ```
+```
+Step 9 gate (--prior-step step-8):
+  → step-8 is IN_PROGRESS (not COMPLETE)
+  → runs _check_forecast(): SHOW SNOWFLAKE.ML.FORECAST ...
+  → model exists?  YES → auto-marks step-8 COMPLETE → step-9 PASS
+  → model missing? NO  → BLOCK "still training" → retry in a few minutes
+```
+
+> **No manual verification needed in step-8.** The gate handles it.
 
 ## What we did
 
-- ✅ Forecast model trained on energy consumption data
-- ✅ Model produces 30-day predictions
-- ✅ Gate check: `check_forecast_model_ready` passed
+- ✅ Grants applied: `CREATE VIEW` + `CREATE SNOWFLAKE.ML.FORECAST` on schema (as ACCOUNTADMIN)
+- ✅ Warehouse resized to MEDIUM for training
+- ✅ `energy_daily_vw` created with `series_id`, `ds`, `daily_kwh`, `latitude`, `longitude`, `neighborhood`, `status`
+- ✅ `energy_forecast` training submitted in background
+- ⏳ Warehouse auto-resizes to XSMALL when training completes
+- ⚠️ Step-9 gate auto-verifies and marks Step 8 COMPLETE when model is ready — no manual action needed
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
@@ -116,22 +137,17 @@ If user skips: note it was skipped, move to next step.
 |---|---|
 | **Intent expressed** | 1 — `$streetlights-demo step 8` |
 | **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
-| **Traditional ops** | ~5 — (1 SQL FORECAST DDL + 1 bash deploy + 1 wait + 1 SQL test CALL + 1 gate without this skill) |
+| **Traditional ops** | ~5 — (2 SQL grants + 1 WH resize + 1 view DDL + 1 forecast DDL without this skill) |
 | **Step ICR** | **5** (5 ops replaced by 1 invocation) |
 
 > Carry forward in session memory — Step 10 compiles the full IDD session summary.
-
-## Mark COMPLETE
-
-```bash
-uv run gate --step step-8 --action complete
-```
 
 ## Next
 
 Use the `ask_user_question` tool:
 - Header: "Next"
-- Question: "Continue to Step 9: Deploy SiS App?"
-- Options: ["Yes, continue", "Stop here"]
+- Question: "Training is running in background. Continue to Step 9: Deploy SiS App?"
+- Options: ["Yes, proceed to Step 9", "Wait here until training finishes"]
 
+If "Wait here": poll with `SHOW SNOWFLAKE.ML.FORECAST IN DATABASE {database}` every 2 minutes until the model appears, then proceed to Step 9.
 If "Stop here": show `$streetlights-demo step 9` for later resumption.

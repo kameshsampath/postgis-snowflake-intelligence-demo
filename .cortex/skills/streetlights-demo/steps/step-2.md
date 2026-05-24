@@ -34,6 +34,8 @@ Create a Snowflake Postgres instance with managed storage (required for CLD). Th
 
 ## Dry-Run
 
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
+
 Show the execution plan to the user:
 ```bash
 uv run gate --step step-2 --action dry-run
