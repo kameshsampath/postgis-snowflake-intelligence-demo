@@ -50,9 +50,10 @@ description: >
 | `$streetlights-demo step 5` | → `steps/step-5.md` |
 | `$streetlights-demo step 6` | → `steps/step-6.md` |
 | `$streetlights-demo step 7` | → `steps/step-7.md` |
-| `$streetlights-demo step 8` | → `steps/step-8.md` |
-| `$streetlights-demo step 9` | → `steps/step-9.md` (routes to `$developing-with-streamlit-in-snowflake` [bundled]) |
-| `$streetlights-demo step 10` | → `steps/step-10.md` |
+| `$streetlights-demo step 8` | → `steps/step-8.md` (standalone; or via `$streetlights-demo app`) |
+| `$streetlights-demo step 9` | → `steps/step-9.md` (routes to `$developing-with-streamlit-in-snowflake` [bundled]; or via `$streetlights-demo app`) |
+| `$streetlights-demo step 10` | → `steps/step-10.md` (or via `$streetlights-demo app`) |
+| `$streetlights-demo app` | → `steps/app.md` (App phase: steps 8–10 in parallel via Team `streetlights-app-phase`) |
 | `$streetlights-demo cleanup` | → `cleanup/SKILL.md` |
 
 ## Demo Introduction
@@ -62,11 +63,25 @@ description: >
 >
 > 1. **What this demo is** — Intent-Driven Development applied to real infrastructure:
 >    a single skill invocation replaces dozens of manual Snowflake + Postgres operations.
-> 2. **Architecture overview** — from the Architecture section below.
-> 3. **Step table** — from the Step Overview section below.
+> 2. **Two-phase structure** — from the Phase Overview below.
+> 3. **Architecture overview** — from the Architecture section below.
+> 4. **Step table** — from the Step Overview section below.
 >
-> Call `exit_plan_mode` after presenting all three. Then ask which step to start with
+> Call `exit_plan_mode` after presenting all four. Then ask which step to start with
 > and suggest `$streetlights-demo setup` as the entry point.
+
+## Phase Overview
+
+This demo has **two self-contained phases**:
+
+| Phase | Command | Steps | What it builds |
+|-------|---------|-------|----------------|
+| **Infrastructure** | `$streetlights-demo step 1` … `step 7` | setup → 7 | PG Iceberg → CLD → Semantic View → Cortex Search → Intelligence Agent |
+| **App** | `$streetlights-demo app` | 8–10 (parallel) | ML Forecast + Streamlit dashboard + end-to-end validation |
+
+**The Infrastructure phase is self-contained.** At the end of step 7, the user is asked whether
+to continue to the App phase or stop and use the Intelligence Agent directly in Snowflake
+Intelligence. The App phase (`$streetlights-demo app`) can be run at any time after step 7.
 
 ## Prerequisites
 - Snowflake account with Cortex features enabled
@@ -140,7 +155,9 @@ For pre-computed baseline values to answer user questions, see `references/idd-m
 | 4 | ⚠️ CLD | Catalog Integration + Catalog-Linked Database |
 | 5 | Semantic View | Create Semantic View on CLD tables |
 | 6 | Cortex Search | Create Cortex Search service on maintenance records |
-| 7 | Agent | Create Intelligence Agent (Semantic View + Search) |
-| 8 | ML Forecast | Train FORECAST model on energy consumption |
-| 9 | Deploy SiS | Deploy multi-page Streamlit app |
-| 10 | Validate | Run sanity gate, demo the system |
+| 7 | Agent | Create Intelligence Agent (Semantic View + Search) ← **Infrastructure phase ends here** |
+| — | — | *Step 7 asks: continue to App phase or stop here?* |
+| **app** | **App Phase** | **`$streetlights-demo app` — runs steps 8–10 in parallel via Team `streetlights-app-phase`** |
+| 8 | ML Forecast | Train FORECAST model on energy consumption (Forecast worker) |
+| 9 | Deploy SiS | Deploy multi-page Streamlit app (Deploy worker) |
+| 10 | Validate | Run sanity gate, compile full IDD session summary (Synthesizer) |

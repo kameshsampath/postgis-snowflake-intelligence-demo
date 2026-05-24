@@ -6,11 +6,15 @@ description: Deploy multi-page Streamlit in Snowflake application
 ## Gate
 
 ```bash
-uv run gate --step step-9 --prior-step step-8 --action check
+uv run gate --step step-9 --prior-step step-7 --action check
 ```
 
 If BLOCK: stop and inform the user which prior step needs completing first.
 If PASS: continue below.
+
+> **Note**: In `$streetlights-demo app`, this step runs as the **Deploy worker** in Team
+> `streetlights-app-phase`, in parallel with the Forecast worker (step 8). Both workers gate
+> on step-7 completion; the Synthesizer waits for both before starting step 10.
 
 ## Mark IN_PROGRESS
 

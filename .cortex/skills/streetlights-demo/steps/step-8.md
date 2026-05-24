@@ -34,12 +34,16 @@ uv run gate --step step-8 --desc "Training ML Forecast model" --action start
 
 ## What we'll do
 
-Submit ML Forecast training as a background job, then proceed immediately to Step 9. The warehouse temporarily resizes to MEDIUM for training and auto-resizes back to XSMALL when done.
+Submit ML Forecast training as a background job. The warehouse temporarily resizes to MEDIUM for
+training and auto-resizes back to XSMALL when done.
 
-- Apply schema grants and resize warehouse to MEDIUM
-- Fire the forecast training SQL in background (do not wait)
-- The training view `energy_daily_vw` includes lat/lng/neighborhood/status for location-aware failure prediction
-- Move to Step 9 immediately — the step-9 gate automatically verifies the model is ready before allowing deployment to proceed
+> **In `$streetlights-demo app`**: this step runs as the **Forecast worker** in Team `streetlights-app-phase`, in parallel with the Deploy worker (step 9). Both are spawned by the Synthesizer agent; step 10 runs after both complete.
+
+- Apply schema grants (including `CREATE DYNAMIC TABLE`) and resize warehouse to MEDIUM
+- Create `energy_daily_vw` view joining CLD tables (lat/lng/neighborhood/status for location-aware prediction)
+- Materialize as `energy_daily_tbl` **Dynamic Table** (TARGET_LAG=1 hour — auto-refreshes when new Iceberg data arrives in PG)
+- Train `energy_forecast` FORECAST model on `energy_daily_tbl`
+- Mark step-8 COMPLETE after training finishes
 
 > ⚠️ **MANDATORY**: Present the "What we'll do" summary above to the user before continuing to Dry-Run or Execution.
 
@@ -66,7 +70,7 @@ Present the output, then ask user to proceed.
 
 1. Read manifest for `prefix`, `role`, `connection`, `warehouse`.
 
-2. **Fire training in background** (do NOT wait — return immediately):
+2. **Run training synchronously** (wait for completion):
    ```bash
    snow sql -f snowflake/05_ml_forecast.sql \
      -D "PREFIX={manifest.demo.prefix.upper()}" \
@@ -74,46 +78,31 @@ Present the output, then ask user to proceed.
      -c {manifest.snowflake.connection} \
      --enable-templating STANDARD --format json
    ```
-   Run with `run_in_background=True`. If the command starts without an immediate error, proceed.
+   When called from `$streetlights-demo app`, this runs as a background Forecast worker — the
+   worker itself is a separate agent, so the SQL can block until training completes.
 
 3. **Inform the user** (present verbatim):
 
-   > Training submitted on `{warehouse}` (resized to MEDIUM).
-   > The warehouse will auto-resize back to XSMALL when training completes.
-   > Proceeding to Step 9 now — the step-9 gate will automatically verify
-   > the model is ready and mark Step 8 complete before deployment proceeds.
-
-   > ⚠️ **Do NOT call `uv run gate --step step-8 --action complete` manually.**
-   > The gate auto-marks Step 8 COMPLETE via the step-9 prior-step backfill
-   > mechanism when `SHOW SNOWFLAKE.ML.FORECAST` confirms the model exists.
+   > Training complete. `energy_daily_tbl` Dynamic Table created (TARGET_LAG=1 hour).
+   > The warehouse has auto-resized back to XSMALL.
+   > Marking step-8 COMPLETE.
 
 ### Key Details
 
 - `energy_daily_vw` joins CLD `energy_consumption` + `street_lights` for lat/lng/neighborhood/status
 - `ANY_VALUE()` is safe: location columns are constant per `light_id` across dates
+- `energy_daily_tbl` is a Dynamic Table (TARGET_LAG=1 hour) — refreshes automatically when PG Iceberg data changes
 - Warehouse resize is embedded in the SQL: MEDIUM before training, XSMALL after
-- The gate's `--prior-step` backfill walks the chain and calls `_check_forecast()` automatically
-
-### Gate auto-backfill flow
-
-```
-Step 9 gate (--prior-step step-8):
-  → step-8 is IN_PROGRESS (not COMPLETE)
-  → runs _check_forecast(): SHOW SNOWFLAKE.ML.FORECAST ...
-  → model exists?  YES → auto-marks step-8 COMPLETE → step-9 PASS
-  → model missing? NO  → BLOCK "still training" → retry in a few minutes
-```
-
-> **No manual verification needed in step-8.** The gate handles it.
+- `SYSTEM$REFERENCE('TABLE',...)` is used so the ML service can cross the CLD boundary
 
 ## What we did
 
-- ✅ Grants applied: `CREATE VIEW` + `CREATE SNOWFLAKE.ML.FORECAST` on schema (as ACCOUNTADMIN)
+- ✅ Grants applied: `CREATE VIEW` + `CREATE DYNAMIC TABLE` + `CREATE SNOWFLAKE.ML.FORECAST` on schema
 - ✅ Warehouse resized to MEDIUM for training
 - ✅ `energy_daily_vw` created with `series_id`, `ds`, `daily_kwh`, `latitude`, `longitude`, `neighborhood`, `status`
-- ✅ `energy_forecast` training submitted in background
-- ⏳ Warehouse auto-resizes to XSMALL when training completes
-- ⚠️ Step-9 gate auto-verifies and marks Step 8 COMPLETE when model is ready — no manual action needed
+- ✅ `energy_daily_tbl` Dynamic Table created (TARGET_LAG=1 hour — auto-refreshes from Iceberg)
+- ✅ `energy_forecast` training complete
+- ✅ Warehouse auto-resized back to XSMALL
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
@@ -128,12 +117,22 @@ Step 9 gate (--prior-step step-8):
 
 > Carry forward in session memory — Step 10 compiles the full IDD session summary.
 
+## Mark COMPLETE
+
+```bash
+uv run gate --step step-8 --action complete
+```
+
 ## Next
+
+When invoked standalone (`$streetlights-demo step 8`):
 
 Use the `ask_user_question` tool:
 - Header: "Next"
-- Question: "Training is running in background. Continue to Step 9: Deploy SiS App?"
-- Options: ["Yes, proceed to Step 9", "Wait here until training finishes"]
+- Question: "Training complete. Continue to Step 9: Deploy SiS App?"
+- Options: ["Yes, proceed to Step 9", "Stop here"]
 
-If "Wait here": poll with `SHOW SNOWFLAKE.ML.FORECAST IN DATABASE {database}` every 2 minutes until the model appears, then proceed to Step 9.
 If "Stop here": show `$streetlights-demo step 9` for later resumption.
+
+> **Note**: When invoked as the Forecast worker from `$streetlights-demo app`, the Synthesizer
+> handles convergence — do not ask the user this question in the worker context.

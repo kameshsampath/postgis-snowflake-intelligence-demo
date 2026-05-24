@@ -160,11 +160,48 @@ Present all 3 results to the user before marking COMPLETE.
 uv run gate --step step-7 --action complete
 ```
 
-## Next
+## Infrastructure Phase Complete — Opt-In Gate
+
+> ⚠️ **MANDATORY**: After presenting "What we did" and marking step-7 COMPLETE, present the
+> two-phase framing and ask the user whether to continue to the App phase.
+
+The Infrastructure phase (setup + steps 1–7) is now complete. The Intelligence Agent is live
+and queryable in Snowflake Intelligence.
 
 Use the `ask_user_question` tool:
-- Header: "Next"
-- Question: "Continue to Step 8: Train ML Forecast?"
-- Options: ["Yes, continue", "Stop here"]
+- Header: `"Continue?"`
+- Question: `"The Infrastructure phase is complete (setup + steps 1–7). Your Intelligence Agent is live and queryable. Continue to the App phase (ML Forecast + Streamlit app + Validation)?"`
+- Options:
+  - `"Continue → App phase (steps 8–10)"`
+  - `"Stop here — show Infrastructure summary"`
 
-If "Stop here": show `$streetlights-demo step 8` for later resumption.
+### If "Stop here":
+
+Present the Infrastructure IDD summary:
+
+```
+## IDD Summary — Infrastructure Phase
+
+| Step | Invocation | Trad. Ops (baseline) | Step ICR |
+|------|------------|----------------------|----------|
+| 1 — Generate Data   | `$streetlights-demo step 1` | 6  | 6  |
+| 2 — PG Instance     | `$streetlights-demo step 2` | 12 | 12 |
+| 3 — Schema + Load   | `$streetlights-demo step 3` | 10 | 10 |
+| 4 — CLD             | `$streetlights-demo step 4` | 8  | 8  |
+| 5 — Semantic View   | `$streetlights-demo step 5` | 8  | 8  |
+| 6 — Cortex Search   | `$streetlights-demo step 6` | 8  | 8  |
+| 7 — Agent           | `$streetlights-demo step 7` | 8  | 8  |
+| **Total**           | **7 invocations**           | **60** | **8** (floor 60÷7) |
+```
+
+> **Infrastructure ICR: 8** — each skill invocation replaced ~8 manual operations on average.
+
+Then close with:
+
+> Run `$streetlights-demo app` any time to deploy the SiS app + ML Forecast + Validation.
+
+### If "Continue → App phase":
+
+Respond with:
+
+> Run `$streetlights-demo app` to start the App phase (ML Forecast + Streamlit + Validation).

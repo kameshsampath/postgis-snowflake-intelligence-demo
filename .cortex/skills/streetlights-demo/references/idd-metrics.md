@@ -50,12 +50,18 @@ ICR = traditional_ops ÷ 1 invocation = traditional_ops (whole integer).
 | 5 | Semantic View | 8 | 8 |
 | 6 | Cortex Search | 8 | 8 |
 | 7 | Agent | 8 | 8 |
-| 8 | ML Forecast | 10 | 10 |
+| **Infrastructure subtotal** | (steps 1–7) | **60** | **8** (floor 60÷7) |
+| 8 | ML Forecast | 5 | 5 |
 | 9 | Deploy SiS | 7 | 7 |
-| 10 | Validate | 6 | 6 |
-| **Total / Avg** | | **83** | **8** |
+| 10 | Validate | 7 | 7 |
+| **App (steps 8–10)** | `$streetlights-demo app` (1 invocation) | **19** | **19** |
+| **Full session** | **8 invocations** | **79** | **9** (floor 79÷8) |
 
-*Avg = floor(83 ÷ 10) = 8.  "Traditional ops" counts SQL statements + bash commands + Python scripts + API calls + config files a developer would write manually.*
+*Infrastructure subtotal: floor(60 ÷ 7) = 8 avg per step.*
+*App phase: all three steps delivered by 1 `$streetlights-demo app` invocation → ICR 19.*
+*Full session: floor(79 ÷ 8) = 9 avg per invocation.*
+
+*"Traditional ops" counts SQL statements + bash commands + Python scripts + API calls + config files a developer would write manually.*
 
 ---
 
@@ -85,9 +91,11 @@ NL token counts via tiktoken cl100k_base (run `uv run idd-metrics` for Cortex ex
 
 | Dimension | Intents expressed | Trad ops replaced | ICR |
 |-----------|:-----------------:|:-----------------:|----:|
-| Infrastructure (steps 1–10) | 10 | 83 | 8 avg per step |
+| Infrastructure (steps 1–7, 7 invocations) | 7 | 60 | 8 avg/step |
+| App phase (`$streetlights-demo app`, 1 invocation) | 1 | 19 | 19 |
+| **Infrastructure + App total** | **8** | **79** | **9** avg/invocation |
 | Query analytics (9 intents) | 9 | 46 | 558 avg (ICR-lab formula) |
-| **Total** | **19** | **129** | — |
+| **Grand total** | **17** | **125** | — |
 | **SQL output amplification** | — | — | **5.9× avg SQL/NL tok** |
 
 ---
@@ -104,10 +112,10 @@ A: 5.9× (total ~488 SQL tokens generated across 9 demo queries ÷ 83 NL intent 
 A: 558 (floor average across 9 demo intents, using ICR-lab formula: int(trad_ops × 1000 ÷ NL_tokens)).
 
 **Q: What is the average Infrastructure ICR?**
-A: 8 (floor(83 traditional ops ÷ 10 steps); each step is one intent invocation).
+A: Infrastructure phase (steps 1–7): 8 avg per step (floor 60÷7). App phase (steps 8–10 via `$streetlights-demo app`): ICR 19 (19 ops, 1 invocation). Full session avg: floor(79÷8) = 9.
 
 **Q: How many traditional ops does this demo replace in total?**
-A: 129 — 83 infrastructure ops (manual SQL/bash/Python/API work across 10 steps) + 46 query ops (what a developer would write manually for 9 analytics queries).
+A: 125 — 79 infrastructure+app ops (manual SQL/bash/Python/API work across steps 1–10) + 46 query ops (what a developer would write manually for 9 analytics queries).
 
 **Q: What is the ICR formula?**
 A: Infrastructure ICR: `traditional_ops ÷ 1 invocation` (per step).
