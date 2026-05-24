@@ -53,7 +53,7 @@ Create a Semantic View over the CLD tables that defines dimensions, measures, an
 
 ## Dry-Run
 
-> **Note**: Enter plan mode before presenting the dry-run output (per SKILL.md global dry-run rule).
+> ⚠️ **MANDATORY**: Call `enter_plan_mode` BEFORE running or presenting the dry-run output. Do NOT show dry-run content until plan mode is active. Call `exit_plan_mode` only after the user confirms. Then execute.
 
 Show the execution plan to the user:
 ```bash
