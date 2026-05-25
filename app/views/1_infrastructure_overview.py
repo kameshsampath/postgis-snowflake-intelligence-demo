@@ -25,9 +25,9 @@ db = (session.get_current_database() or "KAMESHS_STREETLIGHTS").strip('"')
 cld_db = f"{db}_CLD"
 
 STATUS_COLORS = {
-    "operational": "#2ecc71",
-    "faulty": "#e74c3c",
-    "maintenance_required": "#f39c12",
+    "operational": [46, 204, 113],
+    "faulty": [231, 76, 60],
+    "maintenance_required": [243, 156, 18],
 }
 
 ALL_STATUSES = ["operational", "faulty", "maintenance_required"]
@@ -92,8 +92,8 @@ if selected_status:
 
 st.caption(f"Showing {len(filtered_df):,} of {total:,} lights")
 
-# Color map — hex strings work reliably with deck.gl's getFillColor in both JSON and Arrow paths
-filtered_df["color"] = filtered_df["STATUS"].map(lambda s: STATUS_COLORS.get(s, "#95a5a6"))
+# Color map
+filtered_df["color"] = filtered_df["STATUS"].map(lambda s: STATUS_COLORS.get(s, [149, 165, 166]))
 
 # Power grid zones
 zones_df = session.sql(f"""
@@ -108,7 +108,7 @@ zones_df = session.sql(f"""
 """).to_pandas()
 
 zones_df["color"] = zones_df["UTIL_PCT"].apply(
-    lambda u: "#e74c3c" if u > 80 else ("#f39c12" if u > 50 else "#2ecc71")
+    lambda u: [231, 76, 60] if u > 80 else ([243, 156, 18] if u > 50 else [46, 204, 113])
 )
 
 # deck.gl tooltip needs plain JS objects — Arrow StructRows break {field} substitution.

@@ -68,12 +68,12 @@ zones_df = session.sql(f"""
 
 def _zone_color(u):
     if u is None or (isinstance(u, float) and np.isnan(u)):
-        return "#95a5a6"
+        return [149, 165, 166]
     if u > 80:
-        return "#e74c3c"
+        return [231, 76, 60]
     if u > 50:
-        return "#f39c12"
-    return "#2ecc71"
+        return [243, 156, 18]
+    return [46, 204, 113]
 
 
 zones_df["color"] = zones_df["UTIL_PCT"].apply(_zone_color)
