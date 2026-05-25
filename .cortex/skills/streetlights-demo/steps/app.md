@@ -144,11 +144,11 @@ team_delete("streetlights-app-phase")
 | Step | Invocation | Trad. Ops (baseline) | Step ICR |
 |------|------------|----------------------|----------|
 | 8 — ML Forecast | Forecast worker | 5  | 5  |
-| 9 — Deploy SiS  | Deploy worker   | 7  | 7  |
-| 10 — Validate   | Synthesizer     | 7  | 7  |
-| **App phase**   | **1 `$streetlights-demo app` invocation** | **19** | **19** |
+| 9 — Deploy SiS  | Deploy worker   | 9  | 9  |
+| 10 — Validate   | Synthesizer     | 8  | 8  |
+| **App phase**   | **1 `$streetlights-demo app` invocation** | **22** | **22** |
 
-> **App phase ICR: 19** — all three App steps ran from a single `$streetlights-demo app` invocation.
+> **App phase ICR: 22** — all three App steps ran from a single `$streetlights-demo app` invocation.
 
 ### Full Session IDD Summary
 
@@ -158,8 +158,8 @@ Run `uv run idd-metrics` for the combined Infrastructure + App picture, or prese
 | Phase | Invocations | Trad. Ops | ICR |
 |-------|:-----------:|:---------:|----:|
 | Infrastructure (steps 1–7) | 7 | 60 | 8 avg/step |
-| App (steps 8–10, parallel) | 1 | 19 | 19 |
-| **Total** | **8** | **79** | — |
+| App (steps 8–10, parallel) | 1 | 22 | 22 |
+| **Total** | **8** | **82** | — |
 
 > End-to-end [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c):
 > infrastructure as intent + parallelism as intent + AI handles *how*.

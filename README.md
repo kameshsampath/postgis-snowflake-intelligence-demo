@@ -255,8 +255,8 @@ Run `uv run idd-metrics` to compute live ICR scores for the demo intents.
 |-------|---------|----------:|:-----------:|----:|
 | Infrastructure | `$streetlights-demo infra` | 60 | 1 | **60** |
 | Infrastructure (per-step avg) | `$streetlights-demo step N` × 7 | 60 | 7 | **8** avg |
-| App phase | `$streetlights-demo app` | 19 | 1 | **19** |
-| **Full session** | setup + infra + app | **79** | **3** | **26** avg |
+| App phase | `$streetlights-demo app` | 22 | 1 | **22** |
+| **Full session** | setup + infra + app | **85** | **3** | **28** avg |
 
 > Phase-level ICR shows the leverage of expressing *intent at the phase boundary* rather than
 > step-by-step. One `$streetlights-demo infra` replaces 60 discrete manual operations.

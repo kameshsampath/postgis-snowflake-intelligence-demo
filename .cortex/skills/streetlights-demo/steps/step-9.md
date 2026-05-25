@@ -71,26 +71,26 @@ Present the output, then ask user to proceed.
 
 2. Deploy via `snow streamlit deploy`:
    ```bash
-   snow streamlit deploy streetlights_app \
-     -p app/ \
-     --env PREFIX={manifest.demo.prefix.upper()} \
-     -c {manifest.snowflake.connection} \
-     --replace
+   cd app && snow streamlit deploy --replace -c {manifest.snowflake.connection}
    ```
    `app/snowflake.yml` defines the entity: entry point `home.py`, warehouse
    `{PREFIX}_STREETLIGHTS_WH`, target `{PREFIX}_STREETLIGHTS.PUBLIC.STREETLIGHTS_APP`.
+   Note: `definition_version: 2` does NOT resolve Jinja `{{ ctx.env.PREFIX }}` in
+   identifier fields — values are hardcoded in `snowflake.yml`.
 
 3. Verify the app is accessible
 
 ### App Pages
 
-| Page | Purpose |
-|------|---------|
-| Home | Overview dashboard with key metrics |
-| Infrastructure Overview | Pydeck map — lights color-coded by status |
-| Maintenance Search | Cortex Search interface |
-| Analytics | Charts and aggregations |
-| Forecasting | ML predictions visualization |
+| Page | File | Purpose |
+|------|------|---------|
+| Home | `views/overview.py` | KPI metrics — total, operational %, faulty count, neighbourhoods |
+| Neighbourhood Overview | `views/1_infrastructure_overview.py` | Pydeck map — all lights color-coded by status, zone load overlay |
+| Faulty Lights | `views/2_faulty_lights.py` | Fault inspector — map + table row selection → detail map + SI query |
+| Analytics | `views/3_analytics.py` | Energy trends, neighbourhood comparison, seasonal maintenance patterns |
+| Energy Forecast | `views/4_forecasting.py` | ML FORECAST predictions with confidence intervals |
+
+> Navigation is defined in `home.py` via `st.navigation()`. Pages live in `app/views/` (not `app/pages/`) to prevent SiS auto-discovery from overriding the custom page titles.
 
 ### Verification
 
@@ -115,8 +115,8 @@ Present the output, then ask user to proceed.
 |---|---|
 | **Intent expressed** | 1 — `$streetlights-demo step 9` |
 | **Agent operations** | _Count the SQL statements, bash commands, Python scripts, API calls you executed above_ |
-| **Traditional ops** | ~7 — (1 bash SiS deploy + 1 SQL SHOW STREAMLITS + 3 page tests + 2 gate calls without this skill) |
-| **Step ICR** | **7** (7 ops replaced by 1 invocation) |
+| **Traditional ops** | ~9 — (1 bash deploy + 1 SQL SHOW STREAMLITS + 1 SQL grant verify + 5 page navigations + 1 gate call without this skill) |
+| **Step ICR** | **9** (9 ops replaced by 1 invocation) |
 
 > Carry forward in session memory — Step 10 compiles the full IDD session summary.
 

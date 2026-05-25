@@ -105,13 +105,13 @@ $$
 | 7 — Agent         | `$streetlights-demo step 7` | (recall from context) | 8  | 8  |
 | **Infrastructure subtotal** | **7 invocations** | | **60** | **8** avg |
 | 8 — ML Forecast   | Forecast worker (app phase) | (recall from context) | 5  | 5  |
-| 9 — SiS App       | Deploy worker (app phase)   | (recall from context) | 7  | 7  |
-| 10 — Validate     | Synthesizer (app phase)     | (recall from context) | 7  | 7  |
-| **App subtotal**  | **`$streetlights-demo app` (1 invocation)** | | **19** | **19** |
-| **Full session**  | **8 invocations**           | | **79** | **9** (floor 79÷8) |
+| 9 — SiS App       | Deploy worker (app phase)   | (recall from context) | 9  | 9  |
+| 10 — Validate     | Synthesizer (app phase)     | (recall from context) | 8  | 8  |
+| **App subtotal**  | **`$streetlights-demo app` (1 invocation)** | | **22** | **22** |
+| **Full session**  | **8 invocations**           | | **82** | **10** (floor 82÷8) |
 
 > **Infrastructure phase ICR: 8** — each of 7 skill invocations replaced ~8 manual operations.
-> **App phase ICR: 19** — all three App steps delivered by one `$streetlights-demo app` invocation.
+> **App phase ICR: 22** — all three App steps delivered by one `$streetlights-demo app` invocation.
 > \"Traditional ops\" counts SQL statements + bash commands + Python scripts + API calls.
 
 ### Query ICR
@@ -130,8 +130,8 @@ ICR score = int(traditional_ops × 1000 ÷ NL tokens) — ops per intent token
 | Dimension | Value | What it measures |
 |---|---|---|
 | **Infrastructure ICR** | 8 avg/step | 7 invocations, 60 ops (floor 60÷7) |
-| **App phase ICR** | 19 | 1 invocation (`$streetlights-demo app`), 19 ops |
-| **Full session ICR** | 9 | 8 invocations, 79 ops (floor 79÷8) |
+| **App phase ICR** | 22 | 1 invocation (`$streetlights-demo app`), 22 ops |
+| **Full session ICR** | 10 | 8 invocations, 82 ops (floor 82÷8) |
 | **Query ICR score** | run `idd-metrics` | NL query ops × 1000 ÷ NL tokens (icr-lab) |
 | **SQL leverage** | ~5.9 | SQL tokens generated per NL token |
 | **Schema abstraction** | 7 tables / 0 mentioned | User never specifies a table or column name |
