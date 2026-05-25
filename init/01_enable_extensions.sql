@@ -12,37 +12,24 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- Enable PostGIS extension explicitly (educational: show users how to install)
--- This script runs automatically when the PostgreSQL container starts
+-- Enable required extensions for Snowflake Postgres with pg_lake
+-- pg_lake enables Iceberg table storage for seamless CLD integration
 
 -- Create the streetlights schema for application tables
--- This keeps our tables separate from system/extension tables
 CREATE SCHEMA IF NOT EXISTS streetlights;
 COMMENT ON SCHEMA streetlights IS 'Schema for street lights management application tables';
 
 -- Set search path to include our schema
 SET search_path TO streetlights, public;
 
--- Enable PostGIS core extension
-CREATE EXTENSION IF NOT EXISTS postgis;
-
--- Enable PgVector core extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Enable PostGIS topology (optional but useful for advanced spatial operations)
-CREATE EXTENSION IF NOT EXISTS postgis_topology;
-
--- Verify installation and show version
-SELECT PostGIS_Version() as postgis_version;
-
--- Show available spatial reference systems
-SELECT count(*) as available_srids FROM spatial_ref_sys;
+-- Enable pg_lake extension (Iceberg table support for Snowflake CLD)
+-- CASCADE installs required dependencies (pg_lake_table, pg_lake_engine, etc.)
+CREATE EXTENSION IF NOT EXISTS pg_lake CASCADE;
 
 -- Log completion
 DO $$
 BEGIN
-    RAISE NOTICE 'PostGIS extensions enabled successfully!';
-    RAISE NOTICE 'PostGIS Version: %', PostGIS_Version();
+    RAISE NOTICE 'Extensions enabled successfully!';
+    RAISE NOTICE '  - pg_lake (Iceberg table storage)';
+    RAISE NOTICE 'Schema "streetlights" created.';
 END $$;
-
-

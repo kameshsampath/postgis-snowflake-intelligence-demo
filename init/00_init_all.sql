@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
--- Master initialization script for PostgreSQL database
+-- Master initialization script for Snowflake Postgres database
 -- This script orchestrates all initialization steps in the correct order
 --
 -- Usage:
@@ -23,43 +23,18 @@
 
 \echo ''
 \echo '========================================================='
-\echo 'Starting PostgreSQL Database Initialization'
+\echo 'Starting PostgreSQL Database Initialization (pg_lake)'
 \echo '========================================================='
 \echo ''
 
--- Step 1: Enable required PostgreSQL extensions
-\echo 'Step 1: Enabling extensions (PostGIS, uuid-ossp)...'
+-- Step 1: Enable required extensions (pg_lake) and create schema
+\echo 'Step 1: Enabling extensions (pg_lake) and creating schema...'
 \i init/01_enable_extensions.sql
 
--- Step 2: Configure Write-Ahead Logging (WAL) for CDC
+-- Step 2: Create Iceberg tables (all 7 tables)
 \echo ''
-\echo 'Step 2: Configuring WAL for Change Data Capture...'
-\i init/02_enable_wal.sql
-
--- Step 3: Create base tables
-\echo ''
-\echo 'Step 3: Creating base tables...'
-\i init/03_create_base_tables.sql
-
--- Step 4: Create enrichment tables
-\echo ''
-\echo 'Step 4: Creating enrichment tables...'
-\i init/04_create_enrichment_tables.sql
-
--- Step 5: Create enriched views
-\echo ''
-\echo 'Step 5: Creating enriched views...'
-\i init/05_create_enriched_views.sql
-
--- Step 6: Create indexes for performance
-\echo ''
-\echo 'Step 6: Creating indexes...'
-\i init/06_create_indexes.sql
-
--- Step 7: Create publication for CDC (Snowflake Openflow)
-\echo ''
-\echo 'Step 7: Creating publication for CDC...'
-\i init/07_create_publication.sql
+\echo 'Step 2: Creating Iceberg tables...'
+\i init/02_create_iceberg_tables.sql
 
 -- Final completion message
 \echo ''
@@ -67,19 +42,21 @@
 \echo 'Database Initialization Complete!'
 \echo '========================================================='
 \echo ''
-\echo 'PostgreSQL database is ready for use.'
+\echo 'Snowflake Postgres database is ready for use with pg_lake.'
+\echo ''
+\echo 'Tables created (all Iceberg storage):'
+\echo '  1. streetlights.neighborhoods'
+\echo '  2. streetlights.street_lights'
+\echo '  3. streetlights.maintenance_requests'
+\echo '  4. streetlights.suppliers'
+\echo '  5. streetlights.weather_enrichment'
+\echo '  6. streetlights.demographics'
+\echo '  7. streetlights.power_grid_zones'
 \echo ''
 \echo 'Next Steps:'
-\echo '  1. Generate sample data: cd data && ./generate_all_data.sh'
+\echo '  1. Generate sample data: uv run generate --city "Portland"'
 \echo '  2. Load data: psql -U postgres -d postgres -f data/load_data.sql'
-\echo '  3. Start Streamlit dashboard: http://localhost:8501'
-\echo ''
-\echo 'For CDC with Snowflake Openflow:'
-\echo '  - PostgreSQL needs to be restarted for WAL settings to take effect'
-\echo '  - Restart command: pg_ctl restart (or your database restart method)'
-\echo '  - Snowflake CDC will automatically create replication slots'
-\echo '  - Publication "streetlights_publication" is ready for use'
+\echo '  3. Create CLD in Snowflake (see snowflake/01_setup.sql)'
 \echo ''
 \echo '========================================================='
 \echo ''
-

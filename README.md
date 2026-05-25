@@ -1,334 +1,368 @@
-# Street Lights AI Maintenance Demo
+# Streetlights Intelligence Demo
+
+**Snowflake Postgres + pg_lake + Cortex AI**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Citation](https://img.shields.io/badge/Citation-CFF-green.svg)](CITATION.cff)
 
-## PostgreSQL/PostGIS → Snowflake Openflow → Snowflake Cortex Intelligence → ML FORECAST
+## ⚠️ Demo Data Disclaimer
 
-Complete demo showcasing modern data pipeline with PostgreSQL/PostGIS, Snowflake Openflow CDC, and Snowflake Intelligence (Cortex Search + Cortex Analyst + ML FORECAST).
+All data in this demo — including street light locations, maintenance records,
+sensor readings, energy consumption figures, and operational statuses — is
+**entirely synthetic and computer-generated** for demonstration and educational
+purposes only.
 
-Features:
-• Real-time Change Data Capture from PostgreSQL to Snowflake
-• Semantic search on maintenance descriptions (Cortex Search)
-• Natural language analytics (Cortex Analyst)
-• ML-powered failure forecasting with budget/staffing recommendations
-• Interactive Streamlit dashboard with spatial visualizations
-• Production-ready architecture for smart city infrastructure
+Geographic coordinates are placed within real map areas using the user's
+detected or specified city as a reference point. **These coordinates do not
+represent actual street light infrastructure.** Map links are provided solely
+to demonstrate location-aware query capabilities. Any resemblance to actual
+streetlight locations, infrastructure, or operational data is coincidental.
 
-Tech Stack: PostgreSQL/PostGIS, Snowflake Openflow, Snowflake Intelligence, Streamlit, Folium
-Use Case: Predictive maintenance for 5,000 street lights in Bengaluru
+This demo is provided "as is" for educational purposes only and is not intended
+to reflect the actual condition of any city's infrastructure. No reliance should
+be placed on any data shown for operational, commercial, safety, or any other
+real-world decisions.
 
-> [!CAUTION]
-> **DISCLAIMER**: This project uses entirely fictitious data for demonstration and educational purposes. All company names, supplier names, contact information, and other data are computer-generated and do not represent real entities.
+A complete demo showcasing how Snowflake Postgres with pg_lake Iceberg tables connects
+natively to Snowflake's AI stack — no CDC pipeline, no ETL, no data movement.
 
----
+## What This Demonstrates
 
-## 🎬 Demo Video
+| Component | Purpose |
+|-----------|---------|
+| **Snowflake Postgres** | Managed PostgreSQL with pg_lake extension |
+| **pg_lake Iceberg tables** | PostgreSQL tables stored as Apache Iceberg |
+| **CLD (Catalog-Linked Database)** | Zero-pipeline sync — Snowflake reads PG Iceberg directly |
+| **Semantic View** | SQL-native semantic layer for natural language analytics |
+| **Cortex Search** | Semantic text search on maintenance records |
+| **Intelligence Agent** | NL interface combining structured + unstructured access |
+| **ML FORECAST** | Time-series prediction for energy consumption |
+| **Streamlit in Snowflake** | Multi-page dashboard for visualization |
 
-[![Watch the Demo](https://img.shields.io/badge/YouTube-Watch%20Demo-red?style=for-the-badge&logo=youtube)](https://youtu.be/fbCA06cdUTU)
+## Architecture
 
-See the complete end-to-end demo showcasing PostGIS, Snowflake Openflow CDC, and Snowflake Intelligence in action.
+```
+Snowflake Postgres (pg_lake)          Snowflake
+┌──────────────────────────┐          ┌─────────────────────────────────┐
+│ Iceberg tables (ALL 7)   │  Shared  │  Catalog Integration (CLD)      │
+│ (managed storage ONLY)   │──Iceberg─│         ↓                       │
+│                          │          │  Semantic View + Cortex Search  │
+│ Location-aware data:     │          │  + ML FORECAST models           │
+│ user's city or override  │          │  + Intelligence Agent           │
+│                          │          │  (Semantic View + Search)       │
+│ Spatial: lat/lng FLOAT   │          │                                 │
+│ (no PostGIS GEOMETRY     │          │  + SiS Multi-Page App           │
+│  in Iceberg tables)      │          │                                 │
+└──────────────────────────┘          └─────────────────────────────────┘
+```
 
----
-
-## Quick Start
-
-**See [QUICKSTART.md](QUICKSTART.md) for the complete setup guide.**
-
-The quickstart covers:
-
-1. Prerequisites and tool installation
-2. Snowflake-managed PostgreSQL setup via Snowsight
-3. Database initialization and data loading
-4. Streamlit dashboard launch
-5. Snowflake CDC configuration
-6. Snowflake Intelligence (Cortex Search + Cortex Analyst) setup and configuration
-7. Snowflake ML Forecasting setup and configuration
-
----
+**Key insight**: No CDC/OpenFlow/Debezium pipeline between PostgreSQL and Snowflake.
+pg_lake stores data as Iceberg; CLD reads the same Iceberg metadata. Zero data movement.
 
 ## Prerequisites
 
 | Tool | Purpose | Installation |
 |------|---------|--------------|
-| **Snowflake Account** | Database, CDC, ML, and AI capabilities | [Sign up](https://signup.snowflake.com/) |
-| **Snowflake CLI** | Execute SQL and manage resources | [Docs](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) |
-| **psql** | PostgreSQL command-line client | `brew install libpq` (macOS) |
-| **Python 3.12+** | Dashboard and data generation | [python.org](https://www.python.org/) |
-| **uv** | Python package manager | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| Snowflake Account | Must have Snowflake Postgres enabled | Contact account admin |
+| Snowflake CLI (`snow`) | Manage resources and run SQL | [Docs](https://docs.snowflake.com/en/developer-guide/snowflake-cli/index) |
+| Cortex Code (`cortex`) | Guided demo workflow | [Docs](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code) |
+| `uv` | Python package manager | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| `psql` | PostgreSQL client | `brew install libpq` (macOS) |
+| `task` | Task runner (optional) | `brew install go-task` |
 
-> [!TIP]
-> Use [~/.pgpass](https://www.postgresql.org/docs/current/libpq-pgpass.html) for secure Snowflake PostgreSQL credentials:
+### Account Requirements
+
+The following account parameters must be enabled:
+- `ENABLE_SNOWFLAKE_POSTGRES`
+- `ENABLE_POSTGRES_HIDDEN_EXTERNAL_VOLUME`
+
+## Quick Start (Cortex Code)
+
+The recommended path uses Cortex Code's guided workflow. Each step opens in
+**plan mode** — you see why it matters, what will run, and a dry-run preview
+before anything executes. Confirm once to proceed; execution begins only after
+you exit plan mode.
+
+### 1. Open Cortex Code in this project
+
+```bash
+cd postgis-snowflake-intelligence-demo
+cortex
+```
+
+### 2. Run the guided setup
+
+Type in the Cortex Code prompt:
+
+```
+$streetlights-demo setup
+```
+
+Or use a natural language trigger:
+```
+start the streetlights demo
+show me the streetlights demo
+```
+
+This will:
+- Ask for your **resource prefix** (e.g., `kameshs` → resources named `KAMESHS_STREETLIGHTS_*`)
+- Auto-detect your **city** (or ask you to pick one)
+- Ask which **Snowflake connection** to use
+- Write `.streetlights-demo/manifest.toml` (gitignored, local only)
+
+### 3. Run the two phases
+
+The demo is split into two self-contained phases. Each phase is a single command with one
+upfront plan-mode confirmation — you see why it matters, what will execute, and a dry-run
+preview before anything runs.
+
+**Phase 1 — Infrastructure** (steps 1–7, sequential):
+```
+$streetlights-demo infra
+```
+Builds: CSV data → PG Iceberg tables → CLD → Semantic View → Cortex Search → Intelligence Agent.
+At the end you're asked whether to continue to the App phase or stop — the Agent is fully
+queryable in Snowflake Intelligence at this point.
+
+**Phase 2 — App** (steps 8–10, Forecast + SiS run in parallel):
+```
+$streetlights-demo app
+```
+Adds: ML Forecast model + Streamlit dashboard + end-to-end validation.
+
+> **Or run steps individually** if you prefer step-by-step control:
 >
 > ```
-> <host>:5432:postgres:snowflake_admin:<password>
+> $streetlights-demo step 1    # Generate synthetic data (7 CSVs for your city)
+> $streetlights-demo step 2    # Create Snowflake Postgres instance (⚠️ billable)
+> $streetlights-demo step 3    # Create Iceberg tables + load data
+> $streetlights-demo step 4    # Create CLD — zero-pipeline sync (⚠️ billable)
+> $streetlights-demo step 5    # Create Semantic View
+> $streetlights-demo step 6    # Create Cortex Search service
+> $streetlights-demo step 7    # Create Intelligence Agent
+> $streetlights-demo step 8    # Train ML Forecast model
+> $streetlights-demo step 9    # Deploy Streamlit app
+> $streetlights-demo step 10   # Validate everything + demo questions
 > ```
 
----
+### 4. Test the demo end-to-end
 
-## Architecture
+After step 10 completes, your Intelligence Agent is live. Test it in **Snowflake Intelligence** (Snowsight) or directly via CoCo:
 
-```mermaid
-flowchart TB
-    subgraph PG["Snowflake Postgres"]
-        direction LR
-        subgraph Base["Base Tables"]
-            SL[street_lights]
-            NH[neighborhoods]
-            MR[maintenance_requests]
-            SP[suppliers]
-        end
-        subgraph Enrich["Enrichment Tables"]
-            WE[weather]
-            DE[demographics]
-            PW[power_grid]
-        end
-        EV[("street_lights_enriched<br/>(View)")]
-        Base --> EV
-        Enrich --> EV
-    end
-
-    PUB{{streetlights_publication}}
-    PG --> PUB
-
-    subgraph SF["Snowflake"]
-        direction TB
-        RAW[("Raw Tables<br/>(CDC Sync)")]
-        subgraph AI["Snowflake Intelligence"]
-            CS[Cortex Search<br/>MAINTENANCE_SEARCH]
-            CA[Cortex Analyst<br/>Semantic YAML]
-            ML[ML FORECAST<br/>BULB_FAILURE_FORECASTER]
-        end
-        RAW --> CS
-        RAW --> CA
-        RAW --> ML
-    end
-
-    PUB -->|Openflow CDC| SF
-
-    subgraph DASH["Streamlit Dashboard"]
-        D1[Interactive Maps]
-        D2[Faulty Light Analysis]
-        D3[Predictive Maintenance]
-        D4[Supplier Coverage]
-        D5[Live Demo Controls]
-    end
-
-    SF --> DASH
+```sql
+-- In Snowsight → Intelligence → select your agent
+-- Or via SQL:
+SELECT SNOWFLAKE.CORTEX.AGENT(
+  '{PREFIX}_STREETLIGHTS_CLD.streetlights.streetlights_agent',
+  'How many street lights are currently faulty?'
+);
 ```
 
+**Sample intents — grouped by routing path:**
+
+| Category | Intent | Routes to |
+|---|---|---|
+| Status | "How many street lights are currently faulty?" | Analyst |
+| Geographic | "Show me faulty lights in Koramangala" | Analyst |
+| Energy | "Which neighborhoods have the highest energy consumption?" | Analyst |
+| Cost | "What is the average repair cost by maintenance type?" | Analyst |
+| Rankings | "Show me the top 5 neighborhoods by maintenance frequency" | Analyst |
+| Predictive | "Predict energy consumption for the next 30 days" | Analyst (Forecast) |
+| Safety | "Find maintenance reports about exposed wires or sparking" | Search |
+| Maintenance | "What does the maintenance history say about pole integrity?" | Search |
+| Hybrid | "Tell me about maintenance issues in the busiest neighborhood" | Analyst + Search |
+| Hybrid | "What's the repair status for flickering light reports?" | Analyst + Search |
+
+> **Routing logic**: Structured questions involving counts, trends, or rankings route to
+> **Cortex Analyst** (generates SQL via the Semantic View). Questions about maintenance
+> descriptions, observations, or field notes route to **Cortex Search** (semantic similarity
+> over maintenance text). Hybrid intents trigger both tools.
+
+The Agent will:
+- Route structured questions to **Cortex Analyst** (generates SQL via Semantic View)
+- Route text/description queries to **Cortex Search** (semantic similarity)
+- Generate **map links** when results include lat/lng coordinates
+- Produce **charts** when data is suitable for visualization
+
+### 5. Clean up when done
+
+```
+$streetlights-demo cleanup
+```
+
+Tears down all resources in reverse order (drops Agent → Search → View → CLD → PG instance).
+Confirms each destructive step before executing.
+
 ---
 
-## Database Schema
+### What each step verifies (gate checks)
 
-### Base Tables
+| Step | Gate Check | What it confirms |
+|------|-----------|-----------------|
+| setup | `manifest_exists` | Config file parseable |
+| 2 | `pg_reachable` + `pg_managed_storage` | Instance up + managed storage |
+| 3 | Row count queries | All 7 tables loaded |
+| 4 | `cld_healthy` (30s retry) | CLD propagation complete, 7 tables visible |
+| 5 | `semantic_view_exists` | DDL succeeded |
+| 6 | `cortex_search_ready` | Service status = ACTIVE |
+| 7 | `agent_accessible` | Agent responds to test query |
+| 8 | `forecast_model_ready` | Model trained |
+| 9 | `SHOW STREAMLITS` | App deployed |
+| 10 | `sanity_gate.py` | Full end-to-end smoke test |
 
-| Table | Description |
-|-------|-------------|
-| `neighborhoods` | Geographic boundaries (polygons) with population data |
-| `street_lights` | Operational data (location, status, installation date) |
-| `maintenance_requests` | Historical maintenance records |
-| `suppliers` | Equipment suppliers with service coverage |
+## Intent-Driven Development (IDD)
 
-### Enrichment Tables
+This demo is a working example of IDD in practice — you express *what* you want,
+the agent determines *how*. No table names. No JOIN syntax. No schema knowledge required.
 
-| Table | Description |
-|-------|-------------|
-| `weather_enrichment` | Seasonal patterns with failure risk scores |
-| `demographics_enrichment` | Neighborhood characteristics |
-| `power_grid_enrichment` | Electrical grid data per light |
+### Intent Compression Ratio (ICR)
 
-### Key View
+ICR measures how much operational complexity the system absorbs per unit of developer intent
+([blog](https://blogs.kameshs.dev/intent-compression-ratio-measuring-the-power-of-intent-ceb6faf2e2f9)):
 
-- **`street_lights_enriched`**: Combines lights with all enrichment data (main CDC view)
+$$
+\text{ICR} = \frac{\text{Total Operations Required}}{\text{Number of Intent Expressions}}
+$$
 
-See [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) for complete schema documentation.
+**"Traditional ops"** includes all discrete manual actions without this skill:
+SQL statements written, bash/shell commands run, Python scripts called, API calls made,
+and configuration files written.
+
+**ICR score** (per [icr-lab](https://github.com/kameshsampath/icr-lab) formula) measures
+token efficiency — ops achieved per intent token spent:
+
+$$
+\text{ICR score} = \left\lfloor \frac{\text{Ops Achieved}}{\text{NL Tokens}} \times 1000 \right\rfloor
+$$
+
+Run `uv run idd-metrics` to compute live ICR scores for the demo intents.
+
+**Infrastructure phase ICR** — traditional ops replaced per phase invocation:
+
+| Phase | Command | Trad. ops | Invocations | ICR |
+|-------|---------|----------:|:-----------:|----:|
+| Infrastructure | `$streetlights-demo infra` | 60 | 1 | **60** |
+| Infrastructure (per-step avg) | `$streetlights-demo step N` × 7 | 60 | 7 | **8** avg |
+| App phase | `$streetlights-demo app` | 19 | 1 | **19** |
+| **Full session** | setup + infra + app | **79** | **3** | **26** avg |
+
+> Phase-level ICR shows the leverage of expressing *intent at the phase boundary* rather than
+> step-by-step. One `$streetlights-demo infra` replaces 60 discrete manual operations.
+
+### Token Economics
+
+SQL tokens generated per NL token expressed — measured with `SNOWFLAKE.CORTEX.COUNT_TOKENS`
+([blog](https://blogs.kameshs.dev/icr-and-token-economics-9a014a75b399)):
+
+| Intent | NL tokens | Est. SQL tokens | SQL tokens / NL token |
+|---|---|---|---|
+| "How many street lights are faulty?" | 8 | ~42 | 5.3 |
+| "Which neighborhoods use most energy?" | 7 | ~58 | 8.3 |
+| "Tell me about issues in the busiest neighborhood" | 9 | ~85 (SQL + search query) | 9.4 |
+
+> Run `uv run idd-metrics` to compute live token counts using `SNOWFLAKE.CORTEX.COUNT_TOKENS`.
+> tiktoken (cl100k_base) is used as offline fallback when no Snowflake connection is configured.
+
+### Other IDD Signals
+
+| Metric | Value | What it means |
+|---|---|---|
+| **Schema abstraction** | 7 tables, 0 mentioned by user | User never specifies a table or column name |
+| **Tool routing** | 2 tools, automatic selection | Agent chooses Analyst or Search per intent |
+| **Join elimination** | Avg ~2 joins per query, 0 specified | Semantic View encodes all join logic |
+| **Intent log** | 500 operational intents tracked | Maintenance work surfaces as structured data |
+
+> See [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c)
+> for the broader IDD philosophy.
 
 ---
 
-## Data Generation
+## Manual Path (Taskfile)
 
-Generate data using `uv run` commands:
+For users not using Cortex Code:
 
 ```bash
-# Install dependencies first
+# Install dependencies
 uv sync
 
-# Generate full dataset (5,000 lights, 50 neighborhoods, 1,500 maintenance requests)
-uv run generate-all-data
+# Generate data for Portland (or your city)
+task generate -- --city "Portland" --lat 45.5152 --lng -122.6784 --count 500
 
-# Generate sample dataset for quick testing (10 lights, 5 neighborhoods)
-uv run generate-sample
+# Apply PG schema (requires psql connection to your instance)
+task pg:schema
+
+# Load data
+task pg:load
+
+# Run Snowflake SQL scripts
+task sf:setup
+task sf:semantic-view
+task sf:search
+task sf:agent
+task sf:forecast
 ```
 
-### Dataset Sizes
-
-| Entity | Full Dataset | Sample Dataset |
-|--------|--------------|----------------|
-| Street lights | 5,000 | 10 |
-| Neighborhoods | 50 | 5 |
-| Suppliers | 25 | 3 |
-| Maintenance requests | 1,500 | 10 |
-| Enrichment records | 15,000 | 30 |
-
-**Status distribution**: 85% operational, 10% maintenance required, 5% faulty
-
----
-
-## Key Features
-
-### PostGIS Spatial Operations
-
-- Sub-second spatial queries (ST_Within, ST_DWithin, ST_Distance)
-- GIST indexes for performance
-- Point-in-polygon, proximity search, nearest neighbor
-- Geography type for accurate meter-based distances
-
-### Snowflake Openflow CDC
-
-- Real-time change data capture from PostgreSQL
-- Automatic schema synchronization
-- ~1-5 second sync latency
-- Setup guide: [Getting Started with Openflow PostgreSQL CDC](https://quickstarts.snowflake.com/guide/getting-started-with-openflow-postgresql-cdc/)
-
-### Snowflake Intelligence
-
-- **Cortex Search**: Semantic search on maintenance descriptions
-- **Cortex Analyst**: Structured analytics via YAML semantic model
-- Natural language queries for both search and analytics
-- Setup guide: [Getting Started with Snowflake Intelligence](https://www.snowflake.com/en/developers/guides/getting-started-with-snowflake-intelligence/)
-
-**Recommended Orchestration Instructions:**
+## Directory Structure
 
 ```
-## ROUTING RULES - CRITICAL
-
-Use CORTEX SEARCH (MAINTENANCE_SEARCH) for questions about:
-- Finding issues by description: "flickering", "sparking", "exposed wires", "water damage"
-- Safety hazards, dangerous situations, urgent repairs
-- Semantic similarity: "find issues similar to...", "show me complaints about..."
-- Free-text content in maintenance descriptions
-
-Use CORTEX ANALYST (semantic model) for questions about:
-- Counts and aggregations: "how many", "total", "average"
-- Rankings: "which neighborhoods have the most..."
-- Status breakdowns: "lights by status", "open vs closed requests"
-- Time-based analytics: resolution times, trends
-
-## OUTPUT & ORCHESTRATION GUIDELINES
-
-1. DATA VISUALIZATION
-- Prioritize Graphics: Whenever the result set structure permits, visualize the data graphically (charts, graphs, plots) rather than outputting raw tabular text.
-
-2. FINANCIAL FORMATTING
-- Currency Standard: All monetary values must be converted and displayed in Indian Rupees (INR / ₹).
-
-3. LOCATION & GEOSPATIAL HANDLING (CRITICAL)
-- WKT Parsing: If the query result contains location data in WKT (Well-Known Text) format, parse the geometry to extract Latitude and Longitude.
-- Error Suppression: Handle all parsing logic internally. Do NOT expose SQL parsing errors or code stack traces to the end user.
-- Map Link Generation: Construct a Google Maps URL using extracted coordinates (e.g., https://www.google.com/maps/search/?api=1&query=LAT,LONG).
-- Display Logic:
-  * Hide Raw Coordinates: Never display raw Latitude and Longitude values in the final response.
-  * Anchor Text Rule: Use the specific Place Name from the data record as the hyperlink text.
-  * Fallback: If the Place Name is unavailable, use the text "Show in Maps" as the hyperlink anchor.
+.
+├── .cortex/skills/streetlights-demo/   # CoCo skill (guided workflow)
+│   ├── SKILL.md                        # Coordinator + router
+│   ├── steps/                          # Step sub-skills
+│   │   ├── infra.md                    # Phase 1 orchestrator (steps 1–7, sequential)
+│   │   ├── app.md                      # Phase 2 orchestrator (steps 8–10, parallel)
+│   │   ├── setup.md                    # Init manifest
+│   │   └── step-1.md … step-10.md     # Individual step files
+│   ├── cleanup/                        # Teardown skill
+│   └── references/                     # Concepts + IDD metrics
+├── app/                                # Streamlit in Snowflake app
+│   ├── Home.py                         # Entry point
+│   ├── pages/                          # Multi-page views
+│   └── environment.yml                 # SiS dependencies
+├── data/                               # Generated CSVs (gitignored)
+├── init/                               # PostgreSQL DDL scripts
+│   ├── 01_enable_extensions.sql        # pg_lake + PostGIS extensions
+│   └── 02_create_iceberg_tables.sql    # All 7 Iceberg tables (generated)
+├── scripts/                            # CLI tools and gates
+│   ├── gate.py                         # Per-step verification checks
+│   └── sanity_gate.py                  # End-to-end smoke test
+├── snowflake/                          # Snowflake DDL scripts
+│   ├── 01_setup.sql                    # Database + warehouse
+│   ├── 02_semantic_view.sql            # Semantic View
+│   ├── 03_cortex_search.sql            # Cortex Search service
+│   ├── 04_intelligence_agent.sql       # Intelligence Agent
+│   └── 05_ml_forecast.sql             # ML Forecast model
+├── .streetlights-demo/                 # Local config (gitignored)
+│   └── manifest.toml                   # Demo configuration
+├── Taskfile.yml                        # Task automation
+└── pyproject.toml                      # Python project config
 ```
 
-> [!NOTE]
-> [WKT (Well-Known Text)](https://en.wikipedia.org/wiki/Well-known_text_representation_of_geometry) is a standard format for geometry like `POINT(77.5946 12.9716)`.
+## Key Concepts
 
-### ML Forecasting
+- **pg_lake**: PostgreSQL extension for Iceberg table storage
+- **CLD**: Catalog-Linked Database — Snowflake reads PG Iceberg metadata directly
+- **Semantic View**: SQL-native semantic layer (replaces YAML models)
+- **Cortex Search**: Managed text search service with semantic understanding
+- **Intelligence Agent**: Natural language interface combining structured + unstructured data
 
-- Time-series forecasting for bulb failures
-- 30/90-day predictions with confidence intervals
-- Budget planning with cost breakdowns (INR)
-- Seasonal risk analysis
+See [`.cortex/skills/streetlights-demo/references/concepts.md`](.cortex/skills/streetlights-demo/references/concepts.md) for detailed explanations.
 
----
-
-## Documentation
-
-| Document | Purpose |
-|----------|---------|
-| [QUICKSTART.md](QUICKSTART.md) | Complete setup guide |
-| [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md) | Database schema, tables, views, and query patterns |
-| [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | Detailed demo walkthrough |
-| [snowflake/SNOWFLAKE_INTELLIGENCE_QUESTIONS.md](snowflake/SNOWFLAKE_INTELLIGENCE_QUESTIONS.md) | Sample Cortex queries |
-| [work/snowflake_ml_guide.md](work/snowflake_ml_guide.md) | ML forecasting details |
-
----
-
-## Troubleshooting
-
-### psql connection fails
+## Cleanup
 
 ```bash
-# Verify environment variables
-source .env
-echo $PGHOST $PGPORT $PGDATABASE
-
-# Test connection
-psql -c "SELECT 1;"
+# Guided teardown (drops all resources in reverse order)
+$streetlights-demo cleanup
 ```
 
-### Snow CLI issues
-
+Or manually:
 ```bash
-# Check version
-snow --version
-
-# Test connection
-snow connection test
-
-# List connections
-snow connection list
-```
-
-### Dashboard won't start
-
-```bash
-# Ensure dependencies installed
-uv sync
-
-# Check .env file exists with correct values
-cat .env
-
-# Run dashboard
-uv run dashboard
-```
-
-### CDC not syncing
-
-```bash
-# Verify publication exists
-psql -c "SELECT * FROM pg_publication;"
-
-# Check replication slot
-psql -c "SELECT * FROM pg_replication_slots;"
+task cleanup
 ```
 
 ---
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+Apache License 2.0 — see [LICENSE](LICENSE) for details.
 
 Copyright 2025 Kamesh Sampath
-
-See [NOTICE](NOTICE) for third-party attributions.
-
-### Citation
-
-If you use this project in your research or work, please cite it using the information in [CITATION.cff](CITATION.cff).
-
----
-
-## Acknowledgments
-
-- PostGIS for spatial database capabilities
-- Snowflake Openflow for CDC capabilities
-- Snowflake for AI Data Cloud
-- Streamlit for rapid dashboard development
-
----
-
-**Built for the spatial data community**

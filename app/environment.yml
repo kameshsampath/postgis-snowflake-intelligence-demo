@@ -1,0 +1,10 @@
+name: streetlights-sis
+channels:
+  - snowflake
+dependencies:
+  - streamlit=1.52.0
+  - snowflake-snowpark-python
+  - pydeck=0.9.2
+  - plotly
+  - altair
+  - matplotlib
