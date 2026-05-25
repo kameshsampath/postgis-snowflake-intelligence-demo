@@ -40,19 +40,32 @@ natively to Snowflake's AI stack — no CDC pipeline, no ETL, no data movement.
 
 ## Architecture
 
-```
-Snowflake Postgres (pg_lake)          Snowflake
-┌──────────────────────────┐          ┌─────────────────────────────────┐
-│ Iceberg tables (ALL 7)   │  Shared  │  Catalog Integration (CLD)      │
-│ (managed storage ONLY)   │──Iceberg─│         ↓                       │
-│                          │          │  Semantic View + Cortex Search  │
-│ Location-aware data:     │          │  + ML FORECAST models           │
-│ user's city or override  │          │  + Intelligence Agent           │
-│                          │          │  (Semantic View + Search)       │
-│ Spatial: lat/lng FLOAT   │          │                                 │
-│ (no PostGIS GEOMETRY     │          │  + SiS Multi-Page App           │
-│  in Iceberg tables)      │          │                                 │
-└──────────────────────────┘          └─────────────────────────────────┘
+```mermaid
+flowchart TD
+    subgraph PG["Snowflake Postgres  ·  pg_lake"]
+        T[("7 Iceberg Tables\nstreet_lights  ·  maintenance_records  ·  energy_consumption\nlight_sensors  ·  weather_enrichment  ·  demographics  ·  power_grid_zones")]
+    end
+
+    subgraph SF["Snowflake"]
+        CLD["CLD — Catalog-Linked Database\nzero pipeline  ·  same Iceberg metadata  ·  no data movement"]
+
+        subgraph AI["AI & Analytics"]
+            SV["Semantic View\nSQL semantic layer"]
+            CS["Cortex Search\ntext search  ·  maintenance records"]
+            ML["ML FORECAST\ntime-series energy prediction"]
+        end
+
+        AG["Intelligence Agent\nnatural language  ·  Analyst + Search routing"]
+        APP["Streamlit in Snowflake\nmulti-page dashboard"]
+
+        CLD --> SV & CS & ML
+        SV & CS --> AG
+        ML --> AG
+        AG --> APP
+        SV & ML --> APP
+    end
+
+    PG -->|"Apache Iceberg  ·  shared metadata"| CLD
 ```
 
 **Key insight**: No CDC/OpenFlow/Debezium pipeline between PostgreSQL and Snowflake.
@@ -315,9 +328,15 @@ task sf:forecast
 │   ├── cleanup/                        # Teardown skill
 │   └── references/                     # Concepts + IDD metrics
 ├── app/                                # Streamlit in Snowflake app
-│   ├── Home.py                         # Entry point
-│   ├── pages/                          # Multi-page views
-│   └── environment.yml                 # SiS dependencies
+│   ├── home.py                         # Entry point + st.navigation()
+│   ├── views/                          # Multi-page views
+│   │   ├── overview.py                 # KPI dashboard
+│   │   ├── 1_infrastructure_overview.py # Neighbourhood map
+│   │   ├── 2_faulty_lights.py          # Fault inspector
+│   │   ├── 3_analytics.py              # Energy & seasonal charts
+│   │   └── 4_forecasting.py            # ML Forecast viewer
+│   ├── snowflake.yml                   # SiS deployment config
+│   └── environment.yml                 # SiS conda dependencies
 ├── data/                               # Generated CSVs (gitignored)
 ├── init/                               # PostgreSQL DDL scripts
 │   ├── 01_enable_extensions.sql        # pg_lake + PostGIS extensions
