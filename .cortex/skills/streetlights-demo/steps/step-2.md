@@ -22,6 +22,18 @@ uv run gate --step step-2 --desc "Creating Snowflake Postgres instance" --action
 
 # Step 2: Snowflake Postgres Instance
 
+## Why this matters
+
+**What is Snowflake Postgres?** — Snowflake Postgres is a fully managed PostgreSQL instance that runs inside Snowflake's infrastructure. It gives you a standard `psql`-compatible database, but with one critical addition: the `pg_lake` extension, which lets you create Iceberg tables directly in PostgreSQL.
+
+**Managed storage is the foundation** — When you create a Snowflake Postgres instance with managed storage, Snowflake provisions an internal object storage volume alongside it. The `pg_lake` extension writes Iceberg Parquet data files to that volume — not to local PG disk. This is what makes the zero-copy pattern possible: both Postgres and Snowflake can reach the same Parquet files. Without managed storage, there is no CLD.
+
+**Why not just load into Snowflake directly?** — You could. But this demo shows a different architecture: Postgres as the primary operational system, Snowflake as the analytics layer, with Iceberg as the shared format that bridges them. No ETL. No data duplication. The same files power both systems.
+
+**IDD connection** — The entire instance setup — network policy, database creation, pg_lake activation — is encoded in this skill file as declarative intent. This is [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14): the skill declares what infrastructure is needed; the agent executes it.
+
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
 ## What we'll do
 
 Create a Snowflake Postgres instance with managed storage (required for CLD). This is a **billable action** — the instance consumes credits while running.

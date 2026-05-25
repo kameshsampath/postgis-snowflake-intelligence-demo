@@ -15,16 +15,14 @@
 import streamlit as st
 
 st.set_page_config(page_title="Streetlights Intelligence", page_icon="💡", layout="wide")
-st.title("Streetlights Intelligence Dashboard")
-st.markdown("""
-Welcome to the Streetlights Infrastructure Intelligence demo.
 
-This application demonstrates:
-- **Infrastructure Overview** — Spatial visualization of streetlight assets
-- **Maintenance Search** — Natural language search via Cortex Search
-- **Analytics** — Energy and operational insights via Semantic View
-- **Forecasting** — ML-powered energy consumption predictions
-- **Ask Agent** — Natural language Q&A via Intelligence Agent
-
-Navigate using the sidebar pages.
-""")
+pg = st.navigation(
+    [
+        st.Page("views/overview.py", title="Home", icon="💡", default=True),
+        st.Page("views/1_infrastructure_overview.py", title="Neighborhood Overview", icon="🏘️"),
+        st.Page("views/2_faulty_lights.py", title="Faulty Lights", icon="🔴"),
+        st.Page("views/3_analytics.py", title="Analytics", icon="📊"),
+        st.Page("views/4_forecasting.py", title="Energy Forecast", icon="🔮"),
+    ]
+)
+pg.run()

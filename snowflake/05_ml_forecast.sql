@@ -38,11 +38,16 @@ CREATE OR REPLACE VIEW <% PREFIX %>_STREETLIGHTS.PUBLIC.energy_daily_vw AS
 
 -- ─────────────────────────────────────────────────────────────
 -- Block 2b: Materialize view as a Dynamic Table (TARGET_LAG=1 hour)
---   SYSTEM$REFERENCE('TABLE',...) works across the ML service boundary;
---   SYSTEM$REFERENCE('VIEW',...) fails when the view references a CLD
---   cross-database because the ML internal role has no CLD grants.
---   Dynamic Table auto-refreshes when new Iceberg data arrives in PG —
---   the forecast always trains on up-to-date energy readings.
+--   The ML internal service role cannot be granted access to CLD databases.
+--   SYSTEM$REFERENCE('VIEW',...) fails because the view body joins CLD tables
+--   and the ML service cannot resolve that cross-database reference.
+--   Dynamic Table materializes the joined data locally in PUBLIC — no CLD
+--   access needed at training time. It auto-refreshes when new Iceberg data
+--   arrives in PG, so the forecast always trains on up-to-date readings.
+--
+--   SYSTEM$REFERENCE('TABLE',...) is NOT used because it rejects DYNAMIC TABLE
+--   type. Instead, Block 3 uses SYSTEM$QUERY_REFERENCE which passes a SELECT
+--   query to the ML service — bypassing the type check entirely.
 -- ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE DYNAMIC TABLE <% PREFIX %>_STREETLIGHTS.PUBLIC.energy_daily_tbl
     TARGET_LAG = '1 hour'
@@ -57,7 +62,10 @@ AS SELECT * FROM <% PREFIX %>_STREETLIGHTS.PUBLIC.energy_daily_vw;
 --   model via --prior-step step-8 backfill.
 -- ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE SNOWFLAKE.ML.FORECAST <% PREFIX %>_STREETLIGHTS.PUBLIC.energy_forecast(
-    INPUT_DATA => SYSTEM$REFERENCE('TABLE', '<% PREFIX %>_STREETLIGHTS.PUBLIC.energy_daily_tbl'),
+    INPUT_DATA => SYSTEM$QUERY_REFERENCE(
+        'SELECT SERIES_ID, DS, DAILY_KWH FROM <% PREFIX %>_STREETLIGHTS.PUBLIC.energy_daily_tbl',
+        true
+    ),
     SERIES_COLNAME => 'SERIES_ID',
     TIMESTAMP_COLNAME => 'DS',
     TARGET_COLNAME => 'DAILY_KWH'

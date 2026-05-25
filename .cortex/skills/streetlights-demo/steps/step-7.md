@@ -24,7 +24,11 @@ uv run gate --step step-7 --desc "Creating Intelligence Agent" --action start
 
 ## Why this matters
 
-**Tool-use architecture** — The Intelligence Agent doesn't answer questions directly. It *routes* them to the right tool: Cortex Analyst for structured SQL queries, or Cortex Search for text retrieval. This is a tool-use pattern — the agent is an orchestrator that composes multi-tool answers from a single natural language question.
+**What is an Intelligence Agent?** — A Cortex Agent is an LLM given named, described tools. It reads your question, reasons about which tool best answers it, calls that tool, interprets the result, and synthesizes a response. The agent does not "know" your data — it knows how to *route* questions to the right tool. It is an orchestrator, not an oracle.
+
+**FROM SPECIFICATION as declarative orchestration** — Instead of writing Python to chain tool calls, you write YAML inside a DDL statement. The spec declares routing instructions (when to use each tool), tool configurations (which semantic view, which search service), and response format. The platform handles all LLM calls, tool invocations, and response synthesis. Infrastructure as intent, applied to AI orchestration.
+
+**Tool-use architecture** — The Intelligence Agent doesn't answer questions directly. It *routes* them: Cortex Analyst for structured SQL queries, or Cortex Search for text retrieval. This is a tool-use pattern — the agent is a coordinator that composes multi-tool answers from a single natural language question.
 
 **Composing multi-source answers** — A question like "Tell me about maintenance issues in the busiest neighborhood" requires *both* SQL (to find the busiest neighborhood) and text search (to find maintenance records). The agent decomposes the question, routes sub-parts to the right tools, and synthesizes a unified answer.
 
@@ -61,8 +65,21 @@ Present the output, then ask user to proceed.
 
 ### Prerequisites
 
-- Semantic View exists (Step 5 complete)
-- Cortex Search service is ACTIVE (Step 6 complete)
+Verify both agent tools are fully ready before deploying the agent:
+
+```sql
+-- Check Semantic View exists (step-5)
+SHOW SEMANTIC VIEWS IN DATABASE {database};
+
+-- Check Cortex Search service exists and is ACTIVE (step-6)
+SHOW CORTEX SEARCH SERVICES IN DATABASE {database};
+```
+
+- Semantic View missing → **STOP**: "Re-run Step 5."
+- Search service missing → **STOP**: "Re-run Step 6."
+- Search service `STATUS = 'BUILDING'` → wait 60s and recheck (indexing in progress, not an error).
+
+Do not deploy the agent until both tools are confirmed ready. An agent created against a non-ACTIVE search service will have broken tool routing.
 
 ### Steps
 
@@ -91,6 +108,10 @@ Present the output, then ask user to proceed.
 - Orchestration instructions control routing between tools
 - Map links are auto-generated when results include lat/lng columns
 - **Intelligence registration** — accounts with `SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT` show only explicitly registered agents in the UI; `04_intelligence_agent.sql` handles this automatically
+
+> ⚠️ **FORBIDDEN** — These patterns do not exist and will error immediately:
+> - `snow cortex agent` — this CLI subcommand does not exist
+> - `SNOWFLAKE.CORTEX.COMPLETE(model, ARRAY)` for agent queries — COMPLETE is for LLM text generation only, not Intelligence Agent tool routing; produces `COMPLETE$V6` argument type errors
 
 ### Verification
 
@@ -129,30 +150,51 @@ Present the output, then ask user to proceed.
 
 ## Live Demo
 
-> ⚠️ **MANDATORY**: Run these 3 sample queries after step completion to show the agent working end-to-end. Present each question, run it, and show the formatted response.
+> ⚠️ **MANDATORY**: Run these queries after step completion to show the agent's tools working end-to-end. Present each question, run it, and show the formatted response.
 
-Run against the deployed agent. Use `SNOWFLAKE.CORTEX.SEARCH_PREVIEW` for the search query. For agent queries, use the agent REST API via `snow cortex` CLI or inline SQL with `SNOWFLAKE.CORTEX.COMPLETE`.
+> ⚠️ **FORBIDDEN**:
+> - `snow cortex agent` — does not exist
+> - `SNOWFLAKE.CORTEX.COMPLETE` for agent routing — use only the patterns below
 
-### Query 1 — Analyst (structured)
-**Question**: "How many street lights are faulty by neighborhood?"
-- Routes to: `StreetlightsAnalyst` (Cortex Analyst → SQL → Semantic View)
-- Expected output: table with `neighborhood`, `faulty_count`, sorted descending
-- Show result as formatted markdown table
+> **Source**: `snowflake/04_intelligence_agent.sql` — agent tool configurations
 
-### Query 2 — Search (unstructured)
+### Query 1 — Cortex Search (unstructured) — via SQL
+
+Test the **MaintenanceSearch** tool directly. This confirms the search index is working.
+
 **Question**: "Find maintenance records about sparking or exposed wires"
-- Routes to: `MaintenanceSearch` (Cortex Search → embedding similarity)
-- Expected output: 3–5 maintenance record excerpts with `description`, `maintenance_type`, `neighborhood`
-- Show results as a short list
 
-### Query 3 — Geographic (natural language, agent infers map links)
-**Question**: "Which neighborhood has the most faulty lights, and where are they located?"
-- Routes to: `StreetlightsAnalyst` first (finds top neighborhood), then returns lat/lng
-- Agent should infer from location context and orchestration instructions that OSM map links are needed — do NOT explicitly say "with map links"
-- Expected output: neighborhood name + list of light locations as clickable OSM links
-- Format: `[POLE-XXXXX](https://www.openstreetmap.org/?mlat=...&mlon=...&zoom=16)`
+```sql
+SELECT SNOWFLAKE.CORTEX.SEARCH_PREVIEW(
+  '{PREFIX}_STREETLIGHTS.PUBLIC.MAINTENANCE_SEARCH',
+  PARSE_JSON('{
+    "query": "sparking or exposed wires",
+    "columns": ["neighborhood", "maintenance_type", "description"],
+    "limit": 5
+  }')
+);
+```
 
-Present all 3 results to the user before marking COMPLETE.
+Expected: JSON with 3–5 maintenance records describing electrical hazards.
+Show results as a short list with `description`, `maintenance_type`, `neighborhood`.
+
+### Query 2 — Full Agent (structured + unstructured) — via Snowflake Intelligence UI
+
+The Intelligence Agent is designed for the Snowflake Intelligence UI. Direct the user to:
+
+1. Open **Snowflake Intelligence** in your Snowflake account
+2. Select agent: `{PREFIX}_STREETLIGHTS.PUBLIC.STREETLIGHTS_AGENT`
+3. Ask: **"How many street lights are faulty by neighborhood?"**
+   - Routes to: `StreetlightsAnalyst` (Cortex Analyst → SQL → Semantic View)
+   - Expected output: table with `neighborhood`, `faulty_count`, sorted descending
+4. Ask: **"Which neighborhood has the most faulty lights, and where are they located?"**
+   - Routes to: `StreetlightsAnalyst` first (finds top neighborhood), then returns lat/lng
+   - Expected output: neighborhood name + OSM map links
+   - Format: `[POLE-XXXXX](https://www.openstreetmap.org/?mlat=...&mlon=...&zoom=16)`
+
+> **Note**: The agent infers from orchestration instructions that OSM map links are appropriate — do NOT explicitly say "with map links" in your question.
+
+Present all query results to the user before marking COMPLETE.
 
 ## Mark COMPLETE
 

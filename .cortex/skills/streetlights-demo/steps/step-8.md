@@ -93,7 +93,7 @@ Present the output, then ask user to proceed.
 - `ANY_VALUE()` is safe: location columns are constant per `light_id` across dates
 - `energy_daily_tbl` is a Dynamic Table (TARGET_LAG=1 hour) — refreshes automatically when PG Iceberg data changes
 - Warehouse resize is embedded in the SQL: MEDIUM before training, XSMALL after
-- `SYSTEM$REFERENCE('TABLE',...)` is used so the ML service can cross the CLD boundary
+- `SYSTEM$QUERY_REFERENCE('SELECT SERIES_ID, DS, DAILY_KWH FROM energy_daily_tbl', true)` — `SYSTEM$REFERENCE` rejects DYNAMIC TABLE type; query reference bypasses the type check and reads from the materialized DT data directly
 
 ## What we did
 

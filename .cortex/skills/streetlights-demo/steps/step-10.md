@@ -149,9 +149,18 @@ ICR score = int(traditional_ops × 1000 ÷ NL tokens) — ops per intent token
 | 4 | "What is the average repair cost by maintenance type?" | Analyst → SQL | Grouped metrics |
 | 5 | "Show me the top 5 neighborhoods by maintenance frequency" | Analyst → SQL | Rankings |
 
+**Grid zones + technician dispatch queries (new in app v2):**
+
+| # | Question | Routing | What it tests |
+|---|----------|---------|---------------|
+| 6 | "Which power grid zones are overloaded and how many faulty lights are nearby?" | Analyst → SQL | Multi-table join with spatial context |
+| 7 | "Who has the most experience fixing lights in the neighborhood with the most faults?" | Analyst → SQL | Subquery + ranking |
+| 8 | "Show the repair history for the technician assigned to the highest-load grid zone" | Analyst → SQL | Chain reasoning across 3 tables |
+
 **Bonus — try these combined queries:**
 - "Tell me about maintenance issues in the busiest neighborhood" (Agent routes to both tools)
 - "What's the situation with faulty lights and their repair status?" (Combined routing)
+- "Which technician should I dispatch to fix the most critical grid zone right now?" (Grid load + technician join)
 
 The demo is fully operational. You now have:
 - PostgreSQL with pg_lake Iceberg tables

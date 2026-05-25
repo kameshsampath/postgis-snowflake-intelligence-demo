@@ -25,6 +25,14 @@ description: >
 
 4. **Object placement**: create ALL Snowflake objects (semantic views, Cortex Search, agents, ML Forecast, Streamlit) in `{PREFIX}_STREETLIGHTS.PUBLIC`. CLD is read-only — SELECT only.
 
+5. **Source traceability**: When executing `snow sql -f snowflake/NNN_file.sql`, always show `> **Source**: \`snowflake/NNN_file.sql\`` immediately before the command, and name the SQL section being executed (e.g., "Semantic View DDL", "Grant access"). This lets users cross-reference the exact SQL being run.
+
+6. **FORBIDDEN CLI patterns** — These do not exist and will immediately error:
+   - `snow cortex agent` — no such subcommand; use Snowflake Intelligence UI for agent interaction
+   - `SNOWFLAKE.CORTEX.COMPLETE(model, ARRAY)` for agent queries — COMPLETE is for LLM text generation only, not Intelligence Agent tool routing; produces `COMPLETE$V6` argument type errors
+
+7. **snow CLI: verify before running** — For any `snow` subcommand beyond `snow sql`, run `snow <subcommand> --help` first to confirm the subcommand exists and its flags are correct. Never assume a subcommand or flag exists — `snow cortex agent` is a real example of a command that does not exist. If `--help` shows the subcommand is absent, stop and use the correct alternative documented in this skill.
+
 - **Always use markdown** for all user-facing output (tables, code blocks, admonitions)
 - **Never hallucinate** — if uncertain about any value, path, or state, use `ask_user_question` to confirm with the user
 - **Stop on billable actions** — always warn and confirm before creating PG instances or CLD

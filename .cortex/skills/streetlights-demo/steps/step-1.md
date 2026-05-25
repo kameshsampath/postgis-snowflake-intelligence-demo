@@ -22,6 +22,16 @@ uv run gate --step step-1 --desc "Generating synthetic data" --action start
 
 # Step 1: Generate Synthetic Data
 
+## Why this matters
+
+**Why synthetic data?** — This demo runs on generated data so it can be reproduced anywhere, by anyone, without needing access to a real municipal database. Synthetic data lets us demonstrate the full technical stack — Iceberg storage, CLD, Semantic View, Cortex AI — with zero dependency on external data sources or privacy concerns.
+
+**Location-aware generation** — The data generator doesn't produce generic coordinates. It uses your configured city's center point and fetches real neighborhood names from OpenStreetMap (Koramangala, Indiranagar, Whitefield for Bangalore; Shoreditch, Canary Wharf for London). This makes the demo visually credible: map links point to real streets, neighborhood names match local knowledge.
+
+**IDD connection** — The `generate --city` command compresses 7 table definitions, ~40,000 rows, and realistic inter-table relationships (light → maintenance records → energy readings → sensor data) into a single invocation. That is [Intent Compression Ratio](https://blogs.kameshs.dev/intent-compression-ratio-measuring-the-power-of-intent-ceb6faf2e2f9) in action — intent expressed once, platform executes the complexity.
+
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
 ## What we'll do
 
 Generate 7 CSV files of synthetic streetlight data (lights, maintenance records, energy consumption, sensors, weather, demographics, power grid zones) centered on the configured city. Neighborhood names are fetched from OpenStreetMap when available (e.g., Koramangala, Indiranagar for Bangalore), with automatic fallback to generated names if unavailable.

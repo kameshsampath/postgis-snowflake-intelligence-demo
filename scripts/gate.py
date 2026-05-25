@@ -903,7 +903,7 @@ def _dry_run(project_root: Path, step: str) -> None:
         print("  2. Verify app is accessible")
         print()
         print("  Deployment: handled by $developing-with-streamlit-in-snowflake skill")
-        print("  Source dir: app/  Entry point: app/Home.py")
+        print("  Source dir: app/  Entry point: app/home.py")
 
     else:
         print(f"No dry-run available for '{step}'")

@@ -67,14 +67,18 @@ Present the output, then ask user to proceed.
 
 ### Steps
 
-1. Read manifest for database/warehouse names
-2. Route to `$developing-with-streamlit-in-snowflake` to deploy:
-   - Source directory: `app/`
-   - Entry point: `app/Home.py`
-   - Pages: `app/pages/`
-   - Environment: `app/environment.yml`
-   - Target: `{database}.{schema}.STREETLIGHTS_APP`
-   - Warehouse: from manifest
+1. Read manifest for `prefix`, `connection`.
+
+2. Deploy via `snow streamlit deploy`:
+   ```bash
+   snow streamlit deploy streetlights_app \
+     -p app/ \
+     --env PREFIX={manifest.demo.prefix.upper()} \
+     -c {manifest.snowflake.connection} \
+     --replace
+   ```
+   `app/snowflake.yml` defines the entity: entry point `home.py`, warehouse
+   `{PREFIX}_STREETLIGHTS_WH`, target `{PREFIX}_STREETLIGHTS.PUBLIC.STREETLIGHTS_APP`.
 
 3. Verify the app is accessible
 
@@ -83,11 +87,10 @@ Present the output, then ask user to proceed.
 | Page | Purpose |
 |------|---------|
 | Home | Overview dashboard with key metrics |
-| Infrastructure Overview | Map view of all street lights |
+| Infrastructure Overview | Pydeck map — lights color-coded by status |
 | Maintenance Search | Cortex Search interface |
 | Analytics | Charts and aggregations |
 | Forecasting | ML predictions visualization |
-| Ask Agent | Chat interface to Intelligence Agent |
 
 ### Verification
 
@@ -101,7 +104,7 @@ Present the output, then ask user to proceed.
 ## What we did
 
 - ✅ Streamlit app deployed to Snowflake
-- ✅ All 6 pages accessible
+- ✅ All 5 pages accessible
 - ✅ App URL available for sharing
 
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.

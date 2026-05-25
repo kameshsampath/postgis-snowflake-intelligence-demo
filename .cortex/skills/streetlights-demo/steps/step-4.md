@@ -64,6 +64,21 @@ Present the output, then ask user to proceed.
 
 > **Connection**: Read from manifest `[snowflake].connection`. Do NOT re-ask the user.
 
+**Verify admin_role has required privilege before proceeding:**
+
+```sql
+SHOW GRANTS TO ROLE {admin_role};
+```
+
+Look for a row with `PRIVILEGE = 'CREATE CATALOG INTEGRATION'` and `GRANTED_ON = 'ACCOUNT'`.
+
+If missing → **STOP**. Do not self-heal. Inform the user and provide the fix:
+```sql
+-- Run as ACCOUNTADMIN to grant the required privilege:
+GRANT CREATE CATALOG INTEGRATION ON ACCOUNT TO ROLE {admin_role};
+```
+Ask the user to apply the grant, then retry. Do not proceed until verified.
+
 ### Access Control (CRITICAL)
 
 The catalog integration and CLD require elevated privileges. The strategy is:
@@ -84,7 +99,16 @@ GRANT USAGE ON INTEGRATION {prefix}_streetlights_catalog_int TO ROLE {role};
 -- Grant CLD database access
 GRANT USAGE ON DATABASE {cld_database} TO ROLE {role};
 GRANT USAGE ON SCHEMA {cld_database}.streetlights TO ROLE {role};
-GRANT SELECT ON ALL TABLES IN SCHEMA {cld_database}.streetlights TO ROLE {role};
+
+-- ⚠️ IMPORTANT: Bulk GRANT ON ALL TABLES IN SCHEMA silently no-ops for CLD Iceberg
+-- tables — must grant per-table individually:
+GRANT SELECT ON TABLE {cld_database}."streetlights"."street_lights"       TO ROLE {role};
+GRANT SELECT ON TABLE {cld_database}."streetlights"."maintenance_records"  TO ROLE {role};
+GRANT SELECT ON TABLE {cld_database}."streetlights"."energy_consumption"   TO ROLE {role};
+GRANT SELECT ON TABLE {cld_database}."streetlights"."light_sensors"        TO ROLE {role};
+GRANT SELECT ON TABLE {cld_database}."streetlights"."weather_enrichment"   TO ROLE {role};
+GRANT SELECT ON TABLE {cld_database}."streetlights"."demographics"         TO ROLE {role};
+GRANT SELECT ON TABLE {cld_database}."streetlights"."power_grid_zones"     TO ROLE {role};
 ```
 
 Finally switch back:
@@ -168,11 +192,11 @@ Run these checks in order:
    ```
    Confirm: `ENABLED = true`, `CATALOG_NAMESPACE = streetlights`, `REST_CONFIG` contains `POSTGRES_INSTANCE`.
 
-2. **CLD status**:
-   ```sql
-   SELECT SYSTEM$GET_LINKED_DATABASE_STATUS('{cld_database}');
-   ```
-   Confirm: status is `ACTIVE` or `READY`.
+ 2. **CLD status**:
+    ```sql
+    SELECT SYSTEM$CATALOG_LINK_STATUS('{cld_database}');
+    ```
+    Argument is a string literal (single-quoted CLD name). Confirms live linkage status.
 
 3. **Table visibility**:
    ```sql

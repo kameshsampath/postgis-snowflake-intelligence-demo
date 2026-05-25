@@ -35,6 +35,16 @@ uv run gate --step setup --desc "Initializing streetlights demo" --action start
 
 # Setup: Initialize Streetlights Demo
 
+## Why this matters
+
+**Manifest as single source of truth** — Every demo step reads configuration from one place: `.streetlights-demo/manifest.toml`. There is no scattered environment variable lookup, no hardcoded values in SQL, no "it worked on my machine" drift. All resource names, connection references, and city coordinates derive from this file. Change it once; all steps follow.
+
+**Config-as-intent** — The manifest is not just config — it is a machine-readable declaration of what the demo will build and where. Coding agents read it to know which warehouse to use, which role to assume, and which city to generate data for. This is [Intent-Driven Development](https://blogs.kameshs.dev/intent-driven-development-the-shift-developers-cant-ignore-ef434f94d56c) applied to configuration: the developer states intent once, and every downstream operation (SQL templates, Python scripts, gate checks) executes against that declared intent.
+
+**Deterministic reruns** — Because all state is in the manifest, the entire demo is reproducible. Delete the manifest and run setup again to start fresh with different parameters. No leftover state, no undocumented globals.
+
+> ⚠️ **MANDATORY**: Present the "Why this matters" section above to the user verbatim. This is a teaching moment — do NOT skip or summarize it.
+
 ## What we'll do
 
 Configure the demo by collecting your Snowflake connection, resource prefix, and city location. This creates the `.streetlights-demo/manifest.toml` that all subsequent steps depend on.
@@ -82,7 +92,9 @@ Configure the demo by collecting your Snowflake connection, resource prefix, and
    - If a default warehouse exists: ask user:
      - "Use your current warehouse `<name>` or create a dedicated `${PREFIX}_STREETLIGHTS_WH`?"
      - Options: ["Use existing `<name>`", "Create new `${PREFIX}_STREETLIGHTS_WH`"]
-   - If no default warehouse: inform user we'll create `${PREFIX}_STREETLIGHTS_WH`
+     - If **existing**: write `warehouse_created_by_demo = false` to manifest
+     - If **new**: create it and write `warehouse_created_by_demo = true`
+   - If no default warehouse: inform user we'll create `${PREFIX}_STREETLIGHTS_WH` and write `warehouse_created_by_demo = true`
    - Note: Creating a warehouse requires `CREATE WAREHOUSE` privilege (typically `SYSADMIN`+)
 
 6. **Role capture (role + admin_role)**
@@ -125,6 +137,7 @@ Configure the demo by collecting your Snowflake connection, resource prefix, and
       database     = "<PREFIX>_STREETLIGHTS"
       cld_database = "<PREFIX>_STREETLIGHTS_CLD"
       warehouse    = "<existing_or_new_wh_name>"
+      warehouse_created_by_demo = true   # false if user picked an existing warehouse
       pg_instance  = "<prefix>_streetlights"
       pg_service   = "<prefix>_streetlights"
       city         = "<city>"

@@ -27,7 +27,7 @@ CLD Database                      | {cld_database}
 Catalog Integration               | {prefix}_streetlights_catalog_int
 Postgres Instance (optional ⚠️)   | {pg_instance}  — ask separately, billable
 Network Policy (if demo-created)  | {pg_network_policy}  — blank = pre-existing, skip
-Warehouse                         | {warehouse}
+Warehouse (if demo-created)        | {warehouse}  — skip if `warehouse_created_by_demo = false`
 Main Database                     | {database}
 Local config                      | .streetlights-demo/
 ```
@@ -124,11 +124,21 @@ If user says **Yes**, run in this order:
 
 Route to `$snowflake-postgres` for the DROP POSTGRES INSTANCE operation.
 
-### 9. Drop Warehouse
+### 9. Drop Warehouse (conditional)
 
-```sql
-DROP WAREHOUSE IF EXISTS {warehouse};
-```
+Read `warehouse_created_by_demo` from manifest:
+
+- If `true` — the demo created this warehouse; drop it unconditionally:
+  ```sql
+  DROP WAREHOUSE IF EXISTS {warehouse};
+  ```
+
+- If `false` — this warehouse pre-existed the demo; use `ask_user_question`:
+  - Header: "Warehouse"
+  - Question: "Warehouse `{warehouse}` was pre-existing (not created by this demo). Drop it or keep it?"
+  - Options: ["Keep it (recommended)", "Drop it"]
+  
+  If "Keep it": skip. If "Drop it": run `DROP WAREHOUSE IF EXISTS {warehouse};`
 
 ### 10. Drop Database
 

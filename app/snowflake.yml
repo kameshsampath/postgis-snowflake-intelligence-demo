@@ -1,0 +1,14 @@
+definition_version: 2
+entities:
+  streetlights_app:
+    type: streamlit
+    identifier:
+      database: KAMESHS_STREETLIGHTS
+      schema: PUBLIC
+      name: STREETLIGHTS_APP
+    query_warehouse: KAMESHS_STREETLIGHTS_WH
+    main_file: home.py
+    artifacts:
+      - home.py
+      - views/
+      - environment.yml

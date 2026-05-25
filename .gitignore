@@ -7,6 +7,9 @@
 # Generated synthetic data
 data/*.csv
 
+# Streamlit deploy artifacts
+app/output/
+
 # Generated DDL (user-specific, produced by scripts/generate_ddl.py)
 init/02_create_iceberg_tables.sql
 

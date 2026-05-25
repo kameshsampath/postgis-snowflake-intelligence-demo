@@ -24,9 +24,11 @@ uv run gate --step step-6 --desc "Creating Cortex Search service" --action start
 
 ## Why this matters
 
-**Vector/hybrid search for unstructured data** — SQL is great for structured queries ("count faulty lights") but terrible for finding *patterns in text* ("exposed wires", "flickering at night"). Cortex Search indexes text with embeddings and enables semantic similarity search — finding records by meaning, not exact keywords.
+**What is Cortex Search?** — Cortex Search is a managed vector search service built into Snowflake. You declare it over a text column in DDL; Snowflake generates embeddings for every row and maintains a semantic index automatically. At query time, your question is embedded the same way and the nearest records by meaning are returned — no Python, no external vector database, no separate pipeline.
 
-**Complementing Semantic Views** — Together, Semantic View (structured SQL) + Cortex Search (unstructured retrieval) give the Intelligence Agent two complementary tools. Some questions need SQL aggregation; others need text similarity. The agent routes to the right tool automatically.
+**Embeddings vs keywords** — Traditional SQL `WHERE description LIKE '%exposed wire%'` misses records about "bare copper" or "electrical hazard." Embeddings represent meaning as a numeric vector in high-dimensional space. Cosine similarity finds records with *nearby meaning*, not just matching characters. A query for "safety risk" surfaces "sparking junction box" even without either of those words.
+
+**Complementing Semantic Views** — Together, Semantic View (structured SQL) + Cortex Search (unstructured retrieval) give the Intelligence Agent two complementary tools. Some questions need SQL aggregation ("count faulty lights by neighborhood"); others need text similarity ("find reports about sparking"). The agent routes to the right tool automatically.
 
 **IDD connection** — The Cortex Search service is another layer of [Infrastructure as Intent](https://blogs.kameshs.dev/infrastructure-as-intent-the-field-velocity-blueprint-e6217ef30f14) — declared once in DDL and continuously maintained by Snowflake. The skill file captures the *what*, the platform handles the *how* (embedding generation, index maintenance, refresh cycles).
 
@@ -60,16 +62,35 @@ Present the output, then ask user to proceed.
 
 ### Prerequisites
 
-- CLD database exists with tables visible (Step 4 complete)
-- Snowflake warehouse exists (from `snowflake/01_setup.sql`)
+Verify the main database and Semantic View exist before creating the Cortex Search service:
+
+```sql
+-- Check main analytics database was created by step-5
+SHOW DATABASES LIKE '{database}';
+
+-- Check Semantic View was deployed by step-5
+SHOW SEMANTIC VIEWS IN DATABASE {database};
+```
+
+- Database missing → **STOP**: "Run Step 5 first — `01_setup.sql` creates `{database}`."
+- Semantic View missing → **STOP**: "Re-run Step 5 — `02_semantic_view.sql` deploys the Semantic View."
+
+Do not self-heal by creating the database here — that is Step 5's responsibility.
 
 ### Steps
 
 1. Read manifest for database/warehouse names
 2. Execute Cortex Search DDL:
+
+   > **Source**: `snowflake/03_cortex_search.sql` — Cortex Search service over maintenance_records
+
    ```bash
-   snow sql -f snowflake/03_cortex_search.sql -D "PREFIX=KAMESHS" -c local-oauth --enable-templating STANDARD
+   snow sql -f snowflake/03_cortex_search.sql \
+     -D "PREFIX={manifest.demo.prefix.upper()}" \
+     -c {manifest.snowflake.connection} \
+     --enable-templating STANDARD --format json
    ```
+
 3. Wait for service to become ACTIVE (may take 1-2 minutes)
 
 ### Key Details
