@@ -135,6 +135,28 @@ Do not deploy the agent until both tools are confirmed ready. An agent created a
 - ✅ Agent registered with `SNOWFLAKE_INTELLIGENCE_OBJECT_DEFAULT` — visible in Snowflake Intelligence UI
 - ✅ Gate check: `check_agent_accessible` passed
 
+### Try it in Snowflake Intelligence (CoWork)
+
+Open **Snowflake Intelligence** in your Snowflake account, select the `STREETLIGHTS_AGENT`, and try these questions:
+
+**Structured queries** (routes to Cortex Analyst):
+- "How many street lights are currently faulty?"
+- "Which neighborhoods have the highest energy consumption?"
+- "Show me the top 5 neighborhoods by maintenance frequency"
+- "What is the average repair cost by maintenance type?"
+- "Predict energy consumption for the next 30 days"
+
+**Text search queries** (routes to Cortex Search):
+- "Find maintenance records about exposed wires or sparking"
+- "What does the maintenance history say about pole integrity?"
+- "Show me reports mentioning water damage"
+
+**Hybrid queries** (triggers both tools):
+- "Tell me about maintenance issues in the busiest neighborhood"
+- "What's the repair status for flickering light reports?"
+
+> **Tip**: The agent auto-generates OpenStreetMap links when results include coordinates. Try: "Show me faulty lights in [your neighborhood]"
+
 > ⚠️ **MANDATORY**: Present the "What we did" checklist above to the user before asking about the next step.
 
 ### IDD Metrics — This Step
