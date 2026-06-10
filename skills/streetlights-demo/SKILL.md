@@ -65,6 +65,52 @@ description: >
 | `$streetlights-demo app` | → `steps/app.md` (App phase: steps 8–10 in parallel via Team `streetlights-app-phase`) |
 | `$streetlights-demo cleanup` | → `cleanup/SKILL.md` |
 
+## Bootstrap (sparse clone workspace)
+
+Before any routing, set up an isolated execution workspace. The skill is detached
+orchestration — it always creates a fresh working directory for the demo.
+
+**Detection** — check ALL of:
+- `Taskfile.yml` exists in CWD
+- `snowflake/` directory exists in CWD
+- `pyproject.toml` exists and contains `postgis-snowflake-intelligence-demo`
+
+**If all markers present**: user is already in the project directory. Use `ask_user_question`:
+- Header: "Workspace"
+- Question: "You're already in the project directory. Use this as the workspace, or clone a fresh copy?"
+- Options: ["Use current directory", "Clone a fresh workspace"]
+- If "Use current directory": skip bootstrap, proceed to routing.
+- If "Clone a fresh workspace": continue to sparse checkout below.
+
+**Default path (markers missing OR user chose fresh clone)**:
+
+1. Use `ask_user_question`:
+   - Header: "Workspace location"
+   - Question: "Where should I create the demo workspace?"
+   - type: "text", defaultValue: "{CWD}/postgis-snowflake-intelligence-demo"
+
+2. Execute sparse checkout (branch and paths from `.cortex-plugin/plugin.json` → `sparseCheckout`):
+   ```bash
+   git clone --no-checkout --single-branch --branch <sparseCheckout.branch> \
+     https://github.com/kameshsampath/postgis-snowflake-intelligence-demo.git <target-dir>
+   cd <target-dir>
+   git sparse-checkout init --cone
+   git sparse-checkout set <sparseCheckout.paths joined by space>
+   git checkout --detach HEAD
+   uv sync
+   ```
+
+3. Verify: confirm `Taskfile.yml` exists in the new directory.
+
+4. All subsequent commands operate inside the cloned directory.
+
+**Why sparse checkout?**
+- The skill is detached — it lives in the plugin, not the workspace
+- Avoids pulling `skills/`, `.cortex-plugin/`, `.claude-plugin/`, `tests/`
+- Faster clone, smaller disk footprint
+- Cone mode automatically includes all top-level files (`pyproject.toml`, `Taskfile.yml`, `.envrc`, etc.)
+
+
 ## Demo Introduction
 
 > ⚠️ **MANDATORY**: When `$streetlights-demo` is invoked with no step argument (or via
@@ -111,6 +157,7 @@ Intelligence. The App phase (`$streetlights-demo app`) can be run at any time af
 ## Prerequisites
 - Snowflake account with Cortex features enabled
 - `snow` CLI configured (connection in manifest)
+- `git` for project checkout (sparse clone on first use)
 - `uv` for Python dependency management
 - `psql` for PostgreSQL access
 

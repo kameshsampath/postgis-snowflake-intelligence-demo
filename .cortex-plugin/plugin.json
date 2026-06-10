@@ -1,0 +1,27 @@
+{
+    "name": "snowflake-postgres-intelligence",
+    "version": "0.1.0",
+    "description": "Guided demo of Snowflake Postgres + pg_lake + Cortex Intelligence, demonstrating Intent-Driven Development through a smart infrastructure scenario.",
+    "author": "Kamesh Sampath",
+    "license": "Apache-2.0",
+    "repository": "https://github.com/kameshsampath/postgis-snowflake-intelligence-demo.git",
+    "sparseCheckout": {
+        "paths": [
+            "snowflake",
+            "scripts",
+            "app",
+            "init"
+        ],
+        "branch": "feat/coco-claude-plugin"
+    },
+    "skills": [
+        {
+            "name": "streetlights-demo",
+            "path": "skills/streetlights-demo/SKILL.md"
+        },
+        {
+            "name": "streetlights-demo-cleanup",
+            "path": "skills/streetlights-demo/cleanup/SKILL.md"
+        }
+    ]
+}
