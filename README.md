@@ -1,6 +1,6 @@
 # Streetlights Intelligence Demo
 
-**Snowflake Postgres + pg_lake + Cortex AI**
+**PostGIS data intelligence demo — Snowflake + Databricks**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -22,8 +22,8 @@ to reflect the actual condition of any city's infrastructure. No reliance should
 be placed on any data shown for operational, commercial, safety, or any other
 real-world decisions.
 
-A complete demo showcasing how Snowflake Postgres with pg_lake Iceberg tables connects
-natively to Snowflake's AI stack — no CDC pipeline, no ETL, no data movement.
+A complete demo showcasing how PostGIS data intelligence works across multiple platforms —
+Snowflake Postgres with pg_lake Iceberg tables and Databricks with Lakebase + Genie — no CDC pipeline, no ETL, no data movement.
 
 ## What This Demonstrates
 
@@ -98,7 +98,7 @@ you exit plan mode.
 ### 1. Open Cortex Code in this project
 
 ```bash
-cd postgis-snowflake-intelligence-demo
+cd postgis-data-intelligence-demo
 cortex
 ```
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository is a Snowflake Postgres + pg_lake + Cortex AI reference demo.
+This repository is a PostGIS data intelligence demo — Snowflake + Databricks reference demo.
 
 It is a guided engineering workspace used by synthesis engines such as Codex, Claude Code, and Cortex Code to demonstrate Intent-Driven Development through a real-world streetlights infrastructure scenario.
 

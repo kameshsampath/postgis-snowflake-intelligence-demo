@@ -12,8 +12,8 @@ authors:
   - family-names: Sampath
     given-names: Kamesh
     orcid:
-repository-code: "https://github.com/kameshsampath/postgis-snowflake-intelligence-demo"
-url: "https://github.com/kameshsampath/postgis-snowflake-intelligence-demo"
+repository-code: "https://github.com/kameshsampath/postgis-data-intelligence-demo"
+url: "https://github.com/kameshsampath/postgis-data-intelligence-demo"
 abstract: >-
   A complete demonstration showcasing modern data pipeline architecture with  PostgreSQL/PostGIS, Snowflake Openflow
   CDC, and Snowflake Intelligence  (Cortex Search + Cortex Analyst + ML FORECAST). Features real-time Change  Data
