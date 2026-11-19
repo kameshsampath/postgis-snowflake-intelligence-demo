@@ -1,0 +1,242 @@
+# Databricks Asset Bundle for PostGIS Data Intelligence Demo
+# This bundle defines all Databricks resources for the Lakebase + Genie perspective
+
+bundle:
+  name: postgis_data_intelligence_demo
+  mode: development
+
+variables:
+  # Project naming
+  prefix: "{{var.prefix | default('DEMO')}}"
+  catalog_name: "{{var.prefix | upper}}_STREETLIGHTS"
+  schema_name: "streetlights"
+  
+  # Lakebase configuration
+  lakebase_instance: "{{var.lakebase_instance | default('')}}"
+  lakebase_branch: "{{var.lakebase_branch | default('main')}}"
+  
+  # Constructor for resource names
+  badly_named_resource_name: "${{var.prefix | upper}}_STREETLIGHTS_"
+
+# Target environments
+env:
+  dev:
+    workspace:
+      host: "{{env.DATABRICKS_HOST | default('https://your-workspace.cloud.databricks.com')}}"
+    variables:
+      prefix: "dev"
+      lakebase_instance: "streetlights-demo"
+      lakebase_branch: "main"
+      
+  prod:
+    workspace:
+      host: "{{env.DATABRICKS_HOST | default('https://your-workspace.cloud.databricks.com')}}"
+    variables:
+      prefix: "prod"
+      lakebase_instance: "streetlights-prod"
+      lakebase_branch: "main"
+
+# Resources definition
+resources:
+  # Catalog for the demo
+  catalogs:
+    streetlights_catalog:
+      name: "${{var.catalog_name}}"
+      comment: "PostGIS Data Intelligence Demo - ${tn} perspective"
+      properties:
+        purpose: "DEMO"
+
+  # Schema within catalog
+  schemas:
+    streetlights_schema:
+      name: "${{var.schema_name}}"
+      catalog_name: "${{var.catalog_name}}"
+      comment: "Streetlights demo schema for Lakebase data"
+
+  # External locations for Lakebase connection
+  external_locations:
+    lakebase_external_location:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_LAKEBASE_LOC"
+      url: "abfss://${{bundle.variables.lakebase_instance}}@${{bundle.variables.lakebase_instance}}.dfs.core.windows.net/"
+      credential_name: "${{var.prefix | upper}}_LAKEBASE_CREDENTIAL"
+      comment: "External location for Lakebase data access"
+
+  # Storage credentials for Lakebase
+  storage_credentials:
+    lakebase_credential:
+      name: "${{var.prefix | upper}}_LAKEBASE_CREDENTIAL"
+      comment: "Managed identity for Lakebase access"
+      identity:
+        type: "managed_identity"
+
+  # SQL Warehouse for query processing
+  sql_warehouses:
+    streetlights_warehouse:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_WH"
+      size: "2X-Small"
+      auto_stop_mins: 30
+      channel:
+        name: "preview"
+        version: "latest"
+      comment: "SQL warehouse for streetlights demo queries"
+      properties:
+        purpose: "DEMO"  
+        attribution: "streetlights-demo"
+
+  # Vector Search endpoint
+  vector_search_endpoints:
+    maintenance_vs_endpoint:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_VS"
+      endpoint_type: "STANDARD"
+      comment: "Vector Search endpoint for maintenance records"
+
+  # Vector Search index
+  vector_search_indexes:
+    maintenance_vs_index:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_MAINTENANCE"
+      endpoint_name: "${{resources.vector_search_endpoints.maintenance_vs_endpoint.name}}"
+      catalog_name: "${{var.catalog_name}}"
+      schema_name: "${{var.schema_name}}"
+      source_table_name: "maintenance_records_clean"
+      primary_key: "maintenance_id"
+      embedding_model_type: "databricks-bge-large-en"
+      embedding_dimension: 1024
+      index_type: "HNSW"
+      comment: "Vector Search index on maintenance record text"
+
+  # Genie space
+  genie_spaces:
+    streetlights_genie_space:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_GENIE"
+      catalog_name: "${{var.catalog_name}}"
+      description: "Natural language interface for streetlights demo data"
+      
+  # Genie tools configuration
+  genie_tools:
+    streetlights_analyst_tool:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_ANALYST"
+      genie_space_id: "${{resources.genie_spaces.streetlights_genie_space.id}}"
+      tool_type: "SQL_ANALYST"
+      catalog_name: "${{var.catalog_name}}"
+      schema_name: "${{var.schema_name}}"
+      
+    streetlights_search_tool:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_SEARCH"
+      genie_space_id: "${{resources.genie_spaces.streetlights_genie_space.id}}"
+      tool_type: "VECTOR_SEARCH"
+      vector_search_index_id: "${{resources.vector_search_indexes.maintenance_vs_index.id}}"
+      
+  # ML model for forecasting
+  ml_models:
+    energy_forecast_model:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_FORECAST"
+      catalog_name: "${{var.catalog_name}}"
+      schema_name: "${{var.schema_name}}"
+      comment: "ML Forecast model for energy consumption prediction"
+
+  # Databricks App (Streamlit)
+  apps:
+    streetlights_app:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_APP"
+      type: "streamlit"
+      catalog_name: "${{var.catalog_name}}"
+      schema_name: "${{var.schema_name}}"
+      comment: "Streamlit dashboard for streetlights demo"
+      
+      # App configuration files
+      files:
+        - path: "app/databricks_streamlit.py"
+          content: |
+            import streamlit as st
+            from databricks.sdk.runtime import *
+            
+            st.set_page_config(
+                page_title="Streetlights Demo",
+                page_icon="💡",
+                layout="wide"
+            )
+            
+            st.title("Streetlights Intelligence Dashboard")
+            st.markdown("### PostGIS Data Intelligence Demo — Databricks Perspective")
+            
+            @cache_data
+            def load_data():
+                return spark.table("${catalog_name}.${schema_name}.street_lights")
+            
+            df = load_data()
+            st.dataframe(df.limit(100))
+
+  # Jobs for SQL execution
+  jobs:
+    setup_job:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_SETUP"
+      tasks:
+        - task_key: "create_catalog_schema"
+          sql_warehouse_id: "${{resources.sql_warehouses.streetlights_warehouse.id}}"
+          sql: "SELECT * FROM ${catalog_name}.${schema_name}.street_lights LIMIT 1"
+    
+    genie_setup_job:
+      name: "${{var.prefix | upper}}_STREETLIGHTS_GENIE_SETUP"
+      depends_on:
+        - setup_job
+      tasks:
+        - task_key: "configure_genie"
+          sql_warehouse_id: "${{resources.sql_warehouses.streetlights_warehouse.id}}"
+          sql: "-- Genie configuration would run here"
+
+  # Permissions
+  permissions:
+    - principal:
+        type: "GROUP"
+        name: "users"
+      privileges:
+        - SELECT
+      objects:
+        - catalog_name: "${{var.catalog_name}}"
+        
+    - principal:
+        type: "GROUP"
+        name: "admins"
+      privileges:
+        - ALL_PRIVILEGES
+      objects:
+        - catalog_name: "${{var.catalog_name}}"
+
+# Execution targets for CLI commands
+targets:
+  dev:
+    default: true
+    resources:
+      include:
+        - "*"
+    
+  prod:
+    resources:
+      include:
+        - "catalogs:streetlights_catalog"
+        - "schemas:streetlights_schema"
+        - "sql_warehouses:streetlights_warehouse"
+        - "genie_spaces:streetlights_genie_space"
+        - "genie_tools:*"
+        - "ml_models:energy_forecast_model"
+        - "apps:streetlights_app"
+    
+    # Production-specific overrides
+    variables:
+      prefix: "prod"
+      lakebase_instance: "streetlights-prod"
+
+# Development overrides
+development:
+  mode: development
+  variables:
+    prefix: "${{user.name | lower | replace('-', '_')}}"
+    lakebase_instance: "${{user.name | lower}}-demo"
+  
+  # Auto-apply changes in development
+  auto_apply:
+    enabled: true
+    triggers:
+      - type: "file_change"
+        paths:
+          - "databricks/**"

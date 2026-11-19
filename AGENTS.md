@@ -55,6 +55,7 @@ The following directories define the demo framework and should not be modified d
 scripts/
 snowflake/
 init/
+databricks/
 tests/
 ```
 

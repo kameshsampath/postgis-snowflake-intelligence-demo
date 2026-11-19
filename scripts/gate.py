@@ -740,6 +740,261 @@ def _check_all(project_root: Path) -> GateResult:
     return GateResult(success=True, message="All checks passed — demo fully operational")
 
 
+# ---------------------------------------------------------------------------
+# Databricks-specific gate check functions
+# ---------------------------------------------------------------------------
+
+
+def _dbx_sql_query(query: str, connection: str | None = None) -> tuple[int, list[dict]]:
+    """Run a Databricks SQL query and return (returncode, list-of-row-dicts)."""
+    import json as _json
+
+    if not connection:
+        return -1, []
+
+    # Use databricks CLI for SQL execution
+    r = subprocess.run(
+        [
+            "databricks",
+            "sql",
+            "-q",
+            query,
+            "--format",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if r.returncode != 0:
+        return r.returncode, []
+    try:
+        return 0, _json.loads(r.stdout)
+    except Exception:
+        return 0, []
+
+
+def _dbx_load_manifest(project_root: Path) -> "Manifest":
+    """Load manifest with Databricks-specific sections."""
+    try:
+        return load_manifest(project_root)
+    except Exception as e:
+        raise Exception(f"Cannot load manifest: {e}")
+
+
+def _check_lakebase_reachable(project_root: Path) -> GateResult:
+    """Gate: Lakebase instance is reachable and accessible."""
+    try:
+        manifest = _dbx_load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    # For now, we'll check if we can connect to Databricks workspace
+    # and query Unity Catalog for Lakebase instances
+    connection = getattr(manifest, 'databricks', {}).get('connection', None) if hasattr(manifest, 'databricks') else None
+    
+    if not connection:
+        # Fallback: use DATABRICKS_HOST from environment
+        import os
+        host = os.environ.get('DATABRICKS_HOST', '')
+        if not host:
+            return GateResult(
+                success=False,
+                message="No Databricks connection configured. Set DATABRICKS_HOST or configure manifest."
+            )
+        connection = host
+
+    # Try a simple query to test connectivity
+    query = "SHOW CATALOGS"
+    rc, rows = _dbx_sql_query(query, connection)
+    if rc == 0:
+        return GateResult(success=True, message="Databricks connection is valid")
+    return GateResult(success=False, message=f"Failed to connect to Databricks: return code {rc}")
+
+
+def _check_uc_sync_healthy(project_root: Path) -> GateResult:
+    """Gate: Unity Catalog sync between Lakebase and UC is healthy."""
+    try:
+        manifest = _dbx_load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    # This check would verify that tables from Lakebase are visible in UC
+    catalog_name = getattr(getattr(manifest, 'databricks', {}), 'catalog_name', '')
+    schema_name = getattr(getattr(manifest, 'databricks', {}), 'schema_name', 'streetlights')
+    
+    if not catalog_name:
+        return GateResult(
+            success=False,
+            message="Databricks catalog name not configured in manifest"
+        )
+
+    # Try to query a known table from Lakebase
+    query = f"SELECT COUNT(*) FROM {catalog_name}.{schema_name}.street_lights_clean"
+    rc, rows = _dbx_sql_query(query)
+    if rc == 0 and rows:
+        try:
+            count = rows[0].get("COUNT(*)", 0)
+            if count > 0:
+                return GateResult(
+                    success=True,
+                    message=f"UC sync healthy: {count} rows found in street_lights_clean"
+                )
+            return GateResult(
+                success=False,
+                message="UC sync found table but no data"
+            )
+        except (KeyError, ValueError):
+            return GateResult(
+                success=False,
+                message="UC sync table exists but could not parse count"
+            )
+    return GateResult(
+        success=False,
+        message="UC sync not healthy: could not query Lakebase tables"
+    )
+
+
+def _check_genie_space_active(project_root: Path) -> GateResult:
+    """Gate: Genie space exists and responds to queries."""
+    try:
+        manifest = _dbx_load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    genie_space_name = getattr(getattr(manifest, 'databricks', {}), 'genie_space_name', '')
+    if not genie_space_name:
+        return GateResult(
+            success=False,
+            message="Genie space name not configured in manifest"
+        )
+
+    # Try to describe the Genie space
+    query = f"DESCRIBE GENIE SPACE {genie_space_name}"
+    rc, rows = _dbx_sql_query(query)
+    if rc == 0 and rows:
+        return GateResult(success=True, message=f"Genie space '{genie_space_name}' is active")
+    return GateResult(success=False, message=f"Genie space '{genie_space_name}' not found or not active")
+
+
+def _check_vector_index_ready(project_root: Path) -> GateResult:
+    """Gate: Vector Search index exists and is queryable."""
+    try:
+        manifest = _dbx_load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    vector_index_name = getattr(getattr(manifest, 'databricks', {}), 'vector_index_name', '')
+    if not vector_index_name:
+        return GateResult(
+            success=False,
+            message="Vector Search index name not configured in manifest"
+        )
+
+    # Check if vector index exists
+    query = "SHOW VECTOR SEARCH INDEXES"
+    rc, rows = _dbx_sql_query(query)
+    if rc == 0:
+        index_names = [row.get("name", "") for row in rows]
+        if vector_index_name in index_names:
+            return GateResult(
+                success=True,
+                message=f"Vector Search index '{vector_index_name}' is ready"
+            )
+        return GateResult(
+            success=False,
+            message=f"Vector Search index '{vector_index_name}' not found. Available: {', '.join(index_names)}"
+        )
+    return GateResult(success=False, message="Failed to list Vector Search indexes")
+
+
+def _check_dbx_forecast_ready(project_root: Path) -> GateResult:
+    """Gate: ML forecast model exists and predictions are available."""
+    try:
+        manifest = _dbx_load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    forecast_model_name = getattr(getattr(manifest, 'databricks', {}), 'forecast_model_name', '')
+    if not forecast_model_name:
+        return GateResult(
+            success=False,
+            message="Forecast model name not configured in manifest"
+        )
+
+    # Check if forecast model exists
+    query = "SHOW MODELS"
+    rc, rows = _dbx_sql_query(query)
+    if rc == 0:
+        model_names = [row.get("name", "") for row in rows]
+        if forecast_model_name in model_names:
+            return GateResult(
+                success=True,
+                message=f"Forecast model '{forecast_model_name}' is ready"
+            )
+        return GateResult(
+            success=False,
+            message=f"Forecast model '{forecast_model_name}' not found"
+        )
+    return GateResult(success=False, message="Failed to list ML models")
+
+
+def _check_dbx_app_deployed(project_root: Path) -> GateResult:
+    """Gate: Databricks App (Streamlit) is deployed and accessible."""
+    try:
+        manifest = _dbx_load_manifest(project_root)
+    except Exception as e:
+        return GateResult(success=False, message=f"Cannot load manifest: {e}")
+
+    app_name = getattr(getattr(manifest, 'databricks', {}), 'app_name', '')
+    if not app_name:
+        return GateResult(
+            success=False,
+            message="Databricks App name not configured in manifest"
+        )
+
+    # Check if app exists
+    query = "SHOW APPS"
+    rc, rows = _dbx_sql_query(query)
+    if rc == 0:
+        app_names = [row.get("name", "") for row in rows]
+        if app_name in app_names:
+            return GateResult(
+                success=True,
+                message=f"Databricks App '{app_name}' is deployed"
+            )
+        return GateResult(
+            success=False,
+            message=f"Databricks App '{app_name}' not found"
+        )
+    return GateResult(success=False, message="Failed to list Databricks Apps")
+
+
+def _check_dbx_all(project_root: Path) -> GateResult:
+    """Run all Databricks-specific checks sequentially."""
+    dbx_checks = [
+        ("lakebase_reachable", _check_lakebase_reachable),
+        ("uc_sync_healthy", _check_uc_sync_healthy),
+        ("genie_space_active", _check_genie_space_active),
+        ("vector_index_ready", _check_vector_index_ready),
+        ("forecast_ready", _check_dbx_forecast_ready),
+        ("app_deployed", _check_dbx_app_deployed),
+    ]
+    failures: list[str] = []
+    for name, fn in dbx_checks:
+        result = fn(project_root)
+        if not result.success:
+            failures.append(f"{name}: {result.message}")
+
+    if failures:
+        return GateResult(
+            success=False,
+            message=f"{len(failures)} Databricks check(s) failed:\n"
+            + "\n".join(f"  - {f}" for f in failures),
+        )
+    return GateResult(success=True, message="All Databricks checks passed")
+
+
 # Step verification mapping
 STEP_CHECKS: dict[str, callable] = {
     "setup": check_manifest,
@@ -753,6 +1008,13 @@ STEP_CHECKS: dict[str, callable] = {
     "step-8": _check_forecast,
     "step-9": _check_streamlit,
     "step-10": _check_all,
+    # Databricks-specific steps
+    "dbx/setup": _check_lakebase_reachable,
+    "dbx/genie-space": _check_genie_space_active,
+    "dbx/vector-search": _check_vector_index_ready,
+    "dbx/forecast": _check_dbx_forecast_ready,
+    "dbx/app": _check_dbx_app_deployed,
+    "dbx/all": _check_dbx_all,
 }
 
 STEP_DESCRIPTIONS: dict[str, str] = {

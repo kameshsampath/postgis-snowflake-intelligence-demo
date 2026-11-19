@@ -113,6 +113,67 @@ tasks:
       - snow sql -f snowflake/05_ml_forecast.sql
 
   # ==========================================================================
+  # Databricks Operations
+  # ==========================================================================
+
+  dbx:setup:
+    desc: Run Databricks setup SQL (catalog, schema, Lakebase sync, curated views)
+    cmds:
+      - databricks sql -f databricks/sql/01_setup.sql
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli"
+
+  dbx:genie-space:
+    desc: Configure Genie space and semantic layer
+    cmds:
+      - databricks sql -f databricks/sql/02_genie_space.sql
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli"
+
+  dbx:vector-search:
+    desc: Create Vector Search index for maintenance text
+    cmds:
+      - databricks sql -f databricks/sql/03_vector_search.sql
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli"
+
+  dbx:forecast:
+    desc: Train ML Forecast model using AI_FORECAST()
+    cmds:
+      - databricks sql -f databricks/sql/04_forecast.sql
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli"
+
+  dbx:app:
+    desc: Deploy Databricks App (Streamlit)
+    cmds:
+      - databricks sql -f databricks/sql/05_app.sql
+      - echo "Deploying Databricks App..."
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli"
+
+  dbx:deploy:
+    desc: Deploy all Databricks resources using asset bundle
+    cmds:
+      - databricks bundle deploy -t dev
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli"
+
+  dbx:destroy:
+    desc: Destroy all Databricks resources
+    cmds:
+      - databricks bundle destroy -t dev
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli"
+
+  # ==========================================================================
   # Demo Workflow
   # ==========================================================================
 
@@ -120,7 +181,7 @@ tasks:
     desc: Run full demo (use '$streetlights-demo' in Cortex Code for guided flow)
     cmds:
       - echo "Run '$streetlights-demo step 1' through 'step 10' in Cortex Code"
-      - echo "Or use individual sf:* and pg:* tasks for manual execution"
+      - echo "Or use individual sf:* (Snowflake) or dbx:* (Databricks) tasks for manual execution"
 
   cleanup:
     desc: Remove all demo resources (use '$streetlights-demo cleanup' in Cortex Code)
