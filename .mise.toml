@@ -27,6 +27,8 @@ UV_PYTHON = "python@3.12"
 # Platform selection for tool checks (gate.py etc.)
 # Set to "snowflake" or "databricks" (e.g. in .env) to lock ONE platform —
 # all other-platform paths (sql/, gates/, skills) are then ignored.
+# "both" is allowed but only as an explicit choice; if NO platform is chosen,
+# tooling fails immediately instead of assuming both.
 # Empty = auto-detect from cwd / manifest / directory layout.
 PLATFORM = ""
 
