@@ -774,7 +774,7 @@ def _dbx_sql_query(query: str, connection: str | None = None) -> tuple[int, list
         return 0, []
 
 
-def _dbx_load_manifest(project_root: Path) -> "Manifest":
+def _dbx_load_manifest(project_root: Path) -> Manifest:
     """Load manifest with Databricks-specific sections."""
     try:
         return load_manifest(project_root)
@@ -791,16 +791,24 @@ def _check_lakebase_reachable(project_root: Path) -> GateResult:
 
     # For now, we'll check if we can connect to Databricks workspace
     # and query Unity Catalog for Lakebase instances
-    connection = getattr(manifest, 'databricks', {}).get('connection', None) if hasattr(manifest, 'databricks') else None
-    
+    connection = (
+        getattr(manifest, "databricks", {}).get("connection", None)
+        if hasattr(manifest, "databricks")
+        else None
+    )
+
     if not connection:
         # Fallback: use DATABRICKS_HOST from environment
         import os
-        host = os.environ.get('DATABRICKS_HOST', '')
+
+        host = os.environ.get("DATABRICKS_HOST", "")
         if not host:
             return GateResult(
                 success=False,
-                message="No Databricks connection configured. Set DATABRICKS_HOST or configure manifest."
+                message=(
+                    "No Databricks connection configured. "
+                    "Set DATABRICKS_HOST or configure manifest."
+                ),
             )
         connection = host
 
@@ -820,13 +828,12 @@ def _check_uc_sync_healthy(project_root: Path) -> GateResult:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
     # This check would verify that tables from Lakebase are visible in UC
-    catalog_name = getattr(getattr(manifest, 'databricks', {}), 'catalog_name', '')
-    schema_name = getattr(getattr(manifest, 'databricks', {}), 'schema_name', 'streetlights')
-    
+    catalog_name = getattr(getattr(manifest, "databricks", {}), "catalog_name", "")
+    schema_name = getattr(getattr(manifest, "databricks", {}), "schema_name", "streetlights")
+
     if not catalog_name:
         return GateResult(
-            success=False,
-            message="Databricks catalog name not configured in manifest"
+            success=False, message="Databricks catalog name not configured in manifest"
         )
 
     # Try to query a known table from Lakebase
@@ -838,20 +845,15 @@ def _check_uc_sync_healthy(project_root: Path) -> GateResult:
             if count > 0:
                 return GateResult(
                     success=True,
-                    message=f"UC sync healthy: {count} rows found in street_lights_clean"
+                    message=f"UC sync healthy: {count} rows found in street_lights_clean",
                 )
-            return GateResult(
-                success=False,
-                message="UC sync found table but no data"
-            )
+            return GateResult(success=False, message="UC sync found table but no data")
         except (KeyError, ValueError):
             return GateResult(
-                success=False,
-                message="UC sync table exists but could not parse count"
+                success=False, message="UC sync table exists but could not parse count"
             )
     return GateResult(
-        success=False,
-        message="UC sync not healthy: could not query Lakebase tables"
+        success=False, message="UC sync not healthy: could not query Lakebase tables"
     )
 
 
@@ -862,19 +864,19 @@ def _check_genie_space_active(project_root: Path) -> GateResult:
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    genie_space_name = getattr(getattr(manifest, 'databricks', {}), 'genie_space_name', '')
+    genie_space_name = getattr(getattr(manifest, "databricks", {}), "genie_space_name", "")
     if not genie_space_name:
-        return GateResult(
-            success=False,
-            message="Genie space name not configured in manifest"
-        )
+        return GateResult(success=False, message="Genie space name not configured in manifest")
 
     # Try to describe the Genie space
     query = f"DESCRIBE GENIE SPACE {genie_space_name}"
     rc, rows = _dbx_sql_query(query)
     if rc == 0 and rows:
         return GateResult(success=True, message=f"Genie space '{genie_space_name}' is active")
-    return GateResult(success=False, message=f"Genie space '{genie_space_name}' not found or not active")
+    return GateResult(
+        success=False,
+        message=f"Genie space '{genie_space_name}' not found or not active",
+    )
 
 
 def _check_vector_index_ready(project_root: Path) -> GateResult:
@@ -884,11 +886,10 @@ def _check_vector_index_ready(project_root: Path) -> GateResult:
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    vector_index_name = getattr(getattr(manifest, 'databricks', {}), 'vector_index_name', '')
+    vector_index_name = getattr(getattr(manifest, "databricks", {}), "vector_index_name", "")
     if not vector_index_name:
         return GateResult(
-            success=False,
-            message="Vector Search index name not configured in manifest"
+            success=False, message="Vector Search index name not configured in manifest"
         )
 
     # Check if vector index exists
@@ -898,12 +899,14 @@ def _check_vector_index_ready(project_root: Path) -> GateResult:
         index_names = [row.get("name", "") for row in rows]
         if vector_index_name in index_names:
             return GateResult(
-                success=True,
-                message=f"Vector Search index '{vector_index_name}' is ready"
+                success=True, message=f"Vector Search index '{vector_index_name}' is ready"
             )
         return GateResult(
             success=False,
-            message=f"Vector Search index '{vector_index_name}' not found. Available: {', '.join(index_names)}"
+            message=(
+                f"Vector Search index '{vector_index_name}' not found. "
+                f"Available: {', '.join(index_names)}"
+            ),
         )
     return GateResult(success=False, message="Failed to list Vector Search indexes")
 
@@ -915,12 +918,9 @@ def _check_dbx_forecast_ready(project_root: Path) -> GateResult:
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    forecast_model_name = getattr(getattr(manifest, 'databricks', {}), 'forecast_model_name', '')
+    forecast_model_name = getattr(getattr(manifest, "databricks", {}), "forecast_model_name", "")
     if not forecast_model_name:
-        return GateResult(
-            success=False,
-            message="Forecast model name not configured in manifest"
-        )
+        return GateResult(success=False, message="Forecast model name not configured in manifest")
 
     # Check if forecast model exists
     query = "SHOW MODELS"
@@ -929,12 +929,10 @@ def _check_dbx_forecast_ready(project_root: Path) -> GateResult:
         model_names = [row.get("name", "") for row in rows]
         if forecast_model_name in model_names:
             return GateResult(
-                success=True,
-                message=f"Forecast model '{forecast_model_name}' is ready"
+                success=True, message=f"Forecast model '{forecast_model_name}' is ready"
             )
         return GateResult(
-            success=False,
-            message=f"Forecast model '{forecast_model_name}' not found"
+            success=False, message=f"Forecast model '{forecast_model_name}' not found"
         )
     return GateResult(success=False, message="Failed to list ML models")
 
@@ -946,12 +944,9 @@ def _check_dbx_app_deployed(project_root: Path) -> GateResult:
     except Exception as e:
         return GateResult(success=False, message=f"Cannot load manifest: {e}")
 
-    app_name = getattr(getattr(manifest, 'databricks', {}), 'app_name', '')
+    app_name = getattr(getattr(manifest, "databricks", {}), "app_name", "")
     if not app_name:
-        return GateResult(
-            success=False,
-            message="Databricks App name not configured in manifest"
-        )
+        return GateResult(success=False, message="Databricks App name not configured in manifest")
 
     # Check if app exists
     query = "SHOW APPS"
@@ -959,14 +954,8 @@ def _check_dbx_app_deployed(project_root: Path) -> GateResult:
     if rc == 0:
         app_names = [row.get("name", "") for row in rows]
         if app_name in app_names:
-            return GateResult(
-                success=True,
-                message=f"Databricks App '{app_name}' is deployed"
-            )
-        return GateResult(
-            success=False,
-            message=f"Databricks App '{app_name}' not found"
-        )
+            return GateResult(success=True, message=f"Databricks App '{app_name}' is deployed")
+        return GateResult(success=False, message=f"Databricks App '{app_name}' not found")
     return GateResult(success=False, message="Failed to list Databricks Apps")
 
 
