@@ -31,10 +31,12 @@ class TestPlatformDetection:
                 == Platform.DATABRICKS
             )
 
-    def test_detect_from_directories_both(
+    def test_both_dirs_without_a_choice_never_yields_both(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from scripts.platform import Platform, PlatformDetector
+        """Both platform dirs present + no explicit choice => UNKNOWN, and
+        require_platform() fails immediately instead of assuming BOTH."""
+        from scripts.platform import Platform, PlatformDetector, PlatformNotChosenError
 
         monkeypatch.delenv("PLATFORM", raising=False)
         (tmp_path / "snowflake").mkdir()
@@ -42,8 +44,9 @@ class TestPlatformDetection:
         (tmp_path / "databricks").mkdir()
         (tmp_path / "databricks" / "databricks.yml").write_text("bundle:\n  name: x\n")
         detector = PlatformDetector(project_root=tmp_path)
-        assert detector.detect() == Platform.BOTH
-        assert detector.is_both is True
+        assert detector.detect() == Platform.UNKNOWN
+        with pytest.raises(PlatformNotChosenError):
+            detector.require_platform()
 
     def test_detect_from_directories_databricks_only(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -115,3 +118,124 @@ class TestPlatformResources:
         with pytest.raises(RuntimeError):
             detector.assert_platform(Platform.SNOWFLAKE)
         assert detector.assert_platform(Platform.DATABRICKS) is True
+
+
+class TestChosenPlatformIsolation:
+    """Choosing one platform must ignore ALL of the other platform's paths."""
+
+    def _make_both_layout(self, root: Path) -> None:
+        (root / "snowflake").mkdir()
+        (root / "snowflake" / "01_setup.sql").write_text("SELECT 1")
+        (root / "databricks" / "sql").mkdir(parents=True)
+        (root / "databricks" / "sql" / "01_setup.sql").write_text("SELECT 1")
+        gates = root / "scripts" / "gates"
+        gates.mkdir(parents=True)
+        for name in ("base_gates.py", "snowflake_gates.py", "databricks_gates.py"):
+            (gates / name).write_text("")
+        cortex = root / ".cortex" / "skills"
+        for name in (
+            "streetlights-demo",
+            "streetlights-demo-snowflake",
+            "streetlights-demo-databricks",
+        ):
+            (cortex / name).mkdir(parents=True)
+
+    def test_databricks_choice_ignores_all_snowflake_paths(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.platform import Platform, PlatformDetector
+
+        self._make_both_layout(tmp_path)
+        monkeypatch.setenv("PLATFORM", "databricks")
+        detector = PlatformDetector(project_root=tmp_path)
+
+        assert detector.detect() == Platform.DATABRICKS
+        assert all("snowflake" not in str(p) for p in detector.get_sql_files())
+        assert all("snowflake" not in str(p) for p in detector.get_gate_files())
+        assert all("snowflake" not in str(p) for p in detector.get_skill_paths())
+        assert all("snowflake" not in str(p) for p in detector.get_resource_paths())
+        # the ignored list is exactly the snowflake side
+        assert detector.get_ignored_paths() != []
+        assert all("snowflake" in str(p) for p in detector.get_ignored_paths())
+
+    def test_snowflake_choice_ignores_all_databricks_paths(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.platform import Platform, PlatformDetector
+
+        self._make_both_layout(tmp_path)
+        monkeypatch.setenv("PLATFORM", "snowflake")
+        detector = PlatformDetector(project_root=tmp_path)
+
+        assert detector.detect() == Platform.SNOWFLAKE
+        assert all("databricks" not in str(p) for p in detector.get_sql_files())
+        assert all("databricks" not in str(p) for p in detector.get_gate_files())
+        assert all("databricks" not in str(p) for p in detector.get_resource_paths())
+        assert detector.get_ignored_paths() != []
+        assert all("databricks" in str(p) for p in detector.get_ignored_paths())
+
+    def test_both_ignores_nothing(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        from scripts.platform import Platform, PlatformDetector
+
+        self._make_both_layout(tmp_path)
+        monkeypatch.setenv("PLATFORM", "both")
+        detector = PlatformDetector(project_root=tmp_path)
+
+        assert detector.detect() == Platform.BOTH
+        assert detector.get_ignored_paths() == []
+        assert len(detector.get_sql_files()) == 2
+
+    def test_manifest_platform_field_is_an_explicit_choice(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from scripts.platform import Platform, PlatformDetector
+
+        monkeypatch.delenv("PLATFORM", raising=False)
+        demo = tmp_path / ".streetlights-demo"
+        demo.mkdir()
+        (demo / "manifest.toml").write_text(
+            '[snowflake]\nconnection = "dev"\n\n'
+            '[databricks]\nhost = "https://x.cloud.databricks.com"\nplatform = "databricks"\n'
+        )
+        detector = PlatformDetector(project_root=tmp_path)
+        assert detector.detect() == Platform.DATABRICKS
+
+    def test_manifest_with_both_sections_but_no_choice_fails(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Both sections present without platform=... is NOT a choice: UNKNOWN,
+        and require_platform() raises instead of returning BOTH."""
+        from scripts.platform import Platform, PlatformDetector, PlatformNotChosenError
+
+        monkeypatch.delenv("PLATFORM", raising=False)
+        demo = tmp_path / ".streetlights-demo"
+        demo.mkdir()
+        (demo / "manifest.toml").write_text(
+            '[snowflake]\nconnection = "dev"\n\n[databricks]\nhost = "https://x"\n'
+        )
+        detector = PlatformDetector(project_root=tmp_path)
+        assert detector.detect() == Platform.UNKNOWN
+        with pytest.raises(PlatformNotChosenError):
+            detector.require_platform()
+
+    def test_resolve_platform_choice(self) -> None:
+        from scripts.platform import Platform, resolve_platform_choice
+
+        assert resolve_platform_choice("dbx") == Platform.DATABRICKS
+        assert resolve_platform_choice("SF") == Platform.SNOWFLAKE
+        assert resolve_platform_choice("both") == Platform.BOTH
+        with pytest.raises(ValueError):
+            resolve_platform_choice("gcp")
+
+    def test_gate_step_checks_exclude_other_platform(self) -> None:
+        from scripts.gate import get_step_checks
+        from scripts.platform import Platform
+
+        sf_checks = get_step_checks(Platform.SNOWFLAKE)
+        assert not any(k.startswith("dbx/") for k in sf_checks)
+        assert "step-2" in sf_checks  # snowflake-owned
+
+        dbx_checks = get_step_checks(Platform.DATABRICKS)
+        assert "dbx/setup" in dbx_checks
+        # on the DBX path, step-2 is the Lakebase check, not the Snowflake PG one
+        assert dbx_checks["step-2"].__module__ == "scripts.gates.databricks_gates"

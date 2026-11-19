@@ -19,6 +19,7 @@ Usage:
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -32,8 +33,12 @@ class Platform(Enum):
 
     SNOWFLAKE = "snowflake"
     DATABRICKS = "databricks"
-    BOTH = "both"
+    BOTH = "both"  # only ever an EXPLICIT choice, never inferred
     UNKNOWN = "unknown"
+
+
+class PlatformNotChosenError(RuntimeError):
+    """Raised when no platform has been explicitly chosen."""
 
 
 @dataclass
@@ -118,17 +123,20 @@ class PlatformDetector:
         """
         Detect the current platform.
 
-        Detection order:
-        1. Environment variable PLATFORM
-        2. Working directory (if in snowflake/ or databricks/)
-        3. Manifest file configuration
-        4. Platform-specific directories (both, snowflake, databricks, unknown)
+        Detection order (first match wins):
+        1. Environment variable PLATFORM (explicit choice; "both" allowed)
+        2. Working directory (if inside snowflake/ or databricks/)
+        3. Manifest `platform = "..."` field, else a single-section manifest
+        4. Exactly one platform directory present
+
+        BOTH is never inferred: if both platform dirs exist and nothing was
+        chosen, detect() returns UNKNOWN and require_platform() fails fast.
 
         Args:
             force_refresh: If True, forces a fresh detection and clears cache.
 
         Returns:
-            The detected platform.
+            The detected platform, or UNKNOWN if no platform was chosen.
         """
         if not force_refresh and self._cached_platform:
             return self._cached_platform
@@ -185,7 +193,11 @@ class PlatformDetector:
         return Platform.UNKNOWN
 
     def _detect_from_manifest(self) -> Platform:
-        """Detect platform from manifest.toml."""
+        """Detect platform from manifest.toml.
+
+        An explicit `platform = "snowflake" | "databricks" | "both"` field
+        always wins. Otherwise, infer from which sections are present.
+        """
         manifest_path = self.project_root / ".streetlights-demo" / "manifest.toml"
 
         if not manifest_path.exists():
@@ -195,12 +207,16 @@ class PlatformDetector:
             # Parse manifest (simple parsing - don't import tomllib for compatibility)
             content = manifest_path.read_text()
 
-            # Look for platform or host/profile indicators
-            if "[snowflake]" in content and "[databricks]" in content:
-                return Platform.BOTH
-            elif "[snowflake]" in content:
+            # Explicit platform choice takes precedence over section presence
+            match = re.search(r'^\s*platform\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+            if match:
+                return resolve_platform_choice(match.group(1))
+
+            # A manifest with only one platform section is that platform.
+            # NEVER infer BOTH from both sections being present.
+            if "[snowflake]" in content and "[databricks]" not in content:
                 return Platform.SNOWFLAKE
-            elif "[databricks]" in content:
+            if "[databricks]" in content and "[snowflake]" not in content:
                 return Platform.DATABRICKS
         except Exception:
             pass
@@ -208,21 +224,38 @@ class PlatformDetector:
         return Platform.UNKNOWN
 
     def _detect_from_directories(self) -> Platform:
-        """Detect platform from existence of platform-specific directories."""
+        """Detect platform from platform-specific directories.
+
+        Only an unambiguous single-platform layout counts as a choice.
+        If both exist, this is NOT a choice: return UNKNOWN (require_platform
+        will then fail fast instead of silently assuming BOTH).
+        """
         snowflake_dir = self.project_root / "snowflake"
         databricks_dir = self.project_root / "databricks"
 
         has_snowflake = snowflake_dir.exists() and any(snowflake_dir.iterdir())
         has_databricks = databricks_dir.exists() and any(databricks_dir.iterdir())
 
-        if has_snowflake and has_databricks:
-            return Platform.BOTH
-        elif has_snowflake:
+        if has_snowflake and not has_databricks:
             return Platform.SNOWFLAKE
-        elif has_databricks:
+        if has_databricks and not has_snowflake:
             return Platform.DATABRICKS
-        else:
-            return Platform.UNKNOWN
+        return Platform.UNKNOWN
+
+    def require_platform(self) -> Platform:
+        """Like detect(), but fails immediately if no platform was chosen.
+
+        Raises:
+            PlatformNotChosenError: if detection ends at UNKNOWN.
+        """
+        platform = self.detect()
+        if platform == Platform.UNKNOWN:
+            raise PlatformNotChosenError(
+                "No platform chosen. Set PLATFORM=snowflake|databricks (env or .env), "
+                'add platform = "snowflake"|"databricks" to .streetlights-demo/manifest.toml, '
+                "run from inside snowflake/ or databricks/, or pass --platform to the gate CLI."
+            )
+        return platform
 
     @property
     def current_platform(self) -> Platform:
@@ -463,9 +496,49 @@ class PlatformDetector:
 
         return True
 
+    def get_ignored_paths(self, platform: Platform | None = None) -> list[Path]:
+        """
+        Get the OTHER platform's resource paths — these are ignored when a
+        single platform is explicitly chosen.
+
+        Args:
+            platform: The chosen platform. If None, uses current platform.
+
+        Returns:
+            Sorted list of paths belonging to the non-chosen platform(s).
+            Empty for BOTH/UNKNOWN (nothing is ignored).
+        """
+        if platform is None:
+            platform = self.current_platform
+
+        if platform in (Platform.BOTH, Platform.UNKNOWN):
+            return []
+
+        ignored: list[Path] = []
+        for other in (Platform.SNOWFLAKE, Platform.DATABRICKS):
+            if other != platform:
+                ignored.extend(self.get_resource_paths(other))
+        return sorted(set(ignored))
+
 
 # Global detector instance (lazy initialization)
 _global_detector: PlatformDetector | None = None
+
+
+def resolve_platform_choice(value: str) -> Platform:
+    """Map a user-supplied platform choice string to a Platform.
+
+    Accepts: snowflake/sf, databricks/dbx/db, both/all.
+    Raises ValueError for anything else.
+    """
+    v = (value or "").lower().strip()
+    if v in ("snowflake", "sf"):
+        return Platform.SNOWFLAKE
+    if v in ("databricks", "dbx", "db"):
+        return Platform.DATABRICKS
+    if v in ("both", "all"):
+        return Platform.BOTH
+    raise ValueError(f"Unknown platform choice: {value!r} (expected snowflake|databricks|both)")
 
 
 def get_platform_detector(project_root: FilePath | None = None) -> PlatformDetector:
@@ -490,8 +563,13 @@ def get_platform_detector(project_root: FilePath | None = None) -> PlatformDetec
 
 
 def get_platform() -> Platform:
-    """Get the current platform."""
+    """Get the current platform (UNKNOWN if nothing chosen)."""
     return get_platform_detector().current_platform
+
+
+def require_platform() -> Platform:
+    """Get the current platform; raise PlatformNotChosenError if none chosen."""
+    return get_platform_detector().require_platform()
 
 
 def is_snowflake() -> bool:
@@ -526,7 +604,11 @@ def get_platform_skill_paths() -> list[Path]:
 
 if __name__ == "__main__":
     detector = PlatformDetector()
-    platform = detector.detect()
+    try:
+        platform = detector.require_platform()
+    except PlatformNotChosenError as e:
+        print(f"ERROR: {e}")
+        raise SystemExit(1)
 
     print(f"Detected Platform: {platform.value}")
     print(f"  Is Snowflake: {detector.is_snowflake}")

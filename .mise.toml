@@ -24,9 +24,11 @@ PYTHON_PROJECT = "true"
 UV_PROJECT_ENVIRONMENT = "true"
 UV_PYTHON = "python@3.12"
 
-# Platform detection (auto-detected, can be overridden)
-# Value can be: "snowflake", "databricks", or "both"
-PLATFORM = "both"
+# Platform selection for tool checks (gate.py etc.)
+# Set to "snowflake" or "databricks" (e.g. in .env) to lock ONE platform —
+# all other-platform paths (sql/, gates/, skills) are then ignored.
+# Empty = auto-detect from cwd / manifest / directory layout.
+PLATFORM = ""
 
 # Demo configuration defaults (can be overridden in .env file)
 DEMO_PREFIX = "YOUR_PREFIX"

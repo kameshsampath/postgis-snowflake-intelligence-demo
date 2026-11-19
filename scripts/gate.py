@@ -52,7 +52,13 @@ from scripts.gates.snowflake_gates import (  # noqa: F401
     _snow_json,
 )
 from scripts.generate_ddl import generate_iceberg_ddl, get_dry_run_step3
-from scripts.platform import Platform, PlatformDetector, get_platform_detector
+from scripts.platform import (
+    Platform,
+    PlatformDetector,
+    PlatformNotChosenError,
+    get_platform_detector,
+    resolve_platform_choice,
+)
 
 _check_csv_neighborhood_names = check_csv_neighborhood_names
 
@@ -368,6 +374,15 @@ except Exception:
         "step-1": "setup",
     }
 
+# Explicit platform choice for this process (set by `main --platform ...`).
+# When a single platform is chosen, all other-platform paths are ignored.
+_ACTIVE_PLATFORM: Platform | None = None
+
+
+def _active_platform() -> Platform:
+    """The platform checks run against: explicit choice, else fail fast."""
+    return _ACTIVE_PLATFORM or get_platform_detector().require_platform()
+
 
 # Step-specific verification checks (non-gate utility functions)
 # These are kept here for backward compatibility
@@ -426,11 +441,10 @@ def _check_pg_tables(project_root: Path) -> GateResult:
 
 
 def _check_all(project_root: Path) -> GateResult:
-    """Run ALL checks sequentially for final validation."""
+    """Run ALL checks sequentially for final validation (chosen platform only)."""
     from scripts.gates.base_gates import check_manifest
-    from scripts.platform import get_platform
 
-    platform = get_platform()
+    platform = _active_platform()
     checks = []
 
     # Shared checks
@@ -441,9 +455,8 @@ def _check_all(project_root: Path) -> GateResult:
         ]
     )
 
-    # Platform-specific checks
+    # Platform-specific checks (module-level shims keep patching working)
     if platform in [Platform.SNOWFLAKE, Platform.BOTH]:
-        from scripts.gates.base_gates import check_pg_reachable
         from scripts.gates.snowflake_gates import (
             check_cld_healthy,
             check_cortex_search,
@@ -665,6 +678,12 @@ def main() -> None:
         "--desc",
         help="Description for start action",
     )
+    parser.add_argument(
+        "--platform",
+        choices=["snowflake", "databricks", "both"],
+        help="Explicit platform choice for this run, overriding auto-detection. "
+        "When a single platform is chosen, all other-platform paths are ignored.",
+    )
 
     args = parser.parse_args()
 
@@ -673,6 +692,29 @@ def main() -> None:
     except FileNotFoundError as e:
         print(f"BLOCK: {e}")
         raise SystemExit(1)
+
+    # --- Platform of choice: --platform flag wins, else auto-detect, else FAIL ---
+    global _ACTIVE_PLATFORM, STEP_CHECKS, STEP_CHAIN, STEP_DESCRIPTIONS
+    _detector = get_platform_detector()
+    if args.platform:
+        _ACTIVE_PLATFORM = resolve_platform_choice(args.platform)
+        source = "explicit choice via --platform"
+    else:
+        try:
+            _ACTIVE_PLATFORM = _detector.require_platform()
+        except PlatformNotChosenError as e:
+            print(f"BLOCK: {e}")
+            raise SystemExit(1)
+        source = "auto-detected"
+    STEP_CHECKS = get_step_checks(_ACTIVE_PLATFORM, _detector)
+    STEP_CHAIN = get_step_chain(_ACTIVE_PLATFORM)
+    STEP_DESCRIPTIONS = get_step_descriptions(_ACTIVE_PLATFORM)
+    print(f"Platform: {_ACTIVE_PLATFORM.value} ({source})")
+    ignored = _detector.get_ignored_paths(_ACTIVE_PLATFORM)
+    if ignored:
+        print("Ignoring other-platform paths:")
+        for p in ignored:
+            print(f"  - {p}")
 
     # --- Action: reset ---
     if args.action == "reset":

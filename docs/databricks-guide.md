@@ -238,9 +238,10 @@ DEMO_STREETLIGHTS_WH → Connection details**).
 ## Step 10 — Validate
 
 ```bash
-# gate checks for the DBX path (from repo root; needs .streetlights-demo/manifest.toml
-# with a [databricks] section — write it manually or adapt scripts/_manifest.py)
-uv run gate --step dbx/all --action check
+# gate checks for the DBX path — pass --platform databricks so all Snowflake
+# paths (snowflake/, snowflake gates/skills) are ignored for the run
+# (needs .streetlights-demo/manifest.toml with a [databricks] section)
+uv run gate --step dbx/all --action check --platform databricks
 ```
 
 And run the sample questions in Genie (step 8).
