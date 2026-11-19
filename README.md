@@ -5,6 +5,24 @@ A demonstration of PostGIS data intelligence across Snowflake and Databricks pla
 > **Note**
 > This project began as a Snowflake-only implementation (`postgis-snowflake-intelligence-demo`) and was later expanded to support Databricks, prompting the rename to `postgis-data-intelligence-demo`. The Snowflake path remains the primary, production-tested implementation; the Databricks implementation follows the same patterns and architecture.
 
+## ⚠️ Demo Data Disclaimer
+
+All data in this demo — including street light locations, maintenance records,
+sensor readings, energy consumption figures, and operational statuses — is
+**entirely synthetic and computer-generated** for demonstration and educational
+purposes only.
+
+Geographic coordinates are placed within real map areas using the user's
+detected or specified city as a reference point. **These coordinates do not
+represent actual street light infrastructure.** Map links are provided solely
+to demonstrate location-aware query capabilities. Any resemblance to actual
+streetlight locations, infrastructure, or operational data is coincidental.
+
+This demo is provided "as is" for educational purposes only and is not intended
+to reflect the actual condition of any city's infrastructure. No reliance should
+be placed on any data shown for operational, commercial, safety, or any other
+real-world decisions.
+
 ## Architecture
 
 Both platforms follow the same architecture pattern:
@@ -61,17 +79,14 @@ cd postgis-data-intelligence-demo
 
 ### 2. Choose your platform
 
-Copy the appropriate environment template for your platform:
+Copy the environment template and pick a platform (`snowflake`, `databricks`, or `both`):
 
 ```bash
-# For Snowflake
-cp .env.snowflake .env
-
-# For Databricks
-cp .env.databricks .env
+cp .env.example .env   # then edit .env — never commit it
 ```
 
-Edit `.env` with your settings. Never commit this file to git.
+- Snowflake path → see [Snowflake Implementation Guide](docs/snowflake-guide.md)
+- Databricks path → see [Databricks Implementation Guide](docs/databricks-guide.md)
 
 ### 3. Install dependencies
 
@@ -85,61 +100,42 @@ uv sync
 ### Snowflake
 
 ```bash
-# Generate synthetic data
-uv run generate --city "Portland" --prefix "DEMO"
-
-# Create PostGIS schema and tables
-psql -f init/01_enable_extensions.sql
-psql -f init/02_create_iceberg_tables.sql
-
-# Load data
-for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
-  psql -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
-done
+# Generate synthetic data, apply PostGIS schema, load CSVs
+task generate -- --city "Portland" --prefix "DEMO"
+task pg:schema
+task pg:load
 
 # Set up Snowflake infrastructure
-snow sql -f snowflake/01_setup.sql
-snow sql -f snowflake/02_semantic_view.sql
-snow sql -f snowflake/03_cortex_search.sql
-snow sql -f snowflake/04_intelligence_agent.sql
-snow sql -f snowflake/05_ml_forecast.sql
-snow sql -f snowflake/06_streamlit.sql
+task sf:setup
+task sf:semantic-view
+task sf:search
+task sf:agent
+task sf:forecast
 ```
+
+Or run the guided flow with Cortex Code: `$streetlights-demo infra` then `$streetlights-demo app`.
 
 ### Databricks
 
 ```bash
 # Generate synthetic data
-uv run generate --city "Austin" --prefix "DEMO"
+task generate -- --city "Austin" --prefix "DEMO"
 
-# Create PostGIS schema and tables
-psql -f init/01_enable_extensions.sql
-psql -f init/02_create_iceberg_tables.sql
-
-# Load data
-for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
-  psql -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
-done
-
-# Set up Databricks infrastructure
-databricks sql -f databricks/sql/01_setup.sql
-databricks sql -f databricks/sql/02_genie_space.sql
-databricks sql -f databricks/sql/03_vector_search.sql
-databricks sql -f databricks/sql/04_forecast.sql
-databricks sql -f databricks/sql/05_app.sql
-
-# Deploy bundle
-databricks bundle deploy -t dev
+# Deploy the Databricks bundle (catalog, schema, SQL warehouse, jobs, Genie, app)
+# and run the setup jobs — the full e2e walkthrough (Lakebase project, data load,
+# UC registration, Genie space) is in docs/databricks-guide.md
+task dbx:deploy
+task dbx:run-all
 ```
+
+See [docs/databricks-guide.md](docs/databricks-guide.md) for the complete step-by-step.
 
 ## Project Structure
 
 ```
 .
 ├── .mise.toml                    # Tool and environment configuration
-├── .env.snowflake                # Snowflake environment template
-├── .env.databricks               # Databricks environment template
-├── .env.example                  # Generic environment template
+├── .env.example                  # Environment template (Snowflake + Databricks keys)
 ├── init/                         # PostgreSQL DDL (shared)
 │   ├── 01_enable_extensions.sql
 │   └── 02_create_iceberg_tables.sql
@@ -148,8 +144,7 @@ databricks bundle deploy -t dev
 │   ├── 02_semantic_view.sql
 │   ├── 03_cortex_search.sql
 │   ├── 04_intelligence_agent.sql
-│   ├── 05_ml_forecast.sql
-│   └── 06_streamlit.sql
+│   └── 05_ml_forecast.sql
 ├── databricks/                    # Databricks implementation
 │   ├── sql/                      # SQL scripts
 │   │   ├── 01_setup.sql
@@ -172,11 +167,16 @@ databricks bundle deploy -t dev
 │   └── platform.py               # Platform detection
 ├── docs/                          # Documentation
 │   ├── snowflake-guide.md         # Snowflake implementation guide
-│   ├── databricks-guide.md        # Databricks implementation guide
-│   └── plans/                     # Planning documents
-├── .cortex/                       # Cortex Code skills
+│   └── databricks-guide.md        # Databricks implementation guide
+├── .cortex/                       # Cortex Code skills (autoload)
 │   └── skills/
-│       └── streetlights-demo/     # Guided demo skills
+│       ├── streetlights-demo/            # Guided demo skill (canonical)
+│       ├── streetlights-demo-snowflake   # alias -> ../../skills/streetlights-demo-snowflake
+│       └── streetlights-demo-databricks  # alias -> ../../skills/streetlights-demo-databricks
+└── skills/                        # Neutral skill home (symlinks into .cortex/skills)
+    ├── streetlights-demo -> ../.cortex/skills/streetlights-demo
+    ├── streetlights-demo-snowflake -> streetlights-demo
+    └── streetlights-demo-databricks -> streetlights-demo
 ├── pyproject.toml                 # Python project configuration
 └── README.md                      # This file
 ```

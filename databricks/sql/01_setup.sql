@@ -13,142 +13,91 @@
 -- limitations under the License.
 
 -- =====================================================
--- Databricks Setup: Catalog + Schema + Lakebase Configuration
+-- Databricks setup: curated views over the Lakebase catalog
 -- =====================================================
--- Prerequisites:
---   1. Databricks workspace with Unity Catalog enabled
---   2. Lakebase instance created and connected
---   3. Appropriate permissions for catalog creation
+-- Run via the asset bundle job (databricks bundle run setup -t dev).
+-- Bundle variables (${var.prefix}) are interpolated by DAB at deploy/run time.
 --
--- Variables to replace:
---   <% PREFIX %> = your demo_resource_prefix in UPPERCASE (e.g., KAMESHS)
---   <% LAKEBASE_INSTANCE %> = your Lakebase instance name
+-- Prerequisites:
+--   1. Lakebase project + branch + endpoint (compute) created, database
+--      "streetlights" populated via sql/00_lakebase_schema.sql + \copy loads
+--   2. The Lakebase database registered in Unity Catalog as a foreign catalog:
+--        databricks postgres create-catalog ${var.prefix}_STREETLIGHTS_PG \
+--          --json '{"spec": {"postgres_database": "streetlights",
+--                            "branch": "projects/<project>/branches/main"}}'
+--      (see docs/databricks-guide.md for the full walkthrough)
+--   3. The bundle's own catalog/schema/warehouse already created by
+--      `databricks bundle deploy` (resources in databricks.yml)
 -- =====================================================
 
--- Step 1: Create catalog for the demo
-CREATE CATALOG IF NOT EXISTS <% PREFIX %>_STREETLIGHTS
-  COMMENT 'PostGIS Data Intelligence Demo - Databricks Perspective'
-  PROPERTIES ('purpose' = 'DEMO', 'attribution' = 'streetlights-demo');
-
--- Step 2: Create schema within catalog
-CREATE SCHEMA IF NOT EXISTS <% PREFIX %>_STREETLIGHTS.streetlights
-  COMMENT 'Streetlights demo schema for Lakebase data';
-
--- Set current catalog/schema for subsequent operations
-USE CATALOG <% PREFIX %>_STREETLIGHTS;
+USE CATALOG ${var.prefix}_STREETLIGHTS;
 USE SCHEMA streetlights;
 
--- Step 3: Create SQL Warehouse for query processing
--- Note: This needs to be created via Databricks UI or REST API
--- The SQL below assumes the warehouse already exists
--- CREATE SQL WAREHOUSE IF NOT EXISTS <% PREFIX %>_STREETLIGHTS_WH
---   WITH (SIZE = '2X-Small', AUTO_STOP_MINS = 30)
---   COMMENT 'SQL warehouse for streetlights demo queries';
+-- =====================================================
+-- Curated views (the Genie "semantic layer")
+-- Source tables live in the Lakebase-registered foreign catalog
+-- ${var.prefix}_STREETLIGHTS_PG.streetlights.* (plain Postgres columns).
+-- =====================================================
 
-USE WAREHOUSE <% PREFIX %>_STREETLIGHTS_WH;
-
--- Step 4: Configure Lakebase connection
--- Lakebase automatically syncs with Unity Catalog
--- Tables from the connected PostgreSQL database become available in UC
-
--- Step 5: Create curated views matching Snowflake Semantic View structure
--- These views provide the semantic layer for Genie
-
--- Street lights view with spatial and operational metadata
 CREATE OR REPLACE VIEW street_lights_clean AS
-SELECT 
-    street_light_id,
-    longitude,
+SELECT
+    id            AS street_light_id,
+    pole_id,
     latitude,
+    longitude,
     neighborhood,
-    installation_date,
-    bulb_type,
+    install_date  AS installation_date,
     wattage,
+    light_type    AS bulb_type,
     status,
-    height,
-    pole_material,
-    last_maintenance_date,
-    installed_by,
-    notes,
-    power_grid_zone_id,
-    -- Add computed field for map display
-    ST_POINT(longitude, latitude) as location
-FROM <% PREFIX %>_STREETLIGHTS.streetlights.street_lights;
+    ST_POINT(longitude, latitude) AS location
+FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.street_lights;
 
--- Maintenance records view for text search and analysis
 CREATE OR REPLACE VIEW maintenance_records_clean AS
-SELECT 
-    maintenance_id,
-    street_light_id,
-    maintenance_date,
-    maintenance_type,
-    description,
-    status,
-    cost,
-    technician_id,
-    start_time,
-    end_time,
-    notes,
-    severity,
-    -- Combine text fields for vector search
-    CONCAT(
-        COALESCE(description, ''),
-        CASE WHEN description IS NOT NULL AND notes IS NOT NULL THEN ' ' ELSE '' END,
-        COALESCE(notes, '')
-    ) as full_text,
-    -- Extract neighborhood from street_light_id join
-    sl.neighborhood
-FROM <% PREFIX %>_STREETLIGHTS.streetlights.maintenance_records
-LEFT JOIN <% PREFIX %>_STREETLIGHTS.streetlights.street_lights sl 
-    ON maintenance_records.street_light_id = sl.street_light_id;
+SELECT
+    m.id          AS maintenance_id,
+    m.light_id    AS street_light_id,
+    m.date        AS maintenance_date,
+    m.type        AS maintenance_type,
+    m.description,
+    m.cost,
+    m.technician,
+    sl.neighborhood,
+    CONCAT_WS(' ', COALESCE(m.description, ''), COALESCE(m.type, ''),
+              COALESCE(sl.neighborhood, '')) AS full_text
+FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.maintenance_records m
+LEFT JOIN ${var.prefix}_STREETLIGHTS_PG.streetlights.street_lights sl
+    ON m.light_id = sl.id;
 
--- Energy consumption view for forecasting
 CREATE OR REPLACE VIEW energy_consumption_clean AS
-SELECT 
-    consumption_id,
-    street_light_id,
-    consumed_date,
-    energy_consumed_kwh,
-    cost,
-    rate_type,
-    neighborhood,
-    -- Calculate daily average
-    AVG(energy_consumed_kwh) OVER (
-        PARTITION BY street_light_id 
-        ORDER BY consumed_date 
-        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
-    ) as avg_7day_consumption
-FROM <% PREFIX %>_STREETLIGHTS.streetlights.energy_consumption;
+SELECT
+    e.id          AS consumption_id,
+    e.light_id    AS street_light_id,
+    e.date        AS consumed_date,
+    e.hour,
+    e.kwh         AS energy_consumed_kwh,
+    e.voltage,
+    e.power_factor,
+    sl.neighborhood
+FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.energy_consumption e
+LEFT JOIN ${var.prefix}_STREETLIGHTS_PG.streetlights.street_lights sl
+    ON e.light_id = sl.id;
 
--- Weather enrichment view
 CREATE OR REPLACE VIEW weather_enrichment_clean AS
-SELECT * FROM <% PREFIX %>_STREETLIGHTS.streetlights.weather_enrichment;
+SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.weather_enrichment;
 
--- Light sensors view
 CREATE OR REPLACE VIEW light_sensors_clean AS
-SELECT * FROM <% PREFIX %>_STREETLIGHTS.streetlights.light_sensors;
+SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.light_sensors;
 
--- Demographics view
 CREATE OR REPLACE VIEW demographics_clean AS
-SELECT * FROM <% PREFIX %>_STREETLIGHTS.streetlights.demographics;
+SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.demographics;
 
--- Power grid zones view
 CREATE OR REPLACE VIEW power_grid_zones_clean AS
-SELECT * FROM <% PREFIX %>_STREETLIGHTS.streetlights.power_grid_zones;
-
--- Step 6: Grant permissions to users
--- In production, you would grant appropriate permissions based on your security requirements
--- Example: Grant SELECT on all views to users group
--- GRANT SELECT ON ALL VIEWS IN SCHEMA <% PREFIX %>_STREETLIGHTS.streetlights TO `users`;
+SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.power_grid_zones;
 
 -- =====================================================
--- Verification queries (run these to confirm setup)
+-- Verification
 -- =====================================================
-
--- SELECT COUNT(*) as table_count FROM <% PREFIX %>_STREETLIGHTS.streetlights.street_lights;
--- SELECT COUNT(*) as maintenance_count FROM <% PREFIX %>_STREETLIGHTS.streetlights.maintenance_records;
--- SELECT COUNT(*) as consumption_count FROM <% PREFIX %>_STREETLIGHTS.streetlights.energy_consumption;
-
--- Check that views are accessible
--- SELECT * FROM <% PREFIX %>_STREETLIGHTS.streetlights.street_lights_clean LIMIT 10;
--- SELECT * FROM <% PREFIX %>_STREETLIGHTS.streetlights.maintenance_records_clean LIMIT 10;
+-- SELECT COUNT(*) FROM street_lights_clean;
+-- SELECT COUNT(*) FROM maintenance_records_clean;
+-- SELECT COUNT(*) FROM energy_consumption_clean;

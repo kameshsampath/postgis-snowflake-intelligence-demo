@@ -172,7 +172,11 @@ class PlatformDetector:
         current_dir = Path.cwd()
 
         # Check if we're inside a platform-specific directory
-        relative_to_root = current_dir.relative_to(self.project_root)
+        try:
+            relative_to_root = current_dir.relative_to(self.project_root)
+        except ValueError:
+            # cwd is not under the project root (e.g. tests pass a tmp root)
+            return Platform.UNKNOWN
 
         for platform, config in self.PLATFORM_CONFIGS.items():
             if str(relative_to_root).startswith(config.directory):

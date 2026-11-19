@@ -35,8 +35,8 @@ ENV/
 .mise/
 .mise_cache/
 
-# Note: .env.snowflake and .env.databricks are template files (committed)
-# Actual .env.* files with secrets should NOT be committed
+# Note: only .env.example is committed. Any real .env file (with tokens,
+# connection names, or other local settings) must NOT be committed.
 
 # Logs
 *.log

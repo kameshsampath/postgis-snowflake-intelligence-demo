@@ -15,10 +15,12 @@ authors:
 repository-code: "https://github.com/kameshsampath/postgis-data-intelligence-demo"
 url: "https://github.com/kameshsampath/postgis-data-intelligence-demo"
 abstract: >-
-  A complete demonstration showcasing modern data pipeline architecture with  PostgreSQL/PostGIS, Snowflake Openflow
-  CDC, and Snowflake Intelligence  (Cortex Search + Cortex Analyst + ML FORECAST). Features real-time Change  Data
-  Capture, semantic search on maintenance descriptions, natural language  analytics, ML-powered failure forecasting, and
-  interactive Streamlit dashboard  with spatial visualizations for smart city infrastructure management.
+  A complete demonstration of PostGIS data intelligence across two platforms. On Snowflake: PostgreSQL/PostGIS with
+  pg_lake Iceberg tables, zero-pipeline sync via Catalog-Linked Database, and Snowflake Intelligence (Cortex Search +
+  Cortex Analyst + ML FORECAST). On Databricks: Lakebase Postgres synced to Unity Catalog, with Genie for natural
+  language analytics, Vector Search on maintenance descriptions, and AI_FORECAST for energy prediction. Features
+  semantic search on maintenance text, natural language analytics, ML-powered forecasting, and interactive
+  dashboards with spatial visualizations for smart city infrastructure management.
 keywords:
   - PostgreSQL
   - PostGIS

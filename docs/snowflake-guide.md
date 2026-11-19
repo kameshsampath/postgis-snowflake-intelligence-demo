@@ -15,30 +15,27 @@ cd postgis-data-intelligence-demo
 
 # 3. Install tools and copy environment
 mise install
-cp .env.snowflake .env
-# Edit .env with your Snowflake and PostgreSQL settings
+cp .env.example .env
+# Edit .env with your Snowflake and PostgreSQL settings (PGSERVICE, SNOWFLAKE_CONNECTION, ...)
 
 # 4. Install additional CLI tools
 # Snowflake CLI: brew install snowflake-cli (macOS)
 # PostgreSQL CLI: brew install libpq (macOS) or sudo apt-get install postgresql-client (Ubuntu)
 mise trust
 
-# 5. Run setup
-uv run generate --city "Portland" --prefix "DEMO"
-psql -f init/01_enable_extensions.sql
-psql -f init/02_create_iceberg_tables.sql
-
-for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
-  psql -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
-done
-
-snow sql -f snowflake/01_setup.sql
-snow sql -f snowflake/02_semantic_view.sql
-snow sql -f snowflake/03_cortex_search.sql
-snow sql -f snowflake/04_intelligence_agent.sql
-snow sql -f snowflake/05_ml_forecast.sql
-snow sql -f snowflake/06_streamlit.sql
+# 5. Run setup (Taskfile tasks handle the psql service lookup from the manifest)
+task generate -- --city "Portland" --prefix "DEMO"
+task pg:schema
+task pg:load
+task sf:setup
+task sf:semantic-view
+task sf:search
+task sf:agent
+task sf:forecast
 ```
+
+The Streamlit-in-Snowflake app (`app/`) is deployed in guided step 9
+(`$streetlights-demo step 9`) via `app/snowflake.yml`.
 
 This completes the Snowflake implementation end-to-end.
 
@@ -149,24 +146,20 @@ Output: 8 CSV files in `data/` directory.
 
 ### Step 2: Create Snowflake Postgres Instance
 
-```bash
-snow sql -f init/01_enable_extensions.sql
-```
-
-This creates a Snowflake Postgres instance with:
-- pg_lake extension for Iceberg table support
-- postgis extension for spatial operations
-- Managed storage for Iceberg metadata
+Create the instance via the guided skill (`$streetlights-demo step 2`) or the
+Snowflake CLI/UI. It needs pg_lake (Iceberg storage) + postgis + managed storage.
 
 ### Step 3: Create Iceberg Tables & Load Data
 
 ```bash
-psql -f init/01_enable_extensions.sql
-psql -f init/02_create_iceberg_tables.sql
+# psql always connects via the named service from ~/.pg_service.conf
+psql "service=$PGSERVICE" -f init/01_enable_extensions.sql
+psql "service=$PGSERVICE" -f init/02_create_iceberg_tables.sql
 
 for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
-  psql -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
+  psql "service=$PGSERVICE" -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
 done
+# or simply: task pg:schema && task pg:load
 ```
 
 > **Note**
@@ -221,11 +214,9 @@ Trains time-series forecasting on energy consumption.
 
 ### Step 9: Deploy Streamlit App
 
-```bash
-snow sql -f snowflake/06_streamlit.sql
-```
-
-Deploys multi-page dashboard.
+Deploy the multi-page dashboard from `app/` (Streamlit in Snowflake) via
+guided step 9 (`$streetlights-demo step 9`, uses `app/snowflake.yml`) or
+`snow streamlit deploy` from the `app/` directory.
 
 ### Step 10: Validation
 
