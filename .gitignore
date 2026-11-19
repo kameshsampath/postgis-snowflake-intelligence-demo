@@ -31,6 +31,13 @@ ENV/
 *.swo
 .DS_Store
 
+# Mise (version manager)
+.mise/
+.mise_cache/
+
+# Note: .env.snowflake and .env.databricks are template files (committed)
+# Actual .env.* files with secrets should NOT be committed
+
 # Logs
 *.log
 

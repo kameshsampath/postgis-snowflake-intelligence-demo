@@ -1,5 +1,5 @@
 # Databricks Asset Bundle for PostGIS Data Intelligence Demo
-# This bundle defines all Databricks resources for the Lakebase + Genie perspective
+# This bundle defines all Databricks resources for the Lakebase + Genie implementation
 
 bundle:
   name: postgis_data_intelligence_demo
@@ -14,9 +14,6 @@ variables:
   # Lakebase configuration
   lakebase_instance: "{{var.lakebase_instance | default('')}}"
   lakebase_branch: "{{var.lakebase_branch | default('main')}}"
-  
-  # Constructor for resource names
-  badly_named_resource_name: "${{var.prefix | upper}}_STREETLIGHTS_"
 
 # Target environments
 env:
@@ -42,7 +39,7 @@ resources:
   catalogs:
     streetlights_catalog:
       name: "${{var.catalog_name}}"
-      comment: "PostGIS Data Intelligence Demo - ${tn} perspective"
+      comment: "PostGIS Data Intelligence Demo - ${tn} implementation"
       properties:
         purpose: "DEMO"
 

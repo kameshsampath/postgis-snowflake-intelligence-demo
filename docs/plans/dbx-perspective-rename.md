@@ -1,7 +1,7 @@
-# Plan: DBX (Lakebase + Genie) Perspective + Rename to `postgis-data-intelligence-demo`
+# Plan: Databricks Implementation + Rename to `postgis-data-intelligence-demo`
 
-Status: **plan only — no implementation applied on this branch.**
-Scope: add a Databricks perspective alongside the existing Snowflake path, and
+Status: **Implementation in progress**
+Scope: add Databricks implementation alongside the existing Snowflake implementation, and
 rename the project from `postgis-snowflake-intelligence-demo` to
 `postgis-data-intelligence-demo`.
 
@@ -32,11 +32,11 @@ rename the project from `postgis-snowflake-intelligence-demo` to
    framing broadens. Reword `AGENTS.md` purpose line and README subtitle to
    "PostGIS data intelligence demo — Snowflake + Databricks".
 
-## Part B — DBX perspective (Lakebase + Genie)
+## Part B — Databricks Implementation (Lakebase + Genie)
 
-Component mapping from the Snowflake path to the Databricks stack:
+Component mapping from the Snowflake implementation to the Databricks stack:
 
-| Snowflake path | DBX equivalent |
+| Snowflake Implementation | Databricks Implementation |
 |---|---|
 | Snowflake Postgres + pg_lake Iceberg | **Lakebase** (managed Postgres; `init/01_enable_extensions.sql` PostGIS DDL reuses directly) |
 | CLD zero-pipeline sync | Lakebase ↔ Unity Catalog sync (PG tables queryable in UC) |
@@ -56,7 +56,7 @@ Component mapping from the Snowflake path to the Databricks stack:
 - `scripts/_manifest.py` — additive `[databricks]` section (host/profile, SQL
   warehouse, catalog, schema, Lakebase instance/branch) + a `platform` field
   (`snowflake` | `databricks` | `both`); `[snowflake]` untouched.
-- `scripts/gate.py` + `tests/` — new DBX gates (lakebase reachable, UC sync
+- `scripts/gates/` + `tests/` — new Databricks gates (lakebase reachable, UC sync
   healthy, Genie space responds, vector index ready, forecast ready, app
   deployed) and manifest tests; no existing assertions weakened.
 - `Taskfile.yml` — `dbx:*` tasks mirroring `sf:*`.
@@ -67,7 +67,7 @@ Component mapping from the Snowflake path to the Databricks stack:
 - `.env.example` — `DATABRICKS_HOST` / `DATABRICKS_PROFILE` only (auth via CLI
   profile/OAuth; no secrets).
 - `AGENTS.md` / `README.md` — add `databricks/` to the stable framework areas;
-  two-platform Mermaid architecture + DBX quick start.
+  two-platform Mermaid architecture + Databricks quick start.
 
 ## Sequencing
 
@@ -78,7 +78,7 @@ Component mapping from the Snowflake path to the Databricks stack:
 
 ## Guardrails
 
-- `AGENTS.md` protected areas stay protected: DBX work goes in new
+- `AGENTS.md` protected areas stay protected: Databricks work goes in new
   `databricks/` plus additive changes elsewhere; `tests/` assertions are never
   weakened.
 - Conventional Commits style; `pre-commit run --all-files` must pass before

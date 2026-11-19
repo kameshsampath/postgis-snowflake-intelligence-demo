@@ -1,0 +1,51 @@
+# PostGIS Data Intelligence Demo - Mise Configuration
+# Multi-platform support: Snowflake + Databricks
+
+[tools]
+# Python - primary language for the demo
+python = "3.12.0"
+
+# UV - Python package manager (faster than pip, used for dependency management)
+uv = "latest"
+
+# Databricks CLI (official CLI for Databricks operations)
+databricks-cli = "latest"
+
+# ==========================================================================
+# Environment Variables
+# ==========================================================================
+
+[env]
+# Project identification
+PROJECT_NAME = "postgis-data-intelligence-demo"
+PYTHON_PROJECT = "true"
+
+# UV configuration for Python virtual environment management
+UV_PROJECT_ENVIRONMENT = "true"
+UV_PYTHON = "python@3.12"
+
+# Platform detection (auto-detected, can be overridden)
+# Value can be: "snowflake", "databricks", or "both"
+PLATFORM = "both"
+
+# Demo configuration defaults (can be overridden in .env file)
+DEMO_PREFIX = "YOUR_PREFIX"
+CITY = "Portland"
+LATITUDE = "45.5152"
+LONGITUDE = "-122.6784"
+STREET_LIGHT_COUNT = "500"
+
+# ==========================================================================
+# Additional Tools to Install Manually
+# ==========================================================================
+# The following tools are not in the mise registry and must be installed manually:
+#
+# 1. Snowflake CLI: https://docs.snowflake.com/en/user-guide/snowsql-install-config
+#    - macOS: brew install snowflake-cli
+#    - Linux: See Snowflake documentation
+#
+# 2. PostgreSQL CLI (psql)
+#    - macOS: brew install libpq
+#    - Ubuntu: sudo apt-get install postgresql-client
+#
+# 3. After installing, run 'mise trust' to allow mise to use external tools
