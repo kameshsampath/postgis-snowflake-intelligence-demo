@@ -116,7 +116,7 @@ quota: if you hit it, compute pauses until the next day; data and settings are k
 ## Step 1 — Generate the synthetic data
 
 ```bash
-task generate -- --city "Portland" --prefix "DEMO"
+task generate -- --city "Portland" --count 500
 # -> data/*.csv (7 tables, git-ignored)
 ```
 
