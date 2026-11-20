@@ -60,6 +60,10 @@ resources:
       comment: Streetlights demo schema
 
   sql_warehouses:
+    # Free Edition (formerly Community Edition) allows only ONE warehouse (the
+    # pre-created starter). To deploy there: comment out this block and replace
+    # ${resources.sql_warehouses.streetlights_wh.id} below with the starter
+    # warehouse ID (SQL Warehouses -> starter -> Connection details).
     streetlights_wh:
       name: ${var.prefix}_STREETLIGHTS_WH
       cluster_size: 2X-Small

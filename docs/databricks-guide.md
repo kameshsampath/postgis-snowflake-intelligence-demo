@@ -90,6 +90,29 @@ DEMO_CITY=Portland
 > Never commit `.env`. Lakebase credentials are short-lived OAuth tokens
 > generated per connection (step 3), not stored anywhere.
 
+## Running on Databricks Free Edition (formerly Community Edition)
+
+Community Edition was retired on Jan 1, 2026; its successor is **Databricks Free
+Edition** (serverless-only, Unity Catalog on by default, daily quota, non-commercial
+use). The DBX path of this demo fits within Free Edition quotas:
+
+| Demo component | Free Edition support |
+|---|---|
+| Unity Catalog (catalog/schema/foreign catalog) | Included by default |
+| SQL warehouse | One per account, fixed 2X-Small, serverless. The bundle's `cluster_size: 2X-Small` + `enable_serverless_compute: true` matches; `ai_forecast()` needs serverless, which Free Edition is anyway |
+| Jobs (bundle `sql_task` runs) | Up to 5 concurrent tasks; our jobs are single-task and sequential |
+| Lakebase | One project with scale-to-zero compute |
+| AI Search (Vector Search) | One endpoint (1 search unit) |
+| Genie | Included (UI now calls spaces "Genie Agents"; the bundle resource stays `genie_spaces`) |
+| Databricks Apps | Up to 3; apps auto-stop after 24h, so re-open/restart the app the next day |
+
+**One workaround required:** Free Edition allows only the pre-created starter
+warehouse. Before `databricks bundle deploy`, comment out the
+`resources.sql_warehouses` block in `databricks/databricks.yml` and replace every
+`${resources.sql_warehouses.streetlights_wh.id}` with your starter warehouse's ID
+(SQL Warehouses → starter warehouse → Connection details). Also note the daily
+quota: if you hit it, compute pauses until the next day; data and settings are kept.
+
 ## Step 1 — Generate the synthetic data
 
 ```bash
