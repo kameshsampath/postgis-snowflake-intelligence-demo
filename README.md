@@ -5,6 +5,8 @@ A demonstration of PostGIS data intelligence across Snowflake and Databricks pla
 > **Note**
 > This project began as a Snowflake-only implementation (`postgis-snowflake-intelligence-demo`) and was later expanded to support Databricks, prompting the rename to `postgis-data-intelligence-demo`. The Snowflake path remains the primary, production-tested implementation; the Databricks implementation follows the same patterns and architecture.
 
+Reusable patterns behind this demo (problem, solution, product mapping): [docs/patterns.md](docs/patterns.md).
+
 ## ⚠️ Demo Data Disclaimer
 
 All data in this demo — including street light locations, maintenance records,

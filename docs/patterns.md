@@ -1,149 +1,220 @@
-# Patterns discovered while building this demo
+# Patterns from this demo
 
-Each pattern: **Problem** (2–5 lines) → **Solution** (concise) → **Maps to** (product features) → **In this repo**.
-Both platform paths are shown where a pattern exists on each.
+Reusable patterns observed while building the PostGIS data intelligence demo on two
+platforms. Each entry covers the problem, the solution in platform-neutral terms, the
+product features it maps to, and where it lives in this repo.
+
+## Overview
+
+| # | Pattern | Essence |
+|---|---------|---------|
+| 1 | Zero-pipeline Postgres sync | Query Postgres from the lakehouse without moving data |
+| 2 | Geo truth stays in Postgres | PostGIS in the database, coordinates in analytics |
+| 3 | Semantic layer before NL | Encode joins and vocabulary once; agents generate SQL through it |
+| 4 | Hybrid retrieval for agents | NL-to-SQL plus vector search, routed per question |
+| 5 | Forecasting as a SQL function | Predict in place, store predictions as a table |
+| 6 | Cloud resources as code | Bundles with variables and targets, not UI clicks |
+| 7 | Explicit platform choice | One platform chosen; the other is ignored; no choice fails fast |
+| 8 | Per-step gates | Every step has a pass/fail check; tests pin the contract |
 
 ---
 
-## 1. Zero-pipeline Postgres → lakehouse
+## 1. Zero-pipeline Postgres sync
 
-**Problem:** Getting Postgres data into an analytics/AI platform usually means CDC
-(Debezium/OpenFlow), WAL publications, schema sync, and WKB serialization — a pipeline
-to operate, lag to absorb, and data duplicated in two places.
+**Problem**
 
-**Solution:** Store Postgres tables as Iceberg and let the analytics catalog read the
-*same metadata* — no data movement. Query the database in place from warehouses, agents,
-and apps.
+Moving operational Postgres data into an analytics platform usually requires a CDC
+pipeline: WAL capture, connectors, schema sync, and duplicated storage. The pipeline
+lags behind, breaks on DDL changes, and costs money to operate.
 
-**Maps to:** Snowflake: pg_lake (`CREATE TABLE ... USING iceberg`) + Catalog-Linked
-Database (CLD). Databricks: Lakebase database registered in Unity Catalog via
-`databricks postgres create-catalog` (foreign catalog).
+**Solution**
 
-**In this repo:** `init/02_create_iceberg_tables.sql` (generated), skill step-4 (CLD),
-`databricks/sql/01_setup.sql` (views over `${var.prefix}_STREETLIGHTS_PG`).
+Store Postgres tables in an open table format (Apache Iceberg) and register that
+metadata with the analytics catalog. Warehouses, agents, and apps then query the
+database in place. No data is copied or streamed.
 
-## 2. PostGIS stays in Postgres; analytics reads coordinates
+**Maps to**
 
-**Problem:** Geo logic gets re-implemented per platform (GEOGRAPHY vs `ST_*`), and
-moving geometry through pipelines forces WKB/WKT handling. Demos also risk implying
-real infrastructure from real-looking coordinates.
+| Platform | Feature |
+|----------|---------|
+| Snowflake | pg_lake (`CREATE TABLE ... USING iceberg`) + Catalog-Linked Database (CLD) |
+| Databricks | Lakebase database registered in Unity Catalog via `databricks postgres create-catalog` (foreign catalog) |
 
-**Solution:** Keep spatial truth in Postgres with the PostGIS extension (both managed
-Postgres offerings support it natively); store plain lat/lng columns and rebuild
-points at read time (`ST_POINT(lon, lat)`). Ship a synthetic-data disclaimer with any
-demo map output.
+**In this repo:** `init/02_create_iceberg_tables.sql` (generated), skill step 4 (CLD), `databricks/sql/01_setup.sql` (views over the registered catalog)
 
-**Maps to:** PostGIS on Snowflake Postgres and on Lakebase; Snowflake `GEOGRAPHY` /
-Databricks DBSQL `ST_*` for analytics-side geo; README disclaimer.
+## 2. Geo truth stays in Postgres
 
-**In this repo:** `init/01_enable_extensions.sql`, `databricks/sql/00_lakebase_schema.sql`,
-`databricks/sql/01_setup.sql` (`location` column), `.cortex/skills/streetlights-demo/references/postgis-contrast.md`, README "Demo Data Disclaimer".
+**Problem**
+
+Re-implementing spatial logic per analytics platform is error-prone: each platform has
+its own geo types and functions, and pushing geometry through pipelines adds WKB/WKT
+serialization overhead.
+
+**Solution**
+
+Keep spatial data in the database using the PostGIS extension. Store plain
+latitude/longitude columns and rebuild points at read time (`ST_POINT(lon, lat)`) in
+the analytics layer.
+
+**Maps to**
+
+| Platform | Feature |
+|----------|---------|
+| Both | PostGIS extension on the managed Postgres service |
+| Snowflake | `GEOGRAPHY` type for read-side geo |
+| Databricks | SQL `ST_*` functions (e.g. `ST_POINT`) for read-side geo |
+
+**In this repo:** `init/01_enable_extensions.sql`, `databricks/sql/00_lakebase_schema.sql`, `location` column in `databricks/sql/01_setup.sql`, `.cortex/skills/streetlights-demo/references/postgis-contrast.md`
 
 ## 3. Semantic layer before natural language
 
-**Problem:** NL questions fail or hallucinate when the model must guess table names,
-joins, and business terms. Every analyst rewrites the same SQL.
+**Problem**
 
-**Solution:** Encode joins, entities, and business vocabulary once in a semantic
-layer; the NL agent only generates SQL *through* it. On DBX the same role is played
-by curated `*_clean` views plus Genie space instructions and verified answers.
+NL-to-SQL fails or invents schemas when the model has to guess table names, joins, and
+business terms. Every user ends up rewriting the same queries.
 
-**Maps to:** Snowflake Semantic View + Cortex Analyst. Databricks: curated views +
-Genie space (instructions, verified answers, sample questions).
+**Solution**
 
-**In this repo:** `snowflake/02_semantic_view.sql`; `databricks/sql/01_setup.sql` (`*_clean` views),
-`databricks/sql/02_genie_space.sql` (`v_q_*` verified-question views), `databricks/databricks.yml` (`genie_spaces`).
+Encode joins, entities, and vocabulary once in a semantic layer. The NL agent
+generates SQL only through that layer, and verified question/answer pairs pin down
+known intents.
 
-## 4. Hybrid retrieval: NL-to-SQL + vector search
+**Maps to**
 
-**Problem:** "How many lights are faulty?" is structured, but "find reports about
-exposed wires or sparking" is free text — SQL alone can't answer it, and embeddings
-alone can't count.
+| Platform | Feature |
+|----------|---------|
+| Snowflake | Semantic View + Cortex Analyst |
+| Databricks | Curated views + Genie space (instructions, verified answers, sample questions) |
 
-**Solution:** Pair a semantic layer (NL→SQL) with a vector index over the text
-column, and let the agent route per intent (structured → analyst, text → search,
-hybrid → both).
+**In this repo:** `snowflake/02_semantic_view.sql`; `databricks/sql/01_setup.sql` (`*_clean` views), `databricks/sql/02_genie_space.sql` (`v_q_*` verified-question views), `genie_spaces` resource in `databricks/databricks.yml`
 
-**Maps to:** Snowflake Cortex Search + Intelligence Agent (Analyst + Search tools).
-Databricks AI Search (Vector Search Delta Sync index, embeddings computed by a model
-such as `databricks-bge-large-en`) + Genie space; query via `vector_search()`.
+## 4. Hybrid retrieval for NL agents
 
-**In this repo:** `snowflake/03_cortex_search.sql`, `snowflake/04_intelligence_agent.sql`;
-`databricks/sql/03_vector_search.sql` (`maintenance_records_text`), guide step 7.
+**Problem**
 
-## 5. Forecasting as a SQL function, not a Python job
+Some questions are structured ("how many lights are faulty?") and some are free text
+("find reports about exposed wires or sparking"). SQL alone cannot answer the second;
+embeddings alone cannot answer the first.
 
-**Problem:** Time-series forecasting usually means exporting data to Python/R,
-training, hosting a model, and re-importing predictions — none of it visible in SQL.
+**Solution**
 
-**Solution:** Call the platform's forecast function in SQL where the data already
-lives, and store predictions as a table the agent/app can query.
+Combine a semantic layer for NL-to-SQL with a vector index over the text column, and
+let the agent route each question to the right tool, or both for hybrid intents.
 
-**Maps to:** Snowflake `ML FORECAST`. Databricks `ai_forecast(observed => TABLE(...),
-horizon => ..., time_col => ..., value_col => ...)` — note it requires a **serverless**
-SQL warehouse.
+**Maps to**
 
-**In this repo:** `snowflake/05_ml_forecast.sql`; `databricks/sql/04_forecast.sql`
-(`energy_forecast`, `energy_forecast_by_neighborhood`); serverless WH in
-`databricks/databricks.yml` (`enable_serverless_compute: true`).
+| Platform | Feature |
+|----------|---------|
+| Snowflake | Cortex Search service + Intelligence Agent (Analyst + Search tool routing) |
+| Databricks | AI Search / Vector Search Delta Sync index with a managed embedding model (e.g. `databricks-bge-large-en`) + Genie; query via `vector_search()` |
 
-## 6. Cloud resources as code: bundles, not clicks
+**In this repo:** `snowflake/03_cortex_search.sql`, `snowflake/04_intelligence_agent.sql`; `databricks/sql/03_vector_search.sql`, `docs/databricks-guide.md` step 7
 
-**Problem:** Creating catalogs, warehouses, jobs, spaces, and apps in the UI doesn't
-version, review, or reproduce; raw SQL files alone don't express dependencies.
+## 5. Forecasting as a SQL function
 
-**Solution:** Declare resources + jobs in a bundle with variable interpolation and
-dev/prod targets; validate → deploy → run → destroy is fully repeatable.
+**Problem**
 
-**Maps to:** Databricks Asset Bundles (`databricks.yml`, `${var.*}` interpolation,
-`targets`, `engine: direct` for Genie/Vector Search). Snowflake equivalent here:
-`snow` CLI + SQL files with `<% PREFIX %>` STANDARD templating.
+Time-series forecasting often means exporting data to Python, training a model,
+hosting it, and importing predictions back. None of it is visible in SQL where the
+data lives.
 
-**In this repo:** `databricks/databricks.yml` (jobs run `sql/01-05` via `sql_task`),
-`Taskfile.yml` `dbx:*` tasks, `snowflake/0*.sql` + skill step rules.
+**Solution**
 
-## 7. Platform choice is explicit — and the other platform is ignored
+Call the platform's forecast function in SQL and materialize predictions as a table
+that agents and apps can query like any other table.
 
-**Problem:** A dual-platform repo can silently load or gate-check the wrong
-platform's assets (e.g. Snowflake gates in a Databricks run), and defaulting to
-"both" hides misconfiguration.
+**Maps to**
 
-**Solution:** Resolve the platform from an explicit choice only (env var, manifest
-field, cwd, or CLI flag). When one platform is chosen, ignore all of the other
-platform's paths (SQL, gates, skills); if nothing is chosen, fail immediately —
-never assume "both".
+| Platform | Feature |
+|----------|---------|
+| Snowflake | `ML FORECAST` |
+| Databricks | `ai_forecast(observed => TABLE(...), horizon => ..., time_col => ..., value_col => ...)`; requires a serverless SQL warehouse |
 
-**Maps to:** repo tooling, not a product feature: `scripts/platform.py`
-(`require_platform()`, `get_ignored_paths()`), `gate --platform`, `PLATFORM` env
-(`.mise.toml`, `.env.example`), `scripts/gates/{base,snowflake,databricks}_gates.py`.
+**In this repo:** `snowflake/05_ml_forecast.sql`; `databricks/sql/04_forecast.sql` (`energy_forecast`, `energy_forecast_by_neighborhood`); serverless warehouse flag in `databricks/databricks.yml`
 
-**In this repo:** `scripts/platform.py`, `scripts/gate.py` (`--platform`), `tests/test_platform.py` (`TestChosenPlatformIsolation`).
+## 6. Cloud resources as code
 
-## 8. Gates as the per-step correctness contract
+**Problem**
 
-**Problem:** Multi-step demos drift silently: step N assumes step N−1's objects
-exist, and failures surface far from the cause.
+Creating catalogs, warehouses, jobs, spaces, and apps by hand in a UI does not
+version, review, or reproduce. Raw SQL files alone do not express dependencies
+between objects.
 
-**Solution:** Every step has a gate function returning a pass/fail `GateResult`;
-the CLI validates the chain before checking readiness, and the test suite pins
-the contract so refactors can't quietly drop checks.
+**Solution**
 
-**Maps to:** repo tooling: `scripts/gate.py` + `scripts/gates/` (base + per-platform),
-`tests/test_gates.py`.
+Declare resources and jobs in a bundle file with variable interpolation and
+per-environment targets. Validate, deploy, run, destroy becomes a repeatable
+pipeline.
 
-**In this repo:** `scripts/gate.py`, `scripts/gates/`, `tests/test_gates.py`,
-`tests/test_platform.py`.
+**Maps to**
+
+| Platform | Feature |
+|----------|---------|
+| Databricks | Asset Bundles: `databricks.yml`, `${var.*}` interpolation, `targets` (dev/prod), `engine: direct` for Genie spaces and Vector Search endpoints |
+| Snowflake | `snow` CLI running SQL files with `<% PREFIX %>` STANDARD templating |
+
+**In this repo:** `databricks/databricks.yml` (jobs run `sql/01` to `sql/05` via `sql_task`), `Taskfile.yml` `dbx:*` tasks, `snowflake/*.sql`
+
+## 7. Explicit platform choice, fail fast otherwise
+
+**Problem**
+
+In a repo that supports two platforms, tooling can silently load or gate-check the
+wrong platform's assets. Defaulting to "both" hides that misconfiguration.
+
+**Solution**
+
+Resolve the platform only from an explicit choice: environment variable, manifest
+field, working directory, or CLI flag. When one platform is chosen, ignore all of the
+other platform's paths (SQL, gates, skills). If nothing is chosen, fail immediately
+instead of assuming both.
+
+**Maps to**
+
+| Area | Feature |
+|------|---------|
+| Repo tooling | `scripts/platform.py` (`require_platform()`, `get_ignored_paths()`), `gate --platform`, `PLATFORM` env var, per-platform gate modules in `scripts/gates/` |
+
+**In this repo:** `scripts/platform.py`, `scripts/gate.py`, `scripts/gates/`, `tests/test_platform.py` (`TestChosenPlatformIsolation`)
+
+## 8. Per-step gates as a correctness contract
+
+**Problem**
+
+Multi-step demos drift silently. Step N assumes step N-1 created its objects, so
+failures surface far from the actual cause.
+
+**Solution**
+
+Give every step a gate check that returns pass/fail. The CLI validates the whole
+chain before checking readiness, and the test suite pins the checks so refactors
+cannot quietly drop them.
+
+**Maps to**
+
+| Area | Feature |
+|------|---------|
+| Repo tooling | Gate CLI (`scripts/gate.py`), per-platform gate modules (`scripts/gates/`), contract tests (`tests/test_gates.py`) |
+
+**In this repo:** `scripts/gate.py`, `scripts/gates/`, `tests/test_gates.py`, `tests/test_platform.py`
 
 ---
 
+## How the patterns compose
+
+The end-to-end demo is these patterns stacked:
+
+PostGIS in Postgres (2) → register the database in the lakehouse catalog (1) →
+build the semantic layer (3) → attach hybrid retrieval (4) and forecasting (5) →
+expose through an agent and an app. Pattern 6 declares the cloud side as code;
+patterns 7 and 8 keep the repository tooling honest.
+
 ## Cross-cutting observations
 
-- **The Postgres wire protocol is the stable interface.** Both platforms are "just
-  Postgres" to psql and drivers — schema DDL, `\copy` loads, and PostGIS work
-  unchanged; only the sync/registration mechanism differs (CLD vs `create-catalog`).
-- **AI features live next to the data, not in a sidecar.** Semantic views, search,
-  forecasting, and agents all run in the analytics platform over the same tables —
-  that is what makes the demo "zero-pipeline" end to end.
-- **Fail fast on ambiguity.** Whether it's platform choice (`require_platform`) or
-  billable resources (skill confirms before creating instances), explicit beats
-  inferred.
+- The Postgres wire protocol is the stable interface across platforms. Schema DDL,
+  `\copy` loads, and PostGIS behave identically; only the registration mechanism
+  differs.
+- AI features run next to the data, inside the analytics platform. That is what makes
+  the demo zero-pipeline end to end.
+- Fail fast on ambiguity. Explicit choices (platform, billable resources) beat
+  inferred defaults.
