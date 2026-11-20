@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for scripts._config — TOML manifest loader.
 
 These tests define the expected interface for the config loader module.

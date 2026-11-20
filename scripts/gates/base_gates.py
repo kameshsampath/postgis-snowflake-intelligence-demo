@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Base gate checks and utilities for PostGIS Data Intelligence Demo.
 
 Provides common gate checks and utilities used by both Snowflake and Databricks

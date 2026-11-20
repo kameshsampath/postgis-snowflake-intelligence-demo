@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 ---
 name: streetlights-demo-step-7
 description: Create Intelligence Agent with Semantic View and Cortex Search

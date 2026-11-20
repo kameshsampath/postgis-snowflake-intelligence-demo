@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Typed manifest model and I/O for .streetlights-demo/manifest.toml.
 
 This module is the single source of truth for reading and writing the

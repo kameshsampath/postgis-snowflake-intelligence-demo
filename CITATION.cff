@@ -1,16 +1,17 @@
-# Copyright 2025 Kamesh Sampath
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 # This CITATION.cff file was generated to enable citation of this software.
 # See https://citation-file-format.github.io/ for more information.
 
 cff-version: 1.2.0
-title: "Street Lights AI Maintenance Demo"
+title: "PostGIS Data Intelligence Demo"
 message: "If you use this software, please cite it as below."
 type: software
 authors:
   - family-names: Sampath
     given-names: Kamesh
+    email: kamesh.sampath@gmail.com
     orcid:
 repository-code: "https://github.com/kameshsampath/postgis-data-intelligence-demo"
 url: "https://github.com/kameshsampath/postgis-data-intelligence-demo"
@@ -24,18 +25,17 @@ abstract: >-
 keywords:
   - PostgreSQL
   - PostGIS
+  - Apache Iceberg
   - Snowflake
-  - CDC
-  - Change Data Capture
-  - Openflow
-  - Cortex Search
-  - Cortex Analyst
-  - ML Forecasting
+  - Databricks
+  - Lakebase
+  - Genie
+  - Vector Search
+  - Semantic Layer
+  - Forecasting
   - Streamlit
-  - Spatial Data
   - Smart City
   - Predictive Maintenance
-  - Apache NiFi
 license: Apache-2.0
-version: "1.0.0"
+version: "2.0.0"
 date-released: "2025-01-01"

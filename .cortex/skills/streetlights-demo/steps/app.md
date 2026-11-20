@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 ---
 name: streetlights-demo-app
 description: App phase orchestration — ML Forecast + SiS deploy + Validation (steps 8–10) via Team App

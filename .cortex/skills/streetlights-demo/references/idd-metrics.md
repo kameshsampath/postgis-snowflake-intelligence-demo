@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # IDD Metrics — Streetlights Intelligence Demo
 
 Pre-computed baseline values for the agent to use when answering user questions about

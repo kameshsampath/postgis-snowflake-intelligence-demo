@@ -202,4 +202,10 @@ This project includes Cortex Code skills for guided execution. See `.cortex/skil
 
 ## License
 
-Apache-2.0
+Apache License 2.0. Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>. See
+[LICENSE](LICENSE), [NOTICE](NOTICE), and [CITATION.cff](CITATION.cff).
+
+This is an independent, personal open-source project. It was initially developed by
+the author while employed at Snowflake, but it has been open source under the Apache
+License from day one and contains no employer intellectual property. It is not
+affiliated with, sponsored, or endorsed by Snowflake Inc.

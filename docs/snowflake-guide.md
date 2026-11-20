@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # Snowflake Implementation Guide
 
 This guide documents the Snowflake implementation of the PostGIS Data Intelligence Demo. It covers architecture, setup, and execution.

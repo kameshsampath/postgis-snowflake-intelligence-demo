@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Databricks-specific gate checks for PostGIS Data Intelligence Demo.
 
 Provides Databricks-specific validation functions for the implementation.

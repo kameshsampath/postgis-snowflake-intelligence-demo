@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Snowflake-specific gate checks for PostGIS Data Intelligence Demo.
 
 Provides Snowflake-specific validation functions for the demo workflow.

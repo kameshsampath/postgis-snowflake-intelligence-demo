@@ -1,3 +1,6 @@
+-- Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+-- SPDX-License-Identifier: Apache-2.0
+
 -- Cortex Search: maintenance records full-text search
 -- Run: snow sql -f snowflake/03_cortex_search.sql -D "PREFIX=KAMESHS" -c local-oauth --enable-templating ALL
 

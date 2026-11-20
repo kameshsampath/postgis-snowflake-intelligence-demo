@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 ---
 name: streetlights-demo-step-10
 description: Run end-to-end validation and demonstrate the complete pipeline

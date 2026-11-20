@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Click CLI for location-aware synthetic data generation.
 
 Generates 7 CSV files in data/ for the streetlights demo.

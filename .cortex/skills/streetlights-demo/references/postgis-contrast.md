@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # PostGIS vs Snowflake Postgres (pg_lake)
 
 | Aspect | Traditional PostGIS | This Demo (pg_lake) |

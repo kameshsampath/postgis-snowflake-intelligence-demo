@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for scripts.gate and scripts.sanity_gate — validation gates.
 
 Gate scripts are used by the CoCo skill to verify preconditions before

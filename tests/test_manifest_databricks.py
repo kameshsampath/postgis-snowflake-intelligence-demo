@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Tests for the [databricks] section of the demo manifest (scripts._manifest)."""
 
 from __future__ import annotations

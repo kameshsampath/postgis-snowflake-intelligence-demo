@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Gate checks for streetlights demo progression.
 
 Provides pre-step validation functions that return GateResult objects

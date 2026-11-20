@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
 """
 Platform detection and management utilities for PostGIS Data Intelligence Demo.
 

@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Location detection and neighborhood generation for streetlights-demo.
 
 Uses IP geolocation for auto-detection and geopy Nominatim for geocoding.

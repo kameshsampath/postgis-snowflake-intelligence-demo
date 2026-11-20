@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Gate check modules for PostGIS Data Intelligence Demo.
 
 This package contains platform-specific gate check modules:
