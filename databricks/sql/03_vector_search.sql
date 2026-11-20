@@ -19,19 +19,19 @@
 --
 -- Vector Search indexes cannot be created with SQL DDL — create the index
 -- from this Delta table via the workspace UI (AI Search -> Create index ->
--- Delta Sync, source ${var.prefix}_STREETLIGHTS.streetlights.maintenance_records_text,
+-- Delta Sync, source ${var.prefix}_streetlights.streetlights.maintenance_records_text,
 -- primary key maintenance_id, embedding source column full_text with model
 -- databricks-bge-large-en) or the REST/SDK API. The endpoint
--- ${var.prefix}_STREETLIGHTS_VS is created by the bundle.
+-- ${var.prefix}_streetlights_vs is created by the bundle.
 --
 -- Query the index from SQL with:
 --   SELECT * FROM vector_search(
---     index => '${var.prefix}_STREETLIGHTS.streetlights.maintenance_vs_index',
+--     index => '${var.prefix}_streetlights.streetlights.maintenance_vs_index',
 --     query_text => 'exposed wires or sparking',
 --     num_results => 5);
 -- =====================================================
 
-USE CATALOG ${var.prefix}_STREETLIGHTS;
+USE CATALOG ${var.prefix}_streetlights;
 USE SCHEMA streetlights;
 
 -- Delta table backing the vector index (refreshed from the Lakebase

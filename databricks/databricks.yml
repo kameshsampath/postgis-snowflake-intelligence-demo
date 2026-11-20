@@ -20,8 +20,8 @@ bundle:
 
 variables:
   prefix:
-    description: Resource prefix in UPPERCASE (e.g. DEMO) — objects are ${prefix}_STREETLIGHTS_*
-    default: DEMO
+    description: Resource prefix in LOWERCASE (Unity Catalog lowercases object names), e.g. pgdemo — objects are ${prefix}_streetlights_*
+    default: pgdemo
   lakebase_project:
     description: Lakebase project ID (projects/<id>) — used by docs/guide, not by SQL
     default: ""
@@ -39,18 +39,18 @@ targets:
     workspace:
       host: ${env.DATABRICKS_HOST}
     variables:
-      prefix: DEMO
+      prefix: pgdemo
   prod:
     mode: production
     workspace:
       host: ${env.DATABRICKS_HOST}
     variables:
-      prefix: PROD
+      prefix: prod
 
 resources:
   catalogs:
     streetlights_catalog:
-      name: ${var.prefix}_STREETLIGHTS
+      name: ${var.prefix}_streetlights
       comment: PostGIS Data Intelligence Demo — Databricks perspective (curated views, vector index source, forecast, app views)
 
   schemas:
@@ -65,7 +65,7 @@ resources:
     # ${resources.sql_warehouses.streetlights_wh.id} below with the starter
     # warehouse ID (SQL Warehouses -> starter -> Connection details).
     streetlights_wh:
-      name: ${var.prefix}_STREETLIGHTS_WH
+      name: ${var.prefix}_streetlights_wh
       cluster_size: 2X-Small
       enable_serverless_compute: true   # required for ai_forecast()
       auto_stop_mins: 30
@@ -73,7 +73,7 @@ resources:
 
   vector_search_endpoints:
     maintenance_vs:
-      name: ${var.prefix}_STREETLIGHTS_VS
+      name: ${var.prefix}_streetlights_vs
       endpoint_type: STANDARD
       comment: AI Search endpoint for maintenance-record text
 
@@ -81,23 +81,23 @@ resources:
   # needs the maintenance_records_text Delta table (created by the
   # `vector_search` job) to exist first. Create it from the UI
   # (AI Search -> Create index -> Delta Sync on
-  #  ${var.prefix}_STREETLIGHTS.streetlights.maintenance_records_text,
+  #  ${var.prefix}_streetlights.streetlights.maintenance_records_text,
   #  pk maintenance_id, embedding source full_text via databricks-bge-large-en)
   # or via the Vector Search REST API after `databricks bundle run vector_search`.
 
   genie_spaces:
     streetlights_genie:
-      title: ${var.prefix}_STREETLIGHTS_GENIE
+      title: ${var.prefix}_streetlights_genie
       description: Natural language interface for streetlights maintenance and energy data
       warehouse_id: ${resources.sql_warehouses.streetlights_wh.id}
       # After deploy, open the space (AI/BI -> Genie) and add:
-      #   - tables: ${var.prefix}_STREETLIGHTS.streetlights (curated views)
+      #   - tables: ${var.prefix}_streetlights.streetlights (curated views)
       #   - instructions + verified answers (see sql/02_genie_space.sql)
       #   - sample questions
 
   jobs:
     setup:
-      name: ${var.prefix}_STREETLIGHTS_SETUP
+      name: ${var.prefix}_streetlights_SETUP
       tasks:
         - task_key: setup
           sql_task:
@@ -106,7 +106,7 @@ resources:
               path: sql/01_setup.sql
 
     genie_views:
-      name: ${var.prefix}_STREETLIGHTS_GENIE_VIEWS
+      name: ${var.prefix}_streetlights_genie_VIEWS
       depends_on:
         - task_key: setup
           job_id: ${resources.jobs.setup.id}
@@ -118,7 +118,7 @@ resources:
               path: sql/02_genie_space.sql
 
     vector_search:
-      name: ${var.prefix}_STREETLIGHTS_VECTOR_SEARCH
+      name: ${var.prefix}_streetlights_VECTOR_SEARCH
       depends_on:
         - task_key: genie_views
           job_id: ${resources.jobs.genie_views.id}
@@ -130,7 +130,7 @@ resources:
               path: sql/03_vector_search.sql
 
     forecast:
-      name: ${var.prefix}_STREETLIGHTS_FORECAST
+      name: ${var.prefix}_streetlights_FORECAST
       depends_on:
         - task_key: vector_search
           job_id: ${resources.jobs.vector_search.id}
@@ -142,7 +142,7 @@ resources:
               path: sql/04_forecast.sql
 
     app:
-      name: ${var.prefix}_STREETLIGHTS_APP_VIEWS
+      name: ${var.prefix}_streetlights_app_VIEWS
       depends_on:
         - task_key: forecast
           job_id: ${resources.jobs.forecast.id}
@@ -155,7 +155,7 @@ resources:
 
   apps:
     streetlights_app:
-      name: ${var.prefix}_STREETLIGHTS_APP
+      name: ${var.prefix}_streetlights_app
       source_code_path: ./app
       description: Streamlit dashboard for the streetlights demo (Databricks Apps)
       resources:

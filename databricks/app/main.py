@@ -13,7 +13,7 @@ import os
 import pandas as pd
 import streamlit as st
 
-CATALOG = os.environ.get("DEMO_CATALOG", "DEMO_STREETLIGHTS")
+CATALOG = os.environ.get("DEMO_CATALOG", "pgdemo_streetlights")
 SCHEMA = "streetlights"
 WAREHOUSE_HTTP_PATH = os.environ.get("DATABRICKS_WAREHOUSE_HTTP_PATH", "")
 

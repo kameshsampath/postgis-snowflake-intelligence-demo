@@ -19,7 +19,7 @@
 -- (resources.genie_spaces in databricks.yml, direct deployment engine).
 -- There is no SQL DDL for Genie spaces — after `databricks bundle deploy`,
 -- open the space in the workspace (AI/BI -> Genie) and:
---   1. Add catalog/schema: ${var.prefix}_STREETLIGHTS.streetlights
+--   1. Add catalog/schema: ${var.prefix}_streetlights.streetlights
 --   2. Add instructions, e.g.:
 --        "You are a streetlights domain expert. Available curated views:
 --         street_lights_clean, maintenance_records_clean, energy_consumption_clean,
@@ -33,7 +33,7 @@
 -- Run via: databricks bundle run genie_views -t dev
 -- =====================================================
 
-USE CATALOG ${var.prefix}_STREETLIGHTS;
+USE CATALOG ${var.prefix}_streetlights;
 USE SCHEMA streetlights;
 
 -- Verified question: "How many street lights are currently faulty?"

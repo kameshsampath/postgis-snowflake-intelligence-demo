@@ -17,11 +17,11 @@
 -- =====================================================
 -- Run via: databricks bundle run forecast -t dev
 -- ai_forecast() requires a SERVERLESS SQL warehouse — the bundle creates
--- ${var.prefix}_STREETLIGHTS_WH with enable_serverless_compute: true.
+-- ${var.prefix}_streetlights_wh with enable_serverless_compute: true.
 -- Docs: https://docs.databricks.com/aws/en/sql/language-manual/functions/ai_forecast
 -- =====================================================
 
-USE CATALOG ${var.prefix}_STREETLIGHTS;
+USE CATALOG ${var.prefix}_streetlights;
 USE SCHEMA streetlights;
 
 -- Daily total energy series (training data for the forecast)

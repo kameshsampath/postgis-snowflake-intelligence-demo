@@ -18,7 +18,7 @@
 -- for these views)
 -- =====================================================
 
-USE CATALOG ${var.prefix}_STREETLIGHTS;
+USE CATALOG ${var.prefix}_streetlights;
 USE SCHEMA streetlights;
 
 -- KPI dashboard view

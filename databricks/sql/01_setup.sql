@@ -22,7 +22,7 @@
 --   1. Lakebase project + branch + endpoint (compute) created, database
 --      "streetlights" populated via sql/00_lakebase_schema.sql + \copy loads
 --   2. The Lakebase database registered in Unity Catalog as a foreign catalog:
---        databricks postgres create-catalog ${var.prefix}_STREETLIGHTS_PG \
+--        databricks postgres create-catalog ${var.prefix}_streetlights_pg \
 --          --json '{"spec": {"postgres_database": "streetlights",
 --                            "branch": "projects/<project>/branches/main"}}'
 --      (see docs/databricks-guide.md for the full walkthrough)
@@ -30,13 +30,13 @@
 --      `databricks bundle deploy` (resources in databricks.yml)
 -- =====================================================
 
-USE CATALOG ${var.prefix}_STREETLIGHTS;
+USE CATALOG ${var.prefix}_streetlights;
 USE SCHEMA streetlights;
 
 -- =====================================================
 -- Curated views (the Genie "semantic layer")
 -- Source tables live in the Lakebase-registered foreign catalog
--- ${var.prefix}_STREETLIGHTS_PG.streetlights.* (plain Postgres columns).
+-- ${var.prefix}_streetlights_pg.streetlights.* (plain Postgres columns).
 -- =====================================================
 
 CREATE OR REPLACE VIEW street_lights_clean AS
@@ -51,7 +51,7 @@ SELECT
     light_type    AS bulb_type,
     status,
     ST_POINT(longitude, latitude) AS location
-FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.street_lights;
+FROM ${var.prefix}_streetlights_pg.streetlights.street_lights;
 
 CREATE OR REPLACE VIEW maintenance_records_clean AS
 SELECT
@@ -65,8 +65,8 @@ SELECT
     sl.neighborhood,
     CONCAT_WS(' ', COALESCE(m.description, ''), COALESCE(m.type, ''),
               COALESCE(sl.neighborhood, '')) AS full_text
-FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.maintenance_records m
-LEFT JOIN ${var.prefix}_STREETLIGHTS_PG.streetlights.street_lights sl
+FROM ${var.prefix}_streetlights_pg.streetlights.maintenance_records m
+LEFT JOIN ${var.prefix}_streetlights_pg.streetlights.street_lights sl
     ON m.light_id = sl.id;
 
 CREATE OR REPLACE VIEW energy_consumption_clean AS
@@ -79,21 +79,21 @@ SELECT
     e.voltage,
     e.power_factor,
     sl.neighborhood
-FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.energy_consumption e
-LEFT JOIN ${var.prefix}_STREETLIGHTS_PG.streetlights.street_lights sl
+FROM ${var.prefix}_streetlights_pg.streetlights.energy_consumption e
+LEFT JOIN ${var.prefix}_streetlights_pg.streetlights.street_lights sl
     ON e.light_id = sl.id;
 
 CREATE OR REPLACE VIEW weather_enrichment_clean AS
-SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.weather_enrichment;
+SELECT * FROM ${var.prefix}_streetlights_pg.streetlights.weather_enrichment;
 
 CREATE OR REPLACE VIEW light_sensors_clean AS
-SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.light_sensors;
+SELECT * FROM ${var.prefix}_streetlights_pg.streetlights.light_sensors;
 
 CREATE OR REPLACE VIEW demographics_clean AS
-SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.demographics;
+SELECT * FROM ${var.prefix}_streetlights_pg.streetlights.demographics;
 
 CREATE OR REPLACE VIEW power_grid_zones_clean AS
-SELECT * FROM ${var.prefix}_STREETLIGHTS_PG.streetlights.power_grid_zones;
+SELECT * FROM ${var.prefix}_streetlights_pg.streetlights.power_grid_zones;
 
 -- =====================================================
 -- Verification
