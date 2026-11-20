@@ -1,4 +1,4 @@
-# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
 # SPDX-License-Identifier: Apache-2.0
 
 """Tests for the [databricks] section of the demo manifest (scripts._manifest)."""

@@ -1,4 +1,4 @@
-# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
 # SPDX-License-Identifier: Apache-2.0
 #
 # This CITATION.cff file was generated to enable citation of this software.
@@ -11,7 +11,7 @@ type: software
 authors:
   - family-names: Sampath
     given-names: Kamesh
-    email: kamesh.sampath@gmail.com
+    email: kamesh.sampath@hotmail.com
     orcid:
 repository-code: "https://github.com/kameshsampath/postgis-data-intelligence-demo"
 url: "https://github.com/kameshsampath/postgis-data-intelligence-demo"

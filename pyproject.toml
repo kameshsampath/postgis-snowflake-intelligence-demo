@@ -1,4 +1,4 @@
-# Copyright 2025 Kamesh Sampath <kamesh.sampath@gmail.com>
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
 # SPDX-License-Identifier: Apache-2.0
 
 [project]
@@ -6,7 +6,7 @@ name = "postgis-data-intelligence-demo"
 version = "2.0.0"
 description = "PostGIS data intelligence demo — Snowflake + Databricks - Street Lights Maintenance"
 authors = [
-    {name = "Kamesh Sampath", email = "kamesh.sampath@gmail.com"}
+    {name = "Kamesh Sampath", email = "kamesh.sampath@hotmail.com"}
 ]
 license = {text = "Apache-2.0"}
 readme = "README.md"
