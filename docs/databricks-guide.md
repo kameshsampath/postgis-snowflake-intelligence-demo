@@ -80,10 +80,10 @@ databricks auth login --host "$DATABRICKS_HOST"     # opens browser, OAuth
 ```bash
 PLATFORM=databricks
 DATABRICKS_HOST=https://<your-workspace>.cloud.databricks.com
-DATABRICKS_PROFILE=default
+DATABRICKS_PROFILE=DEFAULT   # browser login (databricks auth login) creates profile DEFAULT
 DEMO_PREFIX=DEMO          # objects become DEMO_STREETLIGHTS_*
 LAKEBASE_PROJECT=         # filled in at step 2
-LAKEBASE_BRANCH=main
+LAKEBASE_BRANCH=production   # Lakebase creates a default branch named "production"
 LAKEBASE_DATABASE=streetlights
 DEMO_CITY=Portland
 ```
@@ -127,21 +127,29 @@ The generator default is 2000 lights; we use 5000 for better forecast and search
 quality. On Free Edition you can go higher (e.g. 20000); it is still tiny for
 serverless compute.
 
-## Step 2 — Create the Lakebase project, branch, and compute
+## Step 2 — Create the Lakebase project and compute endpoint
 
 Lakebase resources are managed with the `databricks postgres` CLI group
-(check `databricks postgres --help` for exact flags):
+(check `databricks postgres --help` for exact flags). All commands take
+`--profile "$DATABRICKS_PROFILE"` (browser login creates a profile, usually
+named `DEFAULT`):
 
 ```bash
-databricks postgres create-project streetlights-demo --output json
-databricks postgres create-branch projects/<project-id>/branches/main --output json
-databricks postgres create-endpoint projects/<project-id>/branches/main \
-  --name streetlights-compute --output json
+databricks postgres create-project streetlights-demo --profile "$DATABRICKS_PROFILE" --output json | tee /tmp/lb-project.json
+# -> {"name": "projects/streetlights-demo", "project_id": "streetlights-demo",
+#     "status": {"default_branch": "projects/streetlights-demo/branches/production", ...}}
+#
+# The project resource path is projects/<project-name> (e.g. projects/streetlights-demo).
+# A default branch "production" is created automatically (pg_version 17), so no
+# create-branch call is needed. Save the project name for the steps below.
+
+databricks postgres create-endpoint projects/streetlights-demo/branches/production \
+  --name streetlights-compute --profile "$DATABRICKS_PROFILE" --output json | tee /tmp/lb-endpoint.json
 ```
 
 (You can also do this in the workspace UI: **Apps → Lakebase Postgres**.
-Pick **Autoscaling** compute.) Save the project id — the guide uses
-`projects/<project-id>/branches/main` below. Set `LAKEBASE_PROJECT=<project-id>` in `.env`.
+Pick **Autoscaling** compute.) Set `LAKEBASE_PROJECT=streetlights-demo` and
+`LAKEBASE_BRANCH=production` in `.env`.
 
 ## Step 3 — Create the schema in Lakebase and load the CSVs
 
@@ -150,33 +158,37 @@ token and connection details (valid 1 hour):
 
 ```bash
 databricks postgres generate-database-credential \
-  projects/<project-id>/branches/main/endpoints/streetlights-compute --output json
-# -> {"host": ..., "port": 5432, "database": "postgres"|"streetlights", "token": ...}
+  projects/streetlights-demo/branches/production/endpoints/streetlights-compute \
+  --profile "$DATABRICKS_PROFILE" --output json | tee /tmp/lb-cred.json
+# -> {"host": ..., "port": 5432, "database": "databricks_postgres", "token": ...}
+# The token expires after 1 hour. Use the "database" value from this JSON as PGDATABASE.
 ```
 
 Then, with `psql`:
 
 ```bash
-export PGPASSWORD=<token-from-above>
-psql -h <host> -p 5432 -U <your-databricks-identity-email> -d streetlights \
-  -f databricks/sql/00_lakebase_schema.sql     # CREATE EXTENSION postgis + streetlights tables
+export PGHOST=$(jq -r .host /tmp/lb-cred.json)
+export PGPORT=$(jq -r .port /tmp/lb-cred.json)
+export PGDATABASE=$(jq -r .database /tmp/lb-cred.json)     # e.g. databricks_postgres
+export PGUSER=<your-databricks-login-email>                # e.g. the owner in the project JSON
+export PGPASSWORD=$(jq -r .token /tmp/lb-cred.json)
+
+psql -f databricks/sql/00_lakebase_schema.sql     # CREATE EXTENSION postgis + streetlights schema
 
 for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
-  psql -h <host> -p 5432 -U <your-databricks-identity-email> -d streetlights \
-    -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
+  psql -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
 done
 
 # sanity check
-psql -h <host> -p 5432 -U <your-databricks-identity-email> -d streetlights \
-  -c "SELECT count(*) FROM streetlights.street_lights;"
+psql -c "SELECT count(*) FROM streetlights.street_lights;"   # good: 5000
 ```
 
 ## Step 4 — Register the Lakebase database in Unity Catalog (the "CLD equivalent")
 
 ```bash
-databricks postgres create-catalog DEMO_STREETLIGHTS_PG \
-  --json '{"spec": {"postgres_database": "streetlights",
-                    "branch": "projects/<project-id>/branches/main"}}'
+databricks postgres create-catalog DEMO_STREETLIGHTS_PG --profile "$DATABRICKS_PROFILE" \
+  --json "{\"spec\": {\"postgres_database\": \"$PGDATABASE\", \
+                    \"branch\": \"projects/streetlights-demo/branches/production\"}}"
 ```
 
 The foreign catalog `DEMO_STREETLIGHTS_PG` now exposes schema `streetlights`
@@ -302,8 +314,8 @@ And run the sample questions in Genie (step 8).
 ```bash
 task dbx:destroy                                          # bundle resources (app, jobs, Genie space, warehouse, schema, catalog)
 databricks postgres delete-catalog DEMO_STREETLIGHTS_PG   # unregister the Lakebase DB from UC
-databricks postgres delete-endpoint projects/<project-id>/branches/main/endpoints/streetlights-compute
-databricks postgres delete-project projects/<project-id>  # deletes the Lakebase project + data
+databricks postgres delete-endpoint projects/streetlights-demo/branches/production/endpoints/streetlights-compute --profile "$DATABRICKS_PROFILE"
+databricks postgres delete-project projects/streetlights-demo --profile "$DATABRICKS_PROFILE"  # deletes the Lakebase project + data
 ```
 
 ## Troubleshooting

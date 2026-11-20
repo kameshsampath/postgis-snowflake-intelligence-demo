@@ -17,7 +17,7 @@
 -- =====================================================
 -- Run this against your Lakebase database with psql, e.g.:
 --   PGPASSWORD=<oauth-token> psql -h <endpoint-host> -p 5432 -U <role> -d streetlights -f sql/00_lakebase_schema.sql
--- Lakebase is a real PostgreSQL 16 database, so PostGIS works natively.
+-- Lakebase is a real PostgreSQL 17 database, so PostGIS works natively.
 -- (The Snowflake path uses pg_lake/Iceberg via init/ instead; this file is
 -- the Lakebase equivalent. Columns mirror scripts/generate_ddl.py TABLE_SCHEMAS.)
 -- =====================================================

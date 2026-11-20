@@ -27,7 +27,7 @@ variables:
     default: ""
   lakebase_branch:
     description: Lakebase branch name
-    default: main
+    default: production
   lakebase_database:
     description: Postgres database inside the Lakebase branch
     default: streetlights
