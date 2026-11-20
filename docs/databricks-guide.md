@@ -66,12 +66,13 @@ mise trust                         # allow mise to use externally installed tool
 uv sync
 ```
 
-- Authenticate the Databricks CLI (profile-based, no tokens in files):
+- Authenticate the Databricks CLI. Browser OAuth is enough, no PAT needed:
 
 ```bash
 export DATABRICKS_HOST=https://<your-workspace>.cloud.databricks.com
-databricks configure --profile default   # paste a PAT when prompted, host prefilled
-# or: databricks configure --token
+databricks auth login --host "$DATABRICKS_HOST"     # opens browser, OAuth
+# Alternative for headless/CI only: databricks configure --token (paste a PAT from
+# Settings > Developer > Access tokens). Never commit the token.
 ```
 
 - Configure the repo: `cp .env.example .env` and set at least:
@@ -116,9 +117,15 @@ quota: if you hit it, compute pauses until the next day; data and settings are k
 ## Step 1 — Generate the synthetic data
 
 ```bash
-task generate -- --city "Portland" --count 500
+mise run generate        # uses CITY / STREET_LIGHT_COUNT from .mise.toml [env] (Portland, 5000)
+# or explicitly:
+uv run generate --city "Portland" --count 5000
 # -> data/*.csv (7 tables, git-ignored)
 ```
+
+The generator default is 2000 lights; we use 5000 for better forecast and search
+quality. On Free Edition you can go higher (e.g. 20000); it is still tiny for
+serverless compute.
 
 ## Step 2 — Create the Lakebase project, branch, and compute
 
@@ -175,7 +182,25 @@ databricks postgres create-catalog DEMO_STREETLIGHTS_PG \
 The foreign catalog `DEMO_STREETLIGHTS_PG` now exposes schema `streetlights`
 with your 7 tables to any SQL warehouse, Genie, and AI Search — no data copied.
 
-## Step 5 — Deploy the asset bundle (catalog, schema, warehouse, Genie space, jobs, app)
+## Step 5 — SQL warehouse, then deploy the asset bundle
+
+- **Paid workspace:** the bundle creates `DEMO_STREETLIGHTS_WH` (serverless 2X-Small,
+  required for `ai_forecast()`), so nothing to do here.
+- **Free Edition:** only the pre-created starter warehouse is allowed. Get its ID:
+
+```bash
+databricks sql-warehouses list --output json | jq -r '.[] | "\(.id)\t\(.name)\t\(.warehouse_type)\t\(.state)"'
+# pick the starter warehouse (2X-Small, serverless), copy its id
+```
+
+Then edit `databricks/databricks.yml`: comment out the `resources.sql_warehouses`
+block and replace every `${resources.sql_warehouses.streetlights_wh.id}` with that ID:
+
+```bash
+sed -i 's/${resources.sql_warehouses.streetlights_wh.id}/<STARTER_WH_ID>/g' databricks/databricks.yml
+```
+
+Now validate and deploy (from `databricks/`, or `task dbx:validate` / `task dbx:deploy` from repo root):
 
 ```bash
 cd databricks

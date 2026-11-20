@@ -47,7 +47,23 @@ DEMO_PREFIX = "YOUR_PREFIX"
 CITY = "Portland"
 LATITUDE = "45.5152"
 LONGITUDE = "-122.6784"
-STREET_LIGHT_COUNT = "500"
+STREET_LIGHT_COUNT = "5000"
+
+# ==========================================================================
+# Tasks (mise run <task>)
+# ==========================================================================
+
+[tasks.generate]
+description = "Generate synthetic streetlights data (CITY / STREET_LIGHT_COUNT from [env], override in .env)"
+run = "uv run generate --city ${CITY} --count ${STREET_LIGHT_COUNT}"
+
+[tasks.test]
+description = "Run the test suite"
+run = "uv run pytest tests/ -q"
+
+[tasks.lint]
+description = "Run pre-commit hooks on all files"
+run = "pre-commit run --all-files"
 
 # ==========================================================================
 # Additional Tools to Install Manually

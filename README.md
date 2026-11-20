@@ -103,7 +103,7 @@ uv sync
 
 ```bash
 # Generate synthetic data, apply PostGIS schema, load CSVs
-task generate -- --city "Portland" --count 500
+mise run generate   # Portland, 5000 lights (see .mise.toml)
 task pg:schema
 task pg:load
 
@@ -121,7 +121,7 @@ Or run the guided flow with Cortex Code: `$streetlights-demo infra` then `$stree
 
 ```bash
 # Generate synthetic data
-task generate -- --city "Austin" --count 500
+mise run generate
 
 # Deploy the Databricks bundle (catalog, schema, SQL warehouse, jobs, Genie, app)
 # and run the setup jobs — the full e2e walkthrough (Lakebase project, data load,
