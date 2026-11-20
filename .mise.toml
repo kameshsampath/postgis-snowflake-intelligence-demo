@@ -5,14 +5,21 @@
 # Multi-platform support: Snowflake + Databricks
 
 [tools]
-# Python - primary language for the demo
-python = "3.12.0"
+# Python - primary language for the demo.
+# Use the "3.12" prefix, not an exact patch like "3.12.0": mise verifies GitHub
+# artifact attestations and some old exact builds (3.12.0) lack them, which makes
+# `mise install` fail with "No GitHub artifact attestations found". A prefix
+# resolves to the latest 3.12.x, which is attested. Matches .python-version.
+python = "3.12"
 
 # UV - Python package manager (faster than pip, used for dependency management)
 uv = "latest"
 
 # Databricks CLI (official CLI for Databricks operations)
 databricks-cli = "latest"
+
+# Task (go-task) - optional, for the Taskfile shorthands (task dbx:deploy etc.)
+task = "latest"
 
 # ==========================================================================
 # Environment Variables
