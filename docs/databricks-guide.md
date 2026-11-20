@@ -81,7 +81,7 @@ databricks auth login --host "$DATABRICKS_HOST"     # opens browser, OAuth
 PLATFORM=databricks
 DATABRICKS_HOST=https://<your-workspace>.cloud.databricks.com
 DATABRICKS_PROFILE=DEFAULT   # browser login (databricks auth login) creates profile DEFAULT
-DEMO_PREFIX=DEMO          # objects become DEMO_STREETLIGHTS_*
+DEMO_PREFIX=PGDEMO        # objects become ${DEMO_PREFIX}_STREETLIGHTS_*
 LAKEBASE_PROJECT=         # filled in at step 2
 LAKEBASE_BRANCH=production   # Lakebase creates a default branch named "production"
 LAKEBASE_DATABASE=streetlights
@@ -90,6 +90,15 @@ DEMO_CITY=Portland
 
 > Never commit `.env`. Lakebase credentials are short-lived OAuth tokens
 > generated per connection (step 3), not stored anywhere.
+
+**Naming:** all cloud resources are named `${PREFIX}_STREETLIGHTS*`, where `PREFIX`
+is your `DEMO_PREFIX` from `.env` (examples below use `PGDEMO`). The bundle picks it
+up via the `BUNDLE_VAR_prefix` env var, so export it once:
+
+```bash
+export PREFIX=$DEMO_PREFIX                 # e.g. PGDEMO
+export BUNDLE_VAR_prefix=$DEMO_PREFIX      # bundle variable override (applies to deploy AND run)
+```
 
 ## Running on Databricks Free Edition (formerly Community Edition)
 
@@ -167,36 +176,49 @@ databricks postgres generate-database-credential \
 Then, with `psql`:
 
 ```bash
-export PGHOST=$(jq -r .host /tmp/lb-cred.json)
-export PGPORT=$(jq -r .port /tmp/lb-cred.json)
-export PGDATABASE=$(jq -r .database /tmp/lb-cred.json)     # e.g. databricks_postgres
-export PGUSER=<your-databricks-login-email>                # e.g. the owner in the project JSON
-export PGPASSWORD=$(jq -r .token /tmp/lb-cred.json)
+Preferred: a `pg_service` entry (repo convention, same as the Snowflake path). Add to
+`~/.pg_service.conf` (host/port/dbname/user from `/tmp/lb-cred.json`; the database is
+the credential JSON's `database` value, e.g. `databricks_postgres`):
 
-psql -f databricks/sql/00_lakebase_schema.sql     # CREATE EXTENSION postgis + streetlights schema
+```ini
+[lakebase-demo]
+host=<host>
+port=5432
+dbname=databricks_postgres
+user=kamesh.sampath@hotmail.com
+```
+
+```bash
+export PGSERVICE=lakebase-demo                       # also add PGSERVICE=lakebase-demo to .env
+export PGPASSWORD=$(jq -r .token /tmp/lb-cred.json)  # OAuth token, expires in 1h; the service file holds no password
+
+psql "service=$PGSERVICE" -f databricks/sql/00_lakebase_schema.sql   # PostGIS + streetlights schema
 
 for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
-  psql -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
+  psql "service=$PGSERVICE" -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
 done
 
-# sanity check
-psql -c "SELECT count(*) FROM streetlights.street_lights;"   # good: 5000
+psql "service=$PGSERVICE" -c "SELECT count(*) FROM streetlights.street_lights;"   # good: 5000
+```
+
+Fallback (no service file): export `PGHOST`/`PGPORT`/`PGDATABASE`/`PGUSER` from the
+credential JSON and use plain `psql -h <host> -p 5432 -U <email> -d <database>`.
 ```
 
 ## Step 4 — Register the Lakebase database in Unity Catalog (the "CLD equivalent")
 
 ```bash
-databricks postgres create-catalog DEMO_STREETLIGHTS_PG --profile "$DATABRICKS_PROFILE" \
-  --json "{\"spec\": {\"postgres_database\": \"$PGDATABASE\", \
-                    \"branch\": \"projects/streetlights-demo/branches/production\"}}"
+databricks postgres create-catalog ${PREFIX}_STREETLIGHTS_PG --profile "$DATABRICKS_PROFILE" \
+  --json "{\"spec\": {\"postgres_database\": \"$(jq -r .database /tmp/lb-cred.json)\", \
+                    \"branch\": \"projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH\"}}"
 ```
 
-The foreign catalog `DEMO_STREETLIGHTS_PG` now exposes schema `streetlights`
+The foreign catalog `${PREFIX}_STREETLIGHTS_PG` now exposes schema `streetlights`
 with your 7 tables to any SQL warehouse, Genie, and AI Search — no data copied.
 
 ## Step 5 — SQL warehouse, then deploy the asset bundle
 
-- **Paid workspace:** the bundle creates `DEMO_STREETLIGHTS_WH` (serverless 2X-Small,
+- **Paid workspace:** the bundle creates `${PREFIX}_STREETLIGHTS_WH` (serverless 2X-Small,
   required for `ai_forecast()`), so nothing to do here.
 - **Free Edition:** only the pre-created starter warehouse is allowed. Get its ID:
 
@@ -220,11 +242,11 @@ databricks bundle validate -t dev
 databricks bundle deploy -t dev
 ```
 
-This creates: catalog `DEMO_STREETLIGHTS`, schema `streetlights`, a
-**serverless** SQL warehouse `DEMO_STREETLIGHTS_WH` (serverless is required by
-`ai_forecast()`), the AI Search endpoint `DEMO_STREETLIGHTS_VS`, the **Genie
-space** `DEMO_STREETLIGHTS_GENIE`, the SQL jobs, and the Databricks App
-`DEMO_STREETLIGHTS_APP`. (From the repo root you can use `task dbx:validate` /
+This creates: catalog `${PREFIX}_STREETLIGHTS`, schema `streetlights`, a
+**serverless** SQL warehouse `${PREFIX}_STREETLIGHTS_WH` (serverless is required by
+`ai_forecast()`), the AI Search endpoint `${PREFIX}_STREETLIGHTS_VS`, the **Genie
+space** `${PREFIX}_STREETLIGHTS_GENIE`, the SQL jobs, and the Databricks App
+`${PREFIX}_STREETLIGHTS_APP`. (From the repo root you can use `task dbx:validate` /
 `task dbx:deploy`, which run the same commands in `databricks/`.)
 
 ## Step 6 — Run the SQL jobs
@@ -233,7 +255,7 @@ space** `DEMO_STREETLIGHTS_GENIE`, the SQL jobs, and the Databricks App
 task dbx:run-all     # or from databricks/: bundle run setup -> genie_views -> vector_search -> forecast -> app
 ```
 
-This builds, in `DEMO_STREETLIGHTS.streetlights`:
+This builds, in `${PREFIX}_STREETLIGHTS.streetlights`:
 - `*_clean` curated views over the Lakebase catalog (`01_setup.sql`)
 - verified-question views for Genie (`02_genie_space.sql`)
 - `maintenance_records_text` Delta table for vector search (`03_vector_search.sql`)
@@ -244,18 +266,18 @@ This builds, in `DEMO_STREETLIGHTS.streetlights`:
 
 Vector Search indexes are created from the UI or REST API, not SQL:
 
-1. Workspace → **AI Search** → endpoint `DEMO_STREETLIGHTS_VS` → **Create index**
+1. Workspace → **AI Search** → endpoint `${PREFIX}_STREETLIGHTS_VS` → **Create index**
 2. Type: **Delta Sync**; source table:
-   `DEMO_STREETLIGHTS.streetlights.maintenance_records_text`
+   `${PREFIX}_STREETLIGHTS.streetlights.maintenance_records_text`
 3. Primary key: `maintenance_id`; embedding source column: `full_text` with
    model `databricks-bge-large-en` (Databricks computes embeddings); sync: TRIGGERED
-4. Name: `DEMO_STREETLIGHTS.streetlights.maintenance_vs_index`
+4. Name: `${PREFIX}_STREETLIGHTS.streetlights.maintenance_vs_index`
 
 Test it in the SQL editor:
 
 ```sql
 SELECT * FROM vector_search(
-  index => 'DEMO_STREETLIGHTS.streetlights.maintenance_vs_index',
+  index => '${PREFIX}_STREETLIGHTS.streetlights.maintenance_vs_index',
   query_text => 'exposed wires or sparking',
   num_results => 5);
 ```
@@ -264,8 +286,8 @@ SELECT * FROM vector_search(
 
 The bundle created the space; now teach it:
 
-1. Workspace → **AI/BI → Genie** → `DEMO_STREETLIGHTS_GENIE` → **Edit**
-2. **Tables:** add catalog `DEMO_STREETLIGHTS`, schema `streetlights`
+1. Workspace → **AI/BI → Genie** → `${PREFIX}_STREETLIGHTS_GENIE` → **Edit**
+2. **Tables:** add catalog `${PREFIX}_STREETLIGHTS`, schema `streetlights`
 3. **Instructions**, e.g.:
 
    > You are a streetlights domain expert. Curated views: street_lights_clean,
@@ -273,7 +295,7 @@ The bundle created the space; now teach it:
    > light_sensors_clean, demographics_clean, power_grid_zones_clean. Join on
    > street_light_id. Statuses: operational | faulty | maintenance_required.
    > For maintenance text questions, use the AI Search index
-   > DEMO_STREETLIGHTS.streetlights.maintenance_vs_index. When results have
+   > ${PREFIX}_STREETLIGHTS.streetlights.maintenance_vs_index. When results have
    > latitude/longitude, include a map link:
    > https://www.google.com/maps/search/?api=1&query={lat},{lon}
 
@@ -291,19 +313,32 @@ Then chat with the space in the Genie UI.
 
 ## Step 9 — Open the dashboard app
 
-Workspace → **Apps** → `DEMO_STREETLIGHTS_APP` → open. The app queries the
+Workspace → **Apps** → `${PREFIX}_STREETLIGHTS_APP` → open. The app queries the
 warehouse via its service principal (the bundle granted `CAN_USE` on
-`DEMO_STREETLIGHTS_WH`). If `DATABRICKS_WAREHOUSE_HTTP_PATH` is not wired,
+`${PREFIX}_STREETLIGHTS_WH`). If `DATABRICKS_WAREHOUSE_HTTP_PATH` is not wired,
 edit the app's resources to add the warehouse HTTP path
 (`/sql/1.0/warehouses/<warehouse-id>`, from **SQL Warehouses →
-DEMO_STREETLIGHTS_WH → Connection details**).
+${PREFIX}_STREETLIGHTS_WH → Connection details**).
 
 ## Step 10 — Validate
 
 ```bash
+# minimal manifest for the gate tool (git-ignored)
+mkdir -p .streetlights-demo
+cat > .streetlights-demo/manifest.toml <<EOF
+[databricks]
+platform = "databricks"
+host = "$DATABRICKS_HOST"
+catalog_name = "${PREFIX}_STREETLIGHTS"
+schema_name = "streetlights"
+lakebase_instance = "projects/$LAKEBASE_PROJECT"
+
+[streetlights-demo]
+prefix = "$(echo "$DEMO_PREFIX" | tr '[:upper:]' '[:lower:]')"
+EOF
+
 # gate checks for the DBX path — pass --platform databricks so all Snowflake
 # paths (snowflake/, snowflake gates/skills) are ignored for the run
-# (needs .streetlights-demo/manifest.toml with a [databricks] section)
 uv run gate --step dbx/all --action check --platform databricks
 ```
 
@@ -313,7 +348,7 @@ And run the sample questions in Genie (step 8).
 
 ```bash
 task dbx:destroy                                          # bundle resources (app, jobs, Genie space, warehouse, schema, catalog)
-databricks postgres delete-catalog DEMO_STREETLIGHTS_PG   # unregister the Lakebase DB from UC
+databricks postgres delete-catalog ${PREFIX}_STREETLIGHTS_PG   # unregister the Lakebase DB from UC
 databricks postgres delete-endpoint projects/streetlights-demo/branches/production/endpoints/streetlights-compute --profile "$DATABRICKS_PROFILE"
 databricks postgres delete-project projects/streetlights-demo --profile "$DATABRICKS_PROFILE"  # deletes the Lakebase project + data
 ```
