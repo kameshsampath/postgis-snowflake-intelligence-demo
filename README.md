@@ -185,6 +185,7 @@ See [docs/databricks-guide.md](docs/databricks-guide.md) for the complete step-b
 
 - [Snowflake Implementation Guide](docs/snowflake-guide.md)
 - [Databricks Implementation Guide](docs/databricks-guide.md)
+- [Patterns discovered while building this demo](docs/patterns.md)
 
 ## Skills
 
