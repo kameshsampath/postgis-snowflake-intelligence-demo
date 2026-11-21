@@ -1,0 +1,20 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Personal mise overrides. Copy to `.mise.local.toml` (gitignored) and tweak freely:
+#
+#     cp .mise.local.toml.example .mise.local.toml
+#
+# `.mise.toml` stays the committed, safe base template; mise loads
+# `.mise.local.toml` automatically on top of it. `.env` is loaded via `_.file`
+# in the base config, so secrets/connection values belong in `.env`
+# (also gitignored), never here.
+
+# [tools]
+# extra personal tools, e.g.
+# jq = "latest"
+
+# [env]
+# local-only env tweaks, e.g.
+# UV_PROJECT_ENVIRONMENT = ".venv"   # NOTE: this is a PATH, not a boolean
+# EDITOR = "code"

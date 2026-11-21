@@ -3,6 +3,11 @@
 
 # PostGIS Data Intelligence Demo - Mise Configuration
 # Multi-platform support: Snowflake + Databricks
+#
+# This file is the committed BASE TEMPLATE. Put personal/local overrides in
+# `.mise.local.toml` (gitignored; see .mise.local.toml.example) so this file
+# stays safe to share. Secrets and connection values go in `.env` (gitignored,
+# auto-loaded via `_.file` below), never here.
 
 [tools]
 # Python - primary language for the demo.

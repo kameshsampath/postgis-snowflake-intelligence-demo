@@ -199,6 +199,10 @@ This project includes Cortex Code skills for guided execution. See `.cortex/skil
 
 > **Tip**
 > Use `mise trust` to allow mise to manage tools in this project directory.
+> Personal tweaks belong in `.mise.local.toml` (gitignored; copy
+> `.mise.local.toml.example`), and secrets/connection values in `.env`
+> (gitignored, auto-loaded by mise) — the committed `.mise.toml` stays a safe
+> base template.
 
 ## License
 

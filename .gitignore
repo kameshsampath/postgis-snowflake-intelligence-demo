@@ -1,6 +1,9 @@
 # Environment files
 .env
 
+# mise local overrides (personal tweaks; base .mise.toml stays a safe template)
+.mise.local.toml
+
 # Project config (user-specific)
 .streetlights-demo/
 
