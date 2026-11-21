@@ -27,7 +27,9 @@ EP_PATH="projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH/endpoints/$ENDPOIN
 # NOT host/port/database. Host comes from the endpoint resource, the database from
 # list-databases, port is fixed at 5432.
 cred=$(databricks postgres generate-database-credential "$EP_PATH" --profile "$PROFILE" --output json)
-token=$(jq -r '.token // .response.token // empty' <<<"$cred")
+# The token is a JWT (starts with "eyJ"); find it recursively so response-shape
+# changes (top-level vs .response) don't silently grab the wrong field.
+token=$(jq -r '[.. | strings | select(startswith("eyJ"))] | first // empty' <<<"$cred")
 
 ep=$(databricks postgres get-endpoint "$EP_PATH" --profile "$PROFILE" --output json)
 host=$(jq -r '.status.hosts.host // .status.host // .host // empty' <<<"$ep")
@@ -40,20 +42,21 @@ dbs=$(databricks postgres list-databases \
 # (database_id uses hyphens, e.g. databricks-postgres; do not use it as dbname).
 db=$(jq -r '(if type == "array" then . else .databases end)[0] | (.status.postgres_database // .database_id // "databricks_postgres")' <<<"$dbs")
 
-if [[ -z "$token" || -z "$host" ]]; then
-  echo "ERROR: could not extract token/host from API responses." >&2
-  echo "credential keys: $(jq -r 'keys | join(", ")' <<<"$cred")" >&2
-  echo "endpoint keys:   $(jq -r 'keys | join(", ")' <<<"$ep")" >&2
+if [[ -z "$token" || "$token" != eyJ* || -z "$host" ]]; then
+  echo "ERROR: could not extract a JWT token / host from API responses." >&2
+  echo "credential keys: $(jq -r 'if type=="object" then keys else "(array)" end | join(", ")' <<<"$cred")" >&2
+  echo "credential sample: $(jq -c '.. | objects | with_entries(select(.value|type=="string")) | .[0:3]' <<<"$cred" 2>/dev/null || true)" >&2
+  echo "endpoint host: $host" >&2
   exit 1
 fi
 
 passfile="${PGPASSFILE:-$HOME/.pgpass}"
 touch "$passfile"
-chmod 600 "$passfile"
 # replace any existing line for this host, then append the fresh token
 grep -v "^${host}:" "$passfile" > "$passfile.tmp" 2>/dev/null || true
 mv "$passfile.tmp" "$passfile"
 printf '%s:%s:%s:%s:%s\n' "$host" "$port" "$db" "$USER_EMAIL" "$token" >> "$passfile"
+chmod 600 "$passfile"   # AFTER the rewrite: mv/recreate resets perms, libpq refuses otherwise
 
 svc="${PGSERVICEFILE:-$HOME/.pg_service.conf}"
 touch "$svc"
