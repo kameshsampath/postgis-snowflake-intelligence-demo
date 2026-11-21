@@ -65,6 +65,10 @@ run = "uv run pytest tests/ -q"
 description = "Run pre-commit hooks on all files"
 run = "pre-commit run --all-files"
 
+[tasks.lb-cred]
+description = "Refresh Lakebase OAuth token into ~/.pgpass + pg_service (expires in 1h), then use psql \"service=lakebase-demo\""
+run = "bash scripts/lb-service.sh lakebase-demo"
+
 # ==========================================================================
 # Additional Tools to Install Manually
 # ==========================================================================

@@ -177,33 +177,32 @@ Lakebase speaks the standard Postgres wire protocol. Get a short-lived OAuth
 token and connection details (valid 1 hour):
 
 ```bash
-databricks postgres generate-database-credential \
-  projects/streetlights-demo/branches/production/endpoints/$ENDPOINT \
-  --profile "$DATABRICKS_PROFILE" --output json | tee /tmp/lb-cred.json
+# (fallback path) raw credential JSON, if you are not using pg_service:
+# databricks postgres generate-database-credential \
+#   projects/streetlights-demo/branches/production/endpoints/$ENDPOINT \
+#   --profile "$DATABRICKS_PROFILE" --output json | tee /tmp/lb-cred.json
 # -> {"host": ..., "port": 5432, "database": "databricks_postgres", "token": ...}
-# The token expires after 1 hour. Use the "database" value from this JSON as PGDATABASE.
+# The token expires after 1 hour.
 ```
 
 Then, with `psql`:
 
 ```bash
-Preferred: a `pg_service` entry (repo convention, same as the Snowflake path). Add to
-`~/.pg_service.conf` (host/port/dbname/user from `/tmp/lb-cred.json`; the database is
-the credential JSON's `database` value, e.g. `databricks_postgres`):
-
-```ini
-[lakebase-demo]
-host=<host>
-port=5432
-dbname=databricks_postgres
-user=kamesh.sampath@hotmail.com
-```
+Preferred: a `pg_service` entry whose password comes from `~/.pgpass` via `passfile`
+(repo convention, same as the Snowflake path; no `PGPASSWORD` export needed). The
+helper writes both files and refreshes the token (it expires after 1h, so re-run it
+whenever psql reports an auth failure):
 
 ```bash
-export PGSERVICE=lakebase-demo                       # also add PGSERVICE=lakebase-demo to .env
-export PGPASSWORD=$(jq -r .token /tmp/lb-cred.json)  # OAuth token, expires in 1h; the service file holds no password
+mise run lb-cred          # or: bash scripts/lb-service.sh lakebase-demo
+# writes ~/.pgpass (chmod 600):  <host>:<port>:<dbname>:<email>:<token>
+# and a ~/.pg_service.conf block:  [lakebase-demo] host=... port=5432 dbname=<database
+# from the credential JSON, e.g. databricks_postgres> user=<your email> passfile=~/.pgpass
 
-psql "service=$PGSERVICE" -f databricks/sql/00_lakebase_schema.sql   # PostGIS + streetlights schema
+export PGSERVICE=lakebase-demo     # also add PGSERVICE=lakebase-demo to .env
+
+psql "service=$PGSERVICE" -c "SELECT version();"                        # good: PostgreSQL 17.x
+psql "service=$PGSERVICE" -f databricks/sql/00_lakebase_schema.sql      # PostGIS + streetlights schema
 
 for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do
   psql "service=$PGSERVICE" -c "\\copy streetlights.$table FROM 'data/${table}.csv' CSV HEADER"
@@ -212,8 +211,9 @@ done
 psql "service=$PGSERVICE" -c "SELECT count(*) FROM streetlights.street_lights;"   # good: 5000
 ```
 
-Fallback (no service file): export `PGHOST`/`PGPORT`/`PGDATABASE`/`PGUSER` from the
-credential JSON and use plain `psql -h <host> -p 5432 -U <email> -d <database>`.
+Fallback (no service file): `databricks postgres generate-database-credential ... | tee /tmp/lb-cred.json`,
+then export `PGHOST`/`PGPORT`/`PGDATABASE`/`PGUSER`/`PGPASSWORD` from that JSON and use
+plain `psql -h <host> -p 5432 -U <email> -d <database>`. Never commit `~/.pgpass`.
 ```
 
 ## Step 4 — Register the Lakebase database in Unity Catalog (the "CLD equivalent")
