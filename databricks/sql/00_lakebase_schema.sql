@@ -15,8 +15,10 @@
 -- =====================================================
 -- Lakebase schema: PostGIS + streetlights tables (plain Postgres DDL)
 -- =====================================================
--- Run this against your Lakebase database with psql, e.g.:
---   PGPASSWORD=<oauth-token> psql -h <endpoint-host> -p 5432 -U <role> -d streetlights -f sql/00_lakebase_schema.sql
+-- Run this against your Lakebase database with psql, e.g. via the pg_service entry
+-- created by `mise run lb-cred`:
+--   psql "service=lakebase-demo" -f databricks/sql/00_lakebase_schema.sql
+-- (fallback: PGPASSWORD=<oauth-token> psql -h <endpoint-host> -p 5432 -U <email> -d <database>)
 -- Lakebase is a real PostgreSQL 17 database, so PostGIS works natively.
 -- (The Snowflake path uses pg_lake/Iceberg via init/ instead; this file is
 -- the Lakebase equivalent. Columns mirror scripts/generate_ddl.py TABLE_SCHEMAS.)
