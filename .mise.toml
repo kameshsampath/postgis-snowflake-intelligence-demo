@@ -26,6 +26,10 @@ task = "latest"
 # ==========================================================================
 
 [env]
+# Load .env automatically when entering the project dir (dotenv).
+# Note: [env] entries take precedence over .env values.
+_.file = ".env"
+
 # Project identification
 PROJECT_NAME = "postgis-data-intelligence-demo"
 PYTHON_PROJECT = "true"

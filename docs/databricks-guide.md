@@ -94,11 +94,16 @@ DEMO_CITY=Portland
 **Naming:** Unity Catalog stores all object names as **lowercase**, so on the DBX
 path the prefix is the lowercased `DEMO_PREFIX` (your `PGDEMO` becomes `pgdemo`) and
 resources are named `${PREFIX}_streetlights*` (e.g. `pgdemo_streetlights`,
-`pgdemo_streetlights_pg`, `pgdemo_streetlights_wh`). Export once:
+`pgdemo_streetlights_pg`, `pgdemo_streetlights_wh`). `.mise.toml` loads `.env`
+automatically (`_.file = ".env"`), so put the bundle override there as a lowercase
+literal (dotenv values are not shell-expanded, so `BUNDLE_VAR_prefix=$DEMO_PREFIX`
+would NOT work):
 
 ```bash
-export PREFIX=$(echo "$DEMO_PREFIX" | tr '[:upper:]' '[:lower:]')   # pgdemo
-export BUNDLE_VAR_prefix=$PREFIX        # bundle variable override (applies to deploy AND run)
+# .env:
+#   BUNDLE_VAR_prefix=pgdemo        # lowercase literal, applies to bundle deploy AND run
+#   ENDPOINT=primary                # the auto-created read-write endpoint
+export PREFIX=$(echo "$DEMO_PREFIX" | tr '[:upper:]' '[:lower:]')   # pgdemo, for shell commands below
 ```
 
 ## Running on Databricks Free Edition (formerly Community Edition)
