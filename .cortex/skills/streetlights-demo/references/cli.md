@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 # Gate CLI Reference
 
 The `gate` script manages step progression and verification for the streetlights demo.

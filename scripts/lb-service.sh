@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+#
+# Refresh the Lakebase OAuth credential into ~/.pgpass and ~/.pg_service.conf.
+#
+# The Lakebase token expires after 1 hour, so re-run this whenever psql reports an
+# auth failure. Afterwards use:  psql "service=<name>"   (no PGPASSWORD needed;
+# the service entry points at passfile=~/.pgpass, which must be chmod 600).
+#
+# Usage: scripts/lb-service.sh [service-name]     (default: lakebase-demo)
+# Env (from .env): LAKEBASE_PROJECT, LAKEBASE_BRANCH, DATABRICKS_PROFILE
+# Optional: ENDPOINT (default: primary, the auto-created read-write endpoint)
+set -euo pipefail
+
+: "${LAKEBASE_PROJECT:?set LAKEBASE_PROJECT in .env}"
+: "${LAKEBASE_BRANCH:?set LAKEBASE_BRANCH in .env}"
+ENDPOINT="${ENDPOINT:-primary}"
+SERVICE="${1:-lakebase-demo}"
+PROFILE="${DATABRICKS_PROFILE:-DEFAULT}"
+
+USER_EMAIL=$(databricks current-user me --profile "$PROFILE" --output json | jq -r .userName)
+
+EP_PATH="projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH/endpoints/$ENDPOINT"
+
+# The credential response carries the OAuth token (plus endpoint/ttl/expire_time),
+# NOT host/port/database. Host comes from the endpoint resource, the database from
+# list-databases, port is fixed at 5432.
+cred=$(databricks postgres generate-database-credential "$EP_PATH" --profile "$PROFILE" --output json)
+# The token is a JWT (starts with "eyJ"); find it recursively so response-shape
+# changes (top-level vs .response) don't silently grab the wrong field.
+token=$(jq -r '[.. | strings | select(startswith("eyJ"))] | first // empty' <<<"$cred")
+
+ep=$(databricks postgres get-endpoint "$EP_PATH" --profile "$PROFILE" --output json)
+host=$(jq -r '.status.hosts.host // .status.host // .host // empty' <<<"$ep")
+port=5432
+
+dbs=$(databricks postgres list-databases \
+  "projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH" --profile "$PROFILE" --output json)
+# list-databases returns a top-level array (or {.databases: [...]}); each entry's
+# "name" is the resource path — the real PG database name is status.postgres_database
+# (database_id uses hyphens, e.g. databricks-postgres; do not use it as dbname).
+db=$(jq -r '(if type == "array" then . else .databases end)[0] | (.status.postgres_database // .database_id // "databricks_postgres")' <<<"$dbs")
+
+if [[ -z "$token" || "$token" != eyJ* || -z "$host" ]]; then
+  echo "ERROR: could not extract a JWT token / host from API responses." >&2
+  echo "credential keys: $(jq -r 'if type=="object" then keys else "(array)" end | join(", ")' <<<"$cred")" >&2
+  echo "credential sample: $(jq -c '.. | objects | with_entries(select(.value|type=="string")) | .[0:3]' <<<"$cred" 2>/dev/null || true)" >&2
+  echo "endpoint host: $host" >&2
+  exit 1
+fi
+
+passfile="${PGPASSFILE:-$HOME/.pgpass}"
+touch "$passfile"
+# replace any existing line for this host, then append the fresh token
+grep -v "^${host}:" "$passfile" > "$passfile.tmp" 2>/dev/null || true
+mv "$passfile.tmp" "$passfile"
+printf '%s:%s:%s:%s:%s\n' "$host" "$port" "$db" "$USER_EMAIL" "$token" >> "$passfile"
+chmod 600 "$passfile"   # AFTER the rewrite: mv/recreate resets perms, libpq refuses otherwise
+
+svc="${PGSERVICEFILE:-$HOME/.pg_service.conf}"
+touch "$svc"
+# drop any existing block for this service, then append a fresh one
+awk -v s="$SERVICE" '$0 == "[" s "]" { skip = 1; next }
+                    /^\[/ { skip = 0 }
+                    !skip { print }' "$svc" > "$svc.tmp" || true
+mv "$svc.tmp" "$svc"
+cat >> "$svc" <<EOF
+[$SERVICE]
+host=$host
+port=$port
+dbname=$db
+user=$USER_EMAIL
+passfile=$passfile
+sslmode=require
+EOF
+
+echo "service '$SERVICE' ready (host=$host db=$db user=$USER_EMAIL)"
+echo "use:  psql \"service=$SERVICE\" -c 'SELECT version();'"
+echo "the OAuth token expires after 1h; to refresh re-run: mise run lb-cred (or: bash scripts/lb-service.sh $SERVICE)"
+echo "never commit $passfile (~/.pgpass)"

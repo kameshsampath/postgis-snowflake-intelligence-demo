@@ -1,0 +1,88 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+# PostGIS Data Intelligence Demo - Mise Configuration
+# Multi-platform support: Snowflake + Databricks
+#
+# This file is the committed BASE TEMPLATE. Put personal/local overrides in
+# `.mise.local.toml` (gitignored; see .mise.local.toml.example) so this file
+# stays safe to share. Secrets and connection values go in `.env` (gitignored,
+# auto-loaded via `_.file` below), never here.
+
+[tools]
+# Python - primary language for the demo.
+# Use the "3.12" prefix, not an exact patch like "3.12.0": mise verifies GitHub
+# artifact attestations and some old exact builds (3.12.0) lack them, which makes
+# `mise install` fail with "No GitHub artifact attestations found". A prefix
+# resolves to the latest 3.12.x, which is attested. Matches .python-version.
+python = "3.12"
+
+# UV - Python package manager (faster than pip, used for dependency management)
+uv = "latest"
+
+# Databricks CLI (official CLI for Databricks operations)
+databricks-cli = "latest"
+
+# Task (go-task) - optional, for the Taskfile shorthands (task dbx:deploy etc.)
+task = "latest"
+
+# ==========================================================================
+# Environment Variables
+# ==========================================================================
+
+[env]
+# Load .env automatically when entering the project dir (dotenv).
+# Note: [env] entries take precedence over .env values.
+_.file = ".env"
+
+# Project identification
+PROJECT_NAME = "postgis-data-intelligence-demo"
+PYTHON_PROJECT = "true"
+
+# UV configuration for Python virtual environment management
+# (UV_PROJECT_ENVIRONMENT is a venv PATH, not a boolean — set it in
+#  .mise.local.toml only if you need a non-default path, e.g. ".venv")
+UV_PYTHON = "python@3.12"
+
+# All local/demo overrides go in .env (auto-loaded above via _.file) or in
+# .mise.local.toml (gitignored) — see .mise.local.toml.example for commented
+# examples: PLATFORM, DEMO_PREFIX, DEMO_CITY, LATITUDE, LONGITUDE,
+# STREET_LIGHT_COUNT, ...
+#
+# The base template intentionally sets NO platform/demo defaults. With no
+# PLATFORM chosen anywhere, tooling (gate.py) fails fast instead of assuming one.
+
+# ==========================================================================
+# Tasks (mise run <task>)
+# ==========================================================================
+
+[tasks.generate]
+description = "Generate synthetic streetlights data (DEMO_CITY / STREET_LIGHT_COUNT from .env, defaults Portland/5000)"
+run = "uv run generate --city \"${DEMO_CITY:-Portland}\" --count \"${STREET_LIGHT_COUNT:-5000}\""
+
+[tasks.test]
+description = "Run the test suite"
+run = "uv run pytest tests/ -q"
+
+[tasks.lint]
+description = "Run pre-commit hooks on all files"
+run = "pre-commit run --all-files"
+
+[tasks.lb-cred]
+description = "Refresh Lakebase OAuth token into ~/.pgpass + pg_service (expires in 1h), then use psql \"service=lakebase-demo\""
+run = "bash scripts/lb-service.sh lakebase-demo"
+
+# ==========================================================================
+# Additional Tools to Install Manually
+# ==========================================================================
+# The following tools are not in the mise registry and must be installed manually:
+#
+# 1. Snowflake CLI: https://docs.snowflake.com/en/user-guide/snowsql-install-config
+#    - macOS: brew install snowflake-cli
+#    - Linux: See Snowflake documentation
+#
+# 2. PostgreSQL CLI (psql)
+#    - macOS: brew install libpq
+#    - Ubuntu: sudo apt-get install postgresql-client
+#
+# 3. After installing, run 'mise trust' to allow mise to use external tools

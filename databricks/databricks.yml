@@ -1,0 +1,164 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+# Databricks Asset Bundle (DAB) for the PostGIS Data Intelligence Demo
+# Lakebase + Unity Catalog + Genie perspective.
+#
+# Usage (from this directory — the bundle root must contain databricks.yml):
+#   databricks bundle validate -t dev
+#   databricks bundle deploy   -t dev
+#   databricks bundle run setup -t dev        # then genie_views, vector_search, forecast, app
+#   databricks bundle destroy  -t dev
+#
+# Variables are referenced as ${var.<name>} and are interpolated by DAB in
+# this file AND in the sql/ files referenced by job tasks.
+
+bundle:
+  name: postgis_data_intelligence_demo
+  # genie_spaces and vector_search_endpoints require the direct deployment engine
+  engine: direct
+
+variables:
+  prefix:
+    description: Resource prefix in LOWERCASE (Unity Catalog lowercases object names), e.g. pgdemo — objects are ${prefix}_streetlights_*
+    default: pgdemo
+  lakebase_project:
+    description: Lakebase project ID (projects/<id>) — used by docs/guide, not by SQL
+    default: ""
+  lakebase_branch:
+    description: Lakebase branch name
+    default: production
+  lakebase_database:
+    description: Postgres database inside the Lakebase branch
+    default: streetlights
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      host: ${env.DATABRICKS_HOST}
+    variables:
+      prefix: pgdemo
+  prod:
+    mode: production
+    workspace:
+      host: ${env.DATABRICKS_HOST}
+    variables:
+      prefix: prod
+
+resources:
+  catalogs:
+    streetlights_catalog:
+      name: ${var.prefix}_streetlights
+      comment: PostGIS Data Intelligence Demo — Databricks perspective (curated views, vector index source, forecast, app views)
+
+  schemas:
+    streetlights_schema:
+      name: streetlights
+      catalog_name: ${resources.catalogs.streetlights_catalog.name}
+      comment: Streetlights demo schema
+
+  sql_warehouses:
+    # Free Edition (formerly Community Edition) allows only ONE warehouse (the
+    # pre-created starter). To deploy there: comment out this block and replace
+    # ${resources.sql_warehouses.streetlights_wh.id} below with the starter
+    # warehouse ID (SQL Warehouses -> starter -> Connection details).
+    streetlights_wh:
+      name: ${var.prefix}_streetlights_wh
+      cluster_size: 2X-Small
+      enable_serverless_compute: true   # required for ai_forecast()
+      auto_stop_mins: 30
+      comment: SQL warehouse for streetlights demo queries and Genie
+
+  vector_search_endpoints:
+    maintenance_vs:
+      name: ${var.prefix}_streetlights_vs
+      endpoint_type: STANDARD
+      comment: AI Search endpoint for maintenance-record text
+
+  # NOTE: the vector search *index* is not a bundle resource here because it
+  # needs the maintenance_records_text Delta table (created by the
+  # `vector_search` job) to exist first. Create it from the UI
+  # (AI Search -> Create index -> Delta Sync on
+  #  ${var.prefix}_streetlights.streetlights.maintenance_records_text,
+  #  pk maintenance_id, embedding source full_text via databricks-bge-large-en)
+  # or via the Vector Search REST API after `databricks bundle run vector_search`.
+
+  genie_spaces:
+    streetlights_genie:
+      title: ${var.prefix}_streetlights_genie
+      description: Natural language interface for streetlights maintenance and energy data
+      warehouse_id: ${resources.sql_warehouses.streetlights_wh.id}
+      # After deploy, open the space (AI/BI -> Genie) and add:
+      #   - tables: ${var.prefix}_streetlights.streetlights (curated views)
+      #   - instructions + verified answers (see sql/02_genie_space.sql)
+      #   - sample questions
+
+  jobs:
+    setup:
+      name: ${var.prefix}_streetlights_SETUP
+      tasks:
+        - task_key: setup
+          sql_task:
+            warehouse_id: ${resources.sql_warehouses.streetlights_wh.id}
+            file:
+              path: sql/01_setup.sql
+
+    genie_views:
+      name: ${var.prefix}_streetlights_genie_VIEWS
+      depends_on:
+        - task_key: setup
+          job_id: ${resources.jobs.setup.id}
+      tasks:
+        - task_key: genie_views
+          sql_task:
+            warehouse_id: ${resources.sql_warehouses.streetlights_wh.id}
+            file:
+              path: sql/02_genie_space.sql
+
+    vector_search:
+      name: ${var.prefix}_streetlights_VECTOR_SEARCH
+      depends_on:
+        - task_key: genie_views
+          job_id: ${resources.jobs.genie_views.id}
+      tasks:
+        - task_key: vector_search
+          sql_task:
+            warehouse_id: ${resources.sql_warehouses.streetlights_wh.id}
+            file:
+              path: sql/03_vector_search.sql
+
+    forecast:
+      name: ${var.prefix}_streetlights_FORECAST
+      depends_on:
+        - task_key: vector_search
+          job_id: ${resources.jobs.vector_search.id}
+      tasks:
+        - task_key: forecast
+          sql_task:
+            warehouse_id: ${resources.sql_warehouses.streetlights_wh.id}
+            file:
+              path: sql/04_forecast.sql
+
+    app:
+      name: ${var.prefix}_streetlights_app_VIEWS
+      depends_on:
+        - task_key: forecast
+          job_id: ${resources.jobs.forecast.id}
+      tasks:
+        - task_key: app
+          sql_task:
+            warehouse_id: ${resources.sql_warehouses.streetlights_wh.id}
+            file:
+              path: sql/05_app.sql
+
+  apps:
+    streetlights_app:
+      name: ${var.prefix}_streetlights_app
+      source_code_path: ./app
+      description: Streamlit dashboard for the streetlights demo (Databricks Apps)
+      resources:
+        - sql_warehouse:
+            id: ${resources.sql_warehouses.streetlights_wh.id}
+            permission: CAN_USE

@@ -1,3 +1,6 @@
+<!-- Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com> -->
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+
 ---
 name: streetlights-demo-step-6
 description: Create Cortex Search service on maintenance records

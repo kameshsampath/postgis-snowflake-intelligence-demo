@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """idd_metrics.py — Intent Compression Ratio + token economics for the streetlights demo.
 
 Token counts use SNOWFLAKE.CORTEX.COUNT_TOKENS (primary, requires configured snow CLI)

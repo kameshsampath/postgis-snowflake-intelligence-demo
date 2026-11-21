@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 version: '3'
 
 vars:
@@ -113,6 +116,50 @@ tasks:
       - snow sql -f snowflake/05_ml_forecast.sql
 
   # ==========================================================================
+  # Databricks Operations (Asset Bundles — run from the databricks/ dir)
+  # ==========================================================================
+
+  dbx:validate:
+    desc: Validate the Databricks asset bundle
+    dir: databricks
+    cmds:
+      - databricks bundle validate -t dev
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli (or `mise install`)"
+
+  dbx:deploy:
+    desc: Deploy all Databricks resources (catalog, schema, warehouse, Genie space, jobs, app)
+    dir: databricks
+    cmds:
+      - databricks bundle deploy -t dev
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli (or `mise install`)"
+
+  dbx:run-all:
+    desc: Run the bundle jobs in order (setup -> genie_views -> vector_search -> forecast -> app)
+    dir: databricks
+    cmds:
+      - databricks bundle run setup -t dev
+      - databricks bundle run genie_views -t dev
+      - databricks bundle run vector_search -t dev
+      - databricks bundle run forecast -t dev
+      - databricks bundle run app -t dev
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli (or `mise install`)"
+
+  dbx:destroy:
+    desc: Destroy all Databricks resources created by the bundle
+    dir: databricks
+    cmds:
+      - databricks bundle destroy -t dev
+    preconditions:
+      - sh: command -v databricks
+        msg: "databricks CLI is required. Install: pip install databricks-cli (or `mise install`)"
+
+  # ==========================================================================
   # Demo Workflow
   # ==========================================================================
 
@@ -120,7 +167,7 @@ tasks:
     desc: Run full demo (use '$streetlights-demo' in Cortex Code for guided flow)
     cmds:
       - echo "Run '$streetlights-demo step 1' through 'step 10' in Cortex Code"
-      - echo "Or use individual sf:* and pg:* tasks for manual execution"
+      - echo "Or use individual sf:* (Snowflake) or dbx:* (Databricks) tasks for manual execution"
 
   cleanup:
     desc: Remove all demo resources (use '$streetlights-demo cleanup' in Cortex Code)

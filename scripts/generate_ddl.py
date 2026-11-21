@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Generate Iceberg DDL from CSV column definitions.
 
 TABLE_SCHEMAS is the single source of truth mapping CSV filenames to their

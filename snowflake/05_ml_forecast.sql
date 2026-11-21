@@ -1,3 +1,6 @@
+-- Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+-- SPDX-License-Identifier: Apache-2.0
+
 -- ML Forecast: daily energy consumption per light with location enrichment
 -- Run: snow sql -f snowflake/05_ml_forecast.sql \
 --        -D "PREFIX=KAMESHS" -D "ROLE=KAMESH_DEMOS" \

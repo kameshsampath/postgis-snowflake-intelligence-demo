@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Shared fixtures for streetlights-demo tests."""
 
 from __future__ import annotations

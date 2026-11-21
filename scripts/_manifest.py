@@ -1,3 +1,6 @@
+# Copyright 2025 Kamesh Sampath <kamesh.sampath@hotmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
 """Typed manifest model and I/O for .streetlights-demo/manifest.toml.
 
 This module is the single source of truth for reading and writing the
@@ -31,7 +34,7 @@ STEP_CHAIN: dict[str, str | None] = {
     "step-10": "step-9",
 }
 
-_OWNED_SECTIONS: set[str] = {"snowflake"}
+_OWNED_SECTIONS: set[str] = {"snowflake", "databricks"}
 
 
 # ---------------------------------------------------------------------------
@@ -94,6 +97,73 @@ class SnowflakeSection:
             d["role"] = self.role
         if self.admin_role:
             d["admin_role"] = self.admin_role
+        return d
+
+
+@dataclass
+class DatabricksSection:
+    """[databricks] section of the manifest."""
+
+    host: str = ""
+    profile: str = ""
+    connection: str = ""
+    catalog_name: str = ""
+    schema_name: str = ""
+    warehouse: str = ""
+    lakebase_instance: str = ""
+    lakebase_branch: str = ""
+    genie_space_name: str = ""
+    vector_index_name: str = ""
+    forecast_model_name: str = ""
+    app_name: str = ""
+    platform: str = "both"  # 'snowflake' | 'databricks' | 'both'
+
+    @classmethod
+    def from_dict(cls, data: dict) -> DatabricksSection:
+        return cls(
+            host=data.get("host", ""),
+            profile=data.get("profile", ""),
+            connection=data.get("connection", ""),
+            catalog_name=data.get("catalog_name", ""),
+            schema_name=data.get("schema_name", ""),
+            warehouse=data.get("warehouse", ""),
+            lakebase_instance=data.get("lakebase_instance", ""),
+            lakebase_branch=data.get("lakebase_branch", ""),
+            genie_space_name=data.get("genie_space_name", ""),
+            vector_index_name=data.get("vector_index_name", ""),
+            forecast_model_name=data.get("forecast_model_name", ""),
+            app_name=data.get("app_name", ""),
+            platform=data.get("platform", "both"),
+        )
+
+    def to_dict(self) -> dict:
+        d: dict = {}
+        if self.host:
+            d["host"] = self.host
+        if self.profile:
+            d["profile"] = self.profile
+        if self.connection:
+            d["connection"] = self.connection
+        if self.catalog_name:
+            d["catalog_name"] = self.catalog_name
+        if self.schema_name:
+            d["schema_name"] = self.schema_name
+        if self.warehouse:
+            d["warehouse"] = self.warehouse
+        if self.lakebase_instance:
+            d["lakebase_instance"] = self.lakebase_instance
+        if self.lakebase_branch:
+            d["lakebase_branch"] = self.lakebase_branch
+        if self.genie_space_name:
+            d["genie_space_name"] = self.genie_space_name
+        if self.vector_index_name:
+            d["vector_index_name"] = self.vector_index_name
+        if self.forecast_model_name:
+            d["forecast_model_name"] = self.forecast_model_name
+        if self.app_name:
+            d["app_name"] = self.app_name
+        if self.platform:
+            d["platform"] = self.platform
         return d
 
 
@@ -189,6 +259,7 @@ class Manifest:
     schema_version: str = "1"
     project_name: str = "streetlights-demo"
     snowflake: SnowflakeSection = field(default_factory=SnowflakeSection)
+    databricks: DatabricksSection = field(default_factory=DatabricksSection)
     demo: DemoSection = field(default_factory=DemoSection)
     _extra: dict = field(default_factory=dict, repr=False)
 
@@ -202,6 +273,7 @@ class Manifest:
         project_name = data.get("project_name", "streetlights-demo")
 
         snowflake = SnowflakeSection.from_dict(data.get("snowflake", {}))
+        databricks = DatabricksSection.from_dict(data.get("databricks", {}))
         demo = DemoSection.from_dict(data.get(project_name, {}))
 
         # Preserve non-owned sections
@@ -212,6 +284,7 @@ class Manifest:
             schema_version=schema_version,
             project_name=project_name,
             snowflake=snowflake,
+            databricks=databricks,
             demo=demo,
             _extra=extra,
         )
@@ -224,6 +297,10 @@ class Manifest:
         sf = self.snowflake.to_dict()
         if sf:
             d["snowflake"] = sf
+
+        dbx = self.databricks.to_dict()
+        if dbx:
+            d["databricks"] = dbx
 
         demo = self.demo.to_dict()
         if demo:
