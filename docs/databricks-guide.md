@@ -366,6 +366,11 @@ databricks postgres delete-project projects/streetlights-demo --profile "$DATABR
 
 ## Troubleshooting
 
+- **`No API found for 'POST /postgres/projects/<p>/branches/endpoints'`**: the branch
+  segment of the resource path is empty, usually because the wrong env var was used
+  (`$LAKEHOUSE_BRANCH`) or `.env` was not sourced. Run `set -a; source .env; set +a`
+  and check `echo "projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH"` prints
+  `projects/streetlights-demo/branches/production`.
 - **`databricks bundle validate` fails on `${var...}`**: you're editing SQL outside
   the bundle — DAB interpolates `${var.prefix}` only inside bundle files. Fine.
 - **ai_forecast error "requires serverless"**: the bundle warehouse must have
