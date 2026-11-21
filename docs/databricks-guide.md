@@ -207,6 +207,14 @@ mise run lb-cred          # or: bash scripts/lb-service.sh lakebase-demo
 export PGSERVICE=lakebase-demo     # also add PGSERVICE=lakebase-demo to .env
 
 psql "service=$PGSERVICE" -c "SELECT version();"                        # good: PostgreSQL 17.x
+```
+
+**Token expiry:** the Lakebase OAuth token is valid for **1 hour** and is stored as
+the Postgres password in `~/.pgpass`. When it expires, psql fails with an auth error
+(e.g. "not a valid JWT"). Refresh by re-running `mise run lb-cred` (it rewrites both
+files), then use `psql "service=$PGSERVICE" ...` again. Never commit `~/.pgpass`.
+
+```bash
 psql "service=$PGSERVICE" -f databricks/sql/00_lakebase_schema.sql      # PostGIS + streetlights schema
 
 for table in street_lights maintenance_records energy_consumption light_sensors weather_enrichment demographics power_grid_zones; do

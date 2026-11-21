@@ -76,5 +76,6 @@ sslmode=require
 EOF
 
 echo "service '$SERVICE' ready (host=$host db=$db user=$USER_EMAIL)"
-echo "use:  psql \"service=$SERVICE\" -c 'SELECT 1;'"
-echo "token expires in 1h; re-run this script to refresh (never commit $passfile)"
+echo "use:  psql \"service=$SERVICE\" -c 'SELECT version();'"
+echo "the OAuth token expires after 1h; to refresh re-run: mise run lb-cred (or: bash scripts/lb-service.sh $SERVICE)"
+echo "never commit $passfile (~/.pgpass)"
