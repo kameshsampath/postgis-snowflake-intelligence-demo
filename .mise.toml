@@ -40,31 +40,25 @@ PROJECT_NAME = "postgis-data-intelligence-demo"
 PYTHON_PROJECT = "true"
 
 # UV configuration for Python virtual environment management
-UV_PROJECT_ENVIRONMENT = "true"
+# (UV_PROJECT_ENVIRONMENT is a venv PATH, not a boolean — set it in
+#  .mise.local.toml only if you need a non-default path, e.g. ".venv")
 UV_PYTHON = "python@3.12"
 
-# Platform selection for tool checks (gate.py etc.)
-# Set to "snowflake" or "databricks" (e.g. in .env) to lock ONE platform —
-# all other-platform paths (sql/, gates/, skills) are then ignored.
-# "both" is allowed but only as an explicit choice; if NO platform is chosen,
-# tooling fails immediately instead of assuming both.
-# Empty = auto-detect from cwd / manifest / directory layout.
-PLATFORM = ""
-
-# Demo configuration defaults (can be overridden in .env file)
-DEMO_PREFIX = "YOUR_PREFIX"
-CITY = "Portland"
-LATITUDE = "45.5152"
-LONGITUDE = "-122.6784"
-STREET_LIGHT_COUNT = "5000"
+# All local/demo overrides go in .env (auto-loaded above via _.file) or in
+# .mise.local.toml (gitignored) — see .mise.local.toml.example for commented
+# examples: PLATFORM, DEMO_PREFIX, DEMO_CITY, LATITUDE, LONGITUDE,
+# STREET_LIGHT_COUNT, ...
+#
+# The base template intentionally sets NO platform/demo defaults. With no
+# PLATFORM chosen anywhere, tooling (gate.py) fails fast instead of assuming one.
 
 # ==========================================================================
 # Tasks (mise run <task>)
 # ==========================================================================
 
 [tasks.generate]
-description = "Generate synthetic streetlights data (CITY / STREET_LIGHT_COUNT from [env], override in .env)"
-run = "uv run generate --city ${CITY} --count ${STREET_LIGHT_COUNT}"
+description = "Generate synthetic streetlights data (DEMO_CITY / STREET_LIGHT_COUNT from .env, defaults Portland/5000)"
+run = "uv run generate --city \"${DEMO_CITY:-Portland}\" --count \"${STREET_LIGHT_COUNT:-5000}\""
 
 [tasks.test]
 description = "Run the test suite"

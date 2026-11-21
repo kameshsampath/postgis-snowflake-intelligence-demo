@@ -15,6 +15,15 @@
 # jq = "latest"
 
 # [env]
-# local-only env tweaks, e.g.
-# UV_PROJECT_ENVIRONMENT = ".venv"   # NOTE: this is a PATH, not a boolean
+# Demo/platform overrides (these used to live in .mise.toml; keep the base
+# template clean and put them here or in .env):
+# PLATFORM = "databricks"            # snowflake | databricks | both; tooling fails fast if unset
+# DEMO_PREFIX = "PGDEMO"
+# DEMO_CITY = "Portland"
+# LATITUDE = "45.5152"
+# LONGITUDE = "-122.6784"
+# STREET_LIGHT_COUNT = "5000"
+#
+# Other local-only env tweaks:
+# UV_PROJECT_ENVIRONMENT = ".venv"   # NOTE: this is a venv PATH, not a boolean
 # EDITOR = "code"
