@@ -35,7 +35,10 @@ port=5432
 
 dbs=$(databricks postgres list-databases \
   "projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH" --profile "$PROFILE" --output json)
-db=$(jq -r 'if .databases then (.databases[0].name // empty) elif (.[0] | type) == "object" then (.[0].name // .[0].database // empty) else .[0] end // "databricks_postgres"' <<<"$dbs")
+# list-databases returns a top-level array (or {.databases: [...]}); each entry's
+# "name" is the resource path — the real PG database name is status.postgres_database
+# (database_id uses hyphens, e.g. databricks-postgres; do not use it as dbname).
+db=$(jq -r '(if type == "array" then . else .databases end)[0] | (.status.postgres_database // .database_id // "databricks_postgres")' <<<"$dbs")
 
 if [[ -z "$token" || -z "$host" ]]; then
   echo "ERROR: could not extract token/host from API responses." >&2
