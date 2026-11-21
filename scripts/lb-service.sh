@@ -21,13 +21,28 @@ PROFILE="${DATABRICKS_PROFILE:-DEFAULT}"
 
 USER_EMAIL=$(databricks current-user me --profile "$PROFILE" --output json | jq -r .userName)
 
-cred=$(databricks postgres generate-database-credential \
-  "projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH/endpoints/$ENDPOINT" \
-  --profile "$PROFILE" --output json)
-host=$(jq -r .host <<<"$cred")
-port=$(jq -r .port <<<"$cred")
-db=$(jq -r .database <<<"$cred")
-token=$(jq -r .token <<<"$cred")
+EP_PATH="projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH/endpoints/$ENDPOINT"
+
+# The credential response carries the OAuth token (plus endpoint/ttl/expire_time),
+# NOT host/port/database. Host comes from the endpoint resource, the database from
+# list-databases, port is fixed at 5432.
+cred=$(databricks postgres generate-database-credential "$EP_PATH" --profile "$PROFILE" --output json)
+token=$(jq -r '.token // .response.token // empty' <<<"$cred")
+
+ep=$(databricks postgres get-endpoint "$EP_PATH" --profile "$PROFILE" --output json)
+host=$(jq -r '.status.hosts.host // .status.host // .host // empty' <<<"$ep")
+port=5432
+
+dbs=$(databricks postgres list-databases \
+  "projects/$LAKEBASE_PROJECT/branches/$LAKEBASE_BRANCH" --profile "$PROFILE" --output json)
+db=$(jq -r 'if .databases then (.databases[0].name // empty) elif (.[0] | type) == "object" then (.[0].name // .[0].database // empty) else .[0] end // "databricks_postgres"' <<<"$dbs")
+
+if [[ -z "$token" || -z "$host" ]]; then
+  echo "ERROR: could not extract token/host from API responses." >&2
+  echo "credential keys: $(jq -r 'keys | join(", ")' <<<"$cred")" >&2
+  echo "endpoint keys:   $(jq -r 'keys | join(", ")' <<<"$ep")" >&2
+  exit 1
+fi
 
 passfile="${PGPASSFILE:-$HOME/.pgpass}"
 touch "$passfile"
@@ -51,6 +66,7 @@ port=$port
 dbname=$db
 user=$USER_EMAIL
 passfile=$passfile
+sslmode=require
 EOF
 
 echo "service '$SERVICE' ready (host=$host db=$db user=$USER_EMAIL)"
